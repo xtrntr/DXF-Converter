@@ -1,0 +1,6 @@
+Dispense with Jetting Valve
+S, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, O
+Without acr.
+fudicial(x=135812, y=181219; x=204362, y=304087; "C:\Desktop Program\dot Fidupat"; 117)
+*** Left-Needle ***
+dot(x=141951, y=263604, z=100115; 10000, 1; 10000, 1; z=0; sp=10; 1.000; 0.200; z=-5000)

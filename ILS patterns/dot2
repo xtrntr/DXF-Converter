@@ -1,0 +1,7 @@
+Dispense with Jetting Valve
+S, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, O
+Without acr.
+*** Right-Needle ***
+dotArray(x=205486, y=301569, z=29309; 300, 10; 300, 10; z=0; sp=10; 0.100; 0.000; z=0)
+lineStart(x=205486, y=304269, z=29309; 0.000)
+lineEnd(x=205186, y=304269, z=29309; sp=50; 0; 0.000; z=0; sp=10; z=0)

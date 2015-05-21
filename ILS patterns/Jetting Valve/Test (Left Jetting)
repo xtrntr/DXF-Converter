@@ -1,0 +1,5 @@
+Dispense with Jetting Valve
+S, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, O
+Without acr.
+*** Left-Needle ***
+dot(x=246453, y=279817, z=93215; 10000, 1; 10000, 1; z=0; sp=10; 1.000; 1.000; z=0)

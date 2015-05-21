@@ -113,10 +113,10 @@
         (closed-polyline (cdr lst) first-x first-y)
         (open-polyline (cdr lst)))))
 
-(define (list->lwpolyline lst)
-  (separate-lwpolyline
-   (filter-header (take-pair lst) '("70" "10" "20" "42"))
-   (cadr (car (filter-header (take-pair lst) '("8"))))))
+(define (list->path lst)
+  (define layer (cadr (car (filter-header (take-pair lst) '("8")))))
+  (define list-of-arcs-and-lines (separate-lwpolyline (filter-header (take-pair lst) '("70" "10" "20" "42")) layer))
+  (path layer (flatten list-of-arcs-and-lines)))
 
 (define (layer->string x)
   (if (string? x) x (number->string x)))
@@ -232,7 +232,7 @@
 (define (create-structs entity-list)
   (map (lambda (x) (case (first x)
                      [("LINE")       (list->line (rest x))]
-                     [("LWPOLYLINE") (list->lwpolyline (rest x))]
+                     [("LWPOLYLINE") (list->path (rest x))]
                      [("CIRCLE")     (list->circle (rest x))]
                      [("POINT")      (list->point (rest x))]
                      [("ARC")        (list->arc (rest x))]))

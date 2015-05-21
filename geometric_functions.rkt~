@@ -8,7 +8,8 @@
          smallest
          reasonable-equal?
          get-arc-points
-         filter-struct-list)
+         filter-struct-list
+         optimize-pattern)
 
 ;; geometric functions
 (define (point-in-rect? x y xs ys xb yb)
@@ -92,6 +93,50 @@
 (define (filter-struct-list struct-list cond)
   (for/list ([i struct-list] 
              #:when (cond i))
-    i))
+    i)) 
 
+;get all permutations of a set
+(define (get-tours set origin)
+  (map (lambda (x) (append (list origin) x (list origin))) ;append the origin to the start and end of each permutation
+       (let loop ([temp-set set] [tail '()])
+         (if (empty? temp-set) 
+             (list tail) 
+             (append-map (lambda (x) ;map a procedure onto each element of temp-set, then append them afterwards
+                           (loop (remq x temp-set) (cons x tail))) temp-set)))))
 
+(define (distance x1 y1 x2 y2)
+  (sqrt (+ (sqr (abs (- x1 x2))) (sqr (abs (- y1 y2))))))
+
+(define (get-best-tour list-of-tours)
+  (unless (empty? list-of-tours)
+    (let* ((best-tour (car list-of-tours))
+           (best-distance (tour-distance best-tour)))
+      (for/list ([a-tour (cdr list-of-tours)])
+        (when (> (tour-distance a-tour) best-distance)
+          (set! best-tour a-tour)
+          (set! best-distance (tour-distance a-tour))))
+      best-tour)))
+
+;a-tour is a list of nodes
+;show the distance for a given tour route
+(define (tour-distance a-tour)
+  (cond ((empty? a-tour) (error "should not happen"))
+        ((= (length a-tour) 1) 0)
+        (else (+ (tour-distance (cdr a-tour)) (node-distance (car a-tour) (cadr a-tour))))))
+
+;get the start and end of a node and find their distance
+(define (node-distance node-start node-end)
+  (define (get-start)
+    (match node-start
+      [(line layer highlighted selected visible x1 y1 x2 y2)                           (list x1 y1)]
+      [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list x1 y1)]
+      [(point layer highlighted selected visible x y)                                  (list x y)]))
+  (define (get-end)
+    (match node-end
+      [(line layer highlighted selected visible x1 y1 x2 y2)                           (list x2 y2)]
+      [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list x3 y3)]
+      [(point layer highlighted selected visible x y)                                  (list x y)]))
+  (apply distance (append (get-start) (get-end))))
+  
+(define (optimize-pattern struct-list origin)
+  (get-best-tour (get-tours struct-list origin)))

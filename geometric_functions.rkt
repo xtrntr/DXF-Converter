@@ -1,6 +1,7 @@
 #lang racket
 
-(require "structs.rkt")
+(require "structs.rkt"
+         rackunit)
 
 (provide in-between?
          point-in-rect?

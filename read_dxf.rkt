@@ -139,7 +139,7 @@
            (radius (abs (/ (/ chord-length 2) (sin (/ small-angle 2)))))
            (midpoint-x (/ (+ x1 x2) 2))
            (midpoint-y (/ (+ y1 y2) 2))
-           ;normalizing a vector -> calculate length, then divide each of its xy components by its length
+           ;normalizing a vector -> calculate x and y length, then divide both x and y component length by the vector length
            (vector-x (- x1 x2))
            (vector-y (- y1 y2))
            (magnitude chord-length)

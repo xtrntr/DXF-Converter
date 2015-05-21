@@ -1,0 +1,6 @@
+Draw a small arc between two lines.
+lineStart(x=213249, y=130117, z=26884; 0.100)
+   linksLinePoint(x=247012, y=176247, z=55538; sp=200; 1)
+   linksLinePoint(x=207885, y=229298, z=40364; sp=200; 1)
+   linksLinePoint(x=151905, y=152236, z=78959; sp=200; 1)
+lineEnd(x=213249, y=130117, z=26884; sp=200; 1; 0.200; z=-5000; sp=20; z=0)

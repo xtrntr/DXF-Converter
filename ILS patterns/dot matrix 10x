@@ -1,0 +1,13 @@
+Dispense with Jetting Valve
+S, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 2, O
+Without acr.
+repeat(x=150126, y=192504, z=110992; "C:\Desktop Program\dot")
+repeat(x=152126, y=192504, z=110992; "C:\Desktop Program\dot")
+repeat(x=154126, y=192504, z=110992; "C:\Desktop Program\dot")
+repeat(x=156126, y=192504, z=110992; "C:\Desktop Program\dot")
+repeat(x=158126, y=192504, z=110992; "C:\Desktop Program\dot")
+repeat(x=158126, y=194504, z=110992; "C:\Desktop Program\dot")
+repeat(x=156126, y=194504, z=110992; "C:\Desktop Program\dot")
+repeat(x=154126, y=194504, z=110992; "C:\Desktop Program\dot")
+repeat(x=152126, y=194504, z=110992; "C:\Desktop Program\dot")
+repeat(x=150126, y=194504, z=110992; "C:\Desktop Program\dot")

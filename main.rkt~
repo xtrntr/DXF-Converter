@@ -52,9 +52,19 @@
   (filter-struct-list search-list (lambda (i) (and (entity-visible i) (entity-selected i)))))
 
 (define (select-highlighted)
-  (lambda (x) (when (entity-highlighted x)
+  (lambda (x) 
+    (when (path? x) (filter-struct-list (path-entities x) (select-highlighted)))
+    (when (entity-highlighted x)
                 (set-entity-selected! x #t)
                 (set-entity-highlighted! x #f))))
+(define (unselect-all)
+  (lambda (x) 
+    (when (path? x) (filter-struct-list (path-entities x) (unselect-all)))
+    (set-entity-selected! x #f)))
+(define (delete-selected)
+  (lambda (x) 
+    (when (path? x) (filter-struct-list (path-entities x) (delete-selected)))
+    (when (entity-selected x) (set-entity-visible! x #f) (set-entity-selected! x #f))))
                        
 ;; pass intersect? the start and end point of select box and the struct-list
 ;; it will traverse the struct-list to see if any elements
@@ -77,7 +87,9 @@
               ((point? i)
                (if (point-in-rect? (point-x i) (point-y i) small-x small-y big-x big-y) 
                    (set-entity-highlighted! i #t)
-                   (set-entity-highlighted! i #f))))))))
+                   (set-entity-highlighted! i #f)))
+              ((path? i)
+               (intersect? x1 y1 x2 y2 (path-entities i))))))))
 
 ;; these 3 functions calculate the x and y coordinates for arc points
 (define (arc-point-x circle-x degree radius)
@@ -383,14 +395,15 @@ search-list
       (let ((key (send event get-key-code)))
         (special-control-key #t)
         (case key
-          ['wheel-up    (set! global-x-scale (+ global-x-scale 0.2)) 
-                        (set! global-y-scale (- global-y-scale 0.2))
+          ['wheel-up    (set! global-x-scale (+ global-x-scale 0.1)) 
+                        (set! global-y-scale (- global-y-scale 0.1))
                         (send drawer set-transformation (vector transformation-matrix global-x-offset global-y-offset global-x-scale global-y-scale rotation))]
-          ['escape      (map (lambda (x) (set-entity-selected! x #f)) search-list)]
-          ['wheel-down  (set! global-x-scale (- global-x-scale 0.2)) 
-                        (set! global-y-scale (+ global-y-scale 0.2))
-                        (send drawer set-transformation (vector transformation-matrix global-x-offset global-y-offset global-x-scale global-y-scale rotation))]
-          ['#\backspace (map (lambda (x) (when (entity-selected x) (set-entity-visible! x #f) (set-entity-selected! x #f))) search-list)]))
+          ['escape      (filter-struct-list search-list (unselect-all))]
+          ['wheel-down  (when (> (- global-x-scale 0.1) 0) 
+                          (set! global-x-scale (- global-x-scale 0.1))
+                          (set! global-y-scale (+ global-y-scale 0.1))
+                          (send drawer set-transformation (vector transformation-matrix global-x-offset global-y-offset global-x-scale global-y-scale rotation)))]
+          ['#\backspace (filter-struct-list search-list (delete-selected))]))
       (send canvas refresh))
     
     ;; MOUSE events
@@ -499,10 +512,21 @@ search-list
          (label i)
          (parent top-frame)
          (callback (lambda (checked e)
-                     (if (send checked get-value)
-                         (map (lambda (k) (cond ((equal? (entity-layer k) i) (set-entity-visible! k #t) (set-entity-selected! k #f))
-                                                ((path? k) (display (list (entity-layer k) i))))) search-list)
-                         (map (lambda (k) (when (equal? (entity-layer k) i) (set-entity-visible! k #f))) search-list))
+                     (define make-visible? (send checked get-value))
+                     (define (entity-same-layer? struct) (equal? (entity-layer struct) i))
+                     (define (toggle-visibility struct)
+                       (if make-visible? 
+                           (begin (set-entity-visible! struct #t) (set-entity-selected! struct #f))
+                           (set-entity-visible! struct #f)))
+                     (define (map-toggle-visibility struct-list)
+                       (cond ((empty? struct-list) '())
+                             ((path? (car struct-list)) (begin 
+                                                          (toggle-visibility (car struct-list))
+                                                          (map-toggle-visibility (path-entities (car struct-list)))
+                                                          (map-toggle-visibility (cdr struct-list))))
+                             (else (begin (toggle-visibility (car struct-list))
+                                          (map-toggle-visibility (cdr struct-list))))))
+                     (map-toggle-visibility (filter-struct-list search-list entity-same-layer?))
                      (draw-objects search-list)
                      (send canvas on-paint)
                      (send canvas refresh-now))))))

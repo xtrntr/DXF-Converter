@@ -3,7 +3,8 @@
 (require "structs.rkt"
          "read_dxf.rkt"
          "geometric_functions.rkt"
-         "write_to_text.rkt"
+         "ils-pattern-generator.rkt"
+         "ids-pattern-generator.rkt"
          "constants.rkt"
          racket/gui/base pict
          racket/draw
@@ -53,10 +54,20 @@
 
 (define (select-highlighted)
   (lambda (x) 
-    (when (path? x) (filter-struct-list (path-entities x) (select-highlighted)))
+    (when (path? x) 
+      (when (filter-struct-list (path-entities x) (select-highlighted))
+        (set-entity-selected! x #t)))
     (when (entity-highlighted x)
-                (set-entity-selected! x #t)
-                (set-entity-highlighted! x #f))))
+      (set-entity-selected! x #t)
+      (set-entity-highlighted! x #f))))
+(define (highlight-path)
+  (define (any-entity-highlighted? lst)
+    (cond ((empty? lst) #f)
+          ((entity-highlighted (car lst)) #t)
+          (else (any-entity-highlighted? (cdr lst)))))
+  (map (lambda (x) (when (any-entity-highlighted? (path-entities x))
+                     (foldl set-entity-highlighted! #t (path-entities x))))
+       (filter-struct-list search-list path?)))
 (define (unselect-all)
   (lambda (x) 
     (when (path? x) (filter-struct-list (path-entities x) (unselect-all)))
@@ -293,7 +304,7 @@
   (flatten (for/list ([i struct-lst])
              (match i
                [(line layer highlighted selected visible x1 y1 x2 y2)                           (line layer (scale-x-coord x1) (scale-y-coord y1) (scale-x-coord x2) (scale-y-coord y2))]
-               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (arc layer (scale-x-coord x) (scale-y-coord y) (* scale radius) start end x1 y1 x2 y2 x3 y3)]
+               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (arc layer (scale-x-coord x) (scale-y-coord y) (* scale radius) start end (scale-x-coord x1) (scale-y-coord y1) (scale-x-coord x2) (scale-y-coord y2) (scale-x-coord x3) (scale-y-coord y3))]
                [(point layer highlighted selected visible x y)                                  (point layer (scale-x-coord x) (scale-y-coord y))]
                [(path layer highlighted selected visible path-list)                             (path layer (rescale path-list scale))]))))
 
@@ -301,7 +312,7 @@
   (flatten (for/list ([i struct-lst])
              (match i
                [(line layer highlighted selected visible x1 y1 x2 y2)                           (line layer (unscale-x-coord x1) (unscale-y-coord y1) (unscale-x-coord x2) (unscale-y-coord y2))]
-               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (arc layer (unscale-x-coord x) (unscale-y-coord y) (/ radius scale) start end x1 y1 x2 y2 x3 y3)]
+               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (arc layer (unscale-x-coord x) (unscale-y-coord y) (/ radius scale) start end (unscale-x-coord x1) (unscale-y-coord y1) (unscale-x-coord x2) (unscale-y-coord y2) (unscale-x-coord x3) (unscale-y-coord y3))]
                [(point layer highlighted selected visible x y)                                  (point layer (unscale-x-coord x) (unscale-y-coord y))]
                [(path layer highlighted selected visible path-list)                             (path layer (downscale path-list scale))]))))
 
@@ -450,6 +461,7 @@ search-list
         (is-selecting?
          (send canvas set-cursor (make-object cursor% 'cross))
          (intersect? init-x init-y scaled-x scaled-y search-list)
+         (highlight-path)
          (set! select-box (list (list init-x init-y scaled-x init-y #t #f)
                                 (list scaled-x init-y scaled-x scaled-y #t #f)
                                 (list scaled-x scaled-y init-x scaled-y #t #f) 
@@ -592,6 +604,52 @@ search-list
        [callback (lambda (b e)
                    (set! set-park-position #t)
                    (send canvas set-cursor (make-object cursor% 'cross)))]))
+
+; Create a dialog
+(define dialog 
+  (new dialog% 
+    [label "ILS pattern generation settings"]
+    [width 500]
+    [height 70]
+    [min-height 70]))
+ 
+; Add a text field to the dialog
+(new list-box% 
+     [parent dialog]
+     [choices '("Jetting Valve" "Slider Valve")]
+     [label "Dispenser Type"])
+(new list-box% 
+     [parent dialog]
+     [choices '("Left Head" "Right Head")]
+     [label "Dispenser Head"])
+ 
+; Add a horizontal panel to the dialog, with centering for buttons
+(define panel (new horizontal-panel% [parent dialog]
+                                     [alignment '(center center)]))
+ 
+; Add Cancel and Ok buttons to the horizontal panel
+(new button% 
+     [parent panel] 
+     [label "Cancel"]
+     [callback (lambda (b e)
+                       (send dialog show #f))])
+(new button% 
+     [parent panel] 
+     [label "Ok"]
+     [callback (lambda (b e)
+                 (set! stripped (get-relevant-list))
+                 (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'binary #:exists 'truncate/replace))
+                 (send dialog show #f))])
+
+(when (system-position-ok-before-cancel?)
+  (send panel change-children reverse))
+
+(new menu-item%
+     (label "&Generate ILS pattern file")
+     (parent file)
+     (callback (lambda (b e)
+                 (send dialog show #t))))
+
 
 (define no-brush (new brush% [style 'transparent]))
 (define red-pen (new pen% [color "red"] [width 2]))
