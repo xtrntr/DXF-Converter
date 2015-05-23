@@ -1,7 +1,7 @@
 #lang racket/gui
 
 (require "structs.rkt"
-         "geometric_functions.rkt"
+         "geometric-functions.rkt"
          racket/draw)
 
 (provide dxf-canvas%)
