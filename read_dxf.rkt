@@ -116,7 +116,7 @@
 (define (list->path lst)
   (define layer (cadr (car (filter-header (take-pair lst) '("8")))))
   (define list-of-arcs-and-lines (separate-lwpolyline (filter-header (take-pair lst) '("70" "10" "20" "42")) layer))
-  (path layer (flatten list-of-arcs-and-lines)))
+  (path (layer->string layer) (flatten list-of-arcs-and-lines)))
 
 (define (layer->string x)
   (if (string? x) x (number->string x)))

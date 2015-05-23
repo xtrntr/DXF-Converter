@@ -327,14 +327,15 @@
                        (if make-visible? 
                            (begin (set-entity-visible! struct #t) (set-entity-selected! struct #f))
                            (set-entity-visible! struct #f)))
-                     (define (map-toggle-visibility search-list)
-                       (cond ((empty? search-list) '())
-                             ((path? (car search-list)) (begin 
-                                                          (toggle-visibility (car search-list))
-                                                          (map-toggle-visibility (path-entities (car search-list)))
-                                                          (map-toggle-visibility (cdr search-list))))
-                             (else (begin (toggle-visibility (car search-list))
-                                          (map-toggle-visibility (cdr search-list))))))
+                     (define (map-toggle-visibility lst)
+                       (cond ((empty? lst) '())
+                             ((path? (car lst)) (begin 
+                                                  (display "1")
+                                                  (toggle-visibility (car lst))
+                                                  (map-toggle-visibility (path-entities (car lst)))
+                                                  (map-toggle-visibility (cdr lst))))
+                             (else (begin (toggle-visibility (car lst))
+                                          (map-toggle-visibility (cdr lst))))))
                      
                      (send a-canvas update-canvas)
                      (map-toggle-visibility (filter-struct-list search-list entity-same-layer?))
