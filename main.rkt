@@ -16,7 +16,7 @@
 ;; global variables
 (define struct-list '())
 (define search-list '())
-(define list-of-layers '())
+(define list-of-layers '())coh
 (define select-box '())
 (define display-select-box #f)
 (define drawing-scale '())

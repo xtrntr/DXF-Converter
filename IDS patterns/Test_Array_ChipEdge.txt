@@ -1,0 +1,25 @@
+#File name: C:\IDS\Pattern_Dir\Demo_Pattern\Test_Array_ChipEdge\Test_Array_ChipEdge.txt
+#
+#Objective: Data format defination for Pattern data. ptp file is used to store pattern defination in txt files.
+#
+#
+#Note: 1, Empty line is allowed
+#      2, Items are seperated by commas
+
+#Pattern starts
+Unit=mm
+PatternID =ABCDE_GHIJ_KLMN
+
+#  0  1       2         3   4   5   6   7   8   9   10  11  12    13        14       15       16       17   18    19    20     21        22     23    24    25      26     27      28   29
+#Cmd, Needle, Dispense, x1, y1, z1, x2, y2, z2, x3, y3, z3, Speed,NeedleGap,Duration,TrvDelay,RetDelay,AppH,RetV, RetH, ClearH,DTailDist,ArcRad,Pitch,FillH,RunTime,Sprial,RtAngle,Edge,IO
+#
+
+
+[Page=Main]
+Array,,Arr_SubPattern_1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+SubPattern,,C:\IDS\Pattern_Dir\Demo_Pattern\Test_ChipEdge\Test_ChipEdge.txt,183.124,94.235,0,,,,,,,,,,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+SubPattern,,C:\IDS\Pattern_Dir\Demo_Pattern\Test_ChipEdge\Test_ChipEdge.txt,203.114,94.476,0,,,,,,,,,,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+SubPattern,,C:\IDS\Pattern_Dir\Demo_Pattern\Test_ChipEdge\Test_ChipEdge.txt,223.113,94.728,0,,,,,,,,,,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+[Page=Arr_SubPattern_1]
+SubPattern,,C:\IDS\Pattern_Dir\Demo_Pattern\Test_ChipEdge\Test_ChipEdge.txt,163.123,94.035,0,,,,,,,,,,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,

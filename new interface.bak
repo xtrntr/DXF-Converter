@@ -1,0 +1,114 @@
+#lang racket
+
+(require "structs.rkt"
+         "read_dxf.rkt"
+         "geometric_functions.rkt"
+         "ils-pattern-generator.rkt"
+         "ids-pattern-generator.rkt"
+         "constants.rkt"
+         racket/gui/base pict
+         racket/draw
+         mrlib/path-dialog
+         racket/math
+         math/matrix
+         framework)
+
+(define my-canvas%
+  (class canvas%
+    
+    (init-field search-list)
+    (init-field global-x-offset)
+    (init-field global-y-offset)
+    (init-field global-x-scale)
+    (init-field global-y-scale); racket xy system has +y as you go from top to bottom. this changes it to +y from bottom to top
+    (define rotation 0)
+    (define transformation-matrix (vector 1 0 0 1 0 0))
+    
+    ;; KEYBOARD events
+    (define/override (on-char event)
+      (let ((key (send event get-key-code)))
+        (special-control-key #t)
+        (case key
+          ['wheel-up    (set! global-x-scale (+ global-x-scale 0.1)) 
+                        (set! global-y-scale (- global-y-scale 0.1))
+                        (send drawer set-transformation (vector transformation-matrix global-x-offset global-y-offset global-x-scale global-y-scale rotation))]
+          ['escape      (filter-struct-list search-list (unselect-all))]
+          ['wheel-down  (when (> (- global-x-scale 0.1) 0) 
+                          (set! global-x-scale (- global-x-scale 0.1))
+                          (set! global-y-scale (+ global-y-scale 0.1))
+                          (send drawer set-transformation (vector transformation-matrix global-x-offset global-y-offset global-x-scale global-y-scale rotation)))]
+          ['#\backspace (filter-struct-list search-list (delete-selected))]))
+      (send this refresh))
+    
+    ;; MOUSE events
+    (define/override (on-event event)
+      (define x (send event get-x))
+      (define y (send event get-y))
+      (define-syntax-rule (is-key-event? query)
+        (send event query))
+      (define (is-mouse-event? query)
+        (equal? query (send event get-event-type)))
+      
+      ;; scale the x and y values.
+      (define (scalex-to-display x)
+        (/ (- x global-x-offset) global-x-scale))
+      (define (scaley-to-display y) 
+        (/ (- y global-y-offset) global-y-scale))
+      (define scaled-x (scalex-to-display (send event get-x)))
+      (define scaled-y (scaley-to-display (send event get-y)))
+      
+      ;key and mouse combinations
+      (define start-panning? (is-mouse-event? 'left-down))
+      (define is-panning? (send event dragging?))
+      (define end-panning? (is-mouse-event? 'left-up))
+      (define start-selecting? (and (is-mouse-event? 'left-down) (is-key-event? get-caps-down)))
+      (define is-selecting? (and (send event dragging?) (is-key-event? get-caps-down)))
+      (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-caps-down)))
+      (define set-park-position? (and set-park-position (is-mouse-event? 'left-down)))
+      
+      (cond
+        (set-park-position?
+         (display (list (unscale-x-coord scaled-x) (unscale-y-coord scaled-y)))
+         (send drawer draw-point scaled-x scaled-y)
+         (display (optimize-pattern (get-relevant-list) (point "origin" (unscale-x-coord scaled-x) (unscale-y-coord scaled-y))))
+         (set! set-park-position #f))
+        (start-selecting?
+         (set! init-x scaled-x)
+         (set! init-y scaled-y)
+         (set! display-select-box #t))
+        (end-selecting?
+         (send this set-cursor (make-object cursor% 'arrow))
+         (set! display-select-box #f)
+         (filter-struct-list search-list (select-highlighted))
+         (send this refresh))
+        (is-selecting?
+         (send this set-cursor (make-object cursor% 'cross))
+         (intersect? init-x init-y scaled-x scaled-y search-list)
+         (highlight-path)
+         (set! select-box (list (list init-x init-y scaled-x init-y #t #f)
+                                (list scaled-x init-y scaled-x scaled-y #t #f)
+                                (list scaled-x scaled-y init-x scaled-y #t #f) 
+                                (list init-x scaled-y init-x init-y #t #f)))
+         (send this refresh))
+        (start-panning?
+         (set! init-x x)
+         (set! init-y y)
+         (send drawer draw-point scaled-x scaled-y))
+        (end-panning?
+         (send this set-cursor (make-object cursor% 'arrow))
+         (set! global-x-offset (vector-ref (send drawer get-transformation) 1)) 
+         (set! global-y-offset (vector-ref (send drawer get-transformation) 2)))
+        (is-panning?
+         (let* ((current-x (- x init-x))
+                (current-y (- y init-y)))
+           (send this set-cursor (make-object cursor% 'hand))
+           (send drawer set-transformation (vector transformation-matrix (+ current-x global-x-offset) (+ current-y global-y-offset) global-x-scale global-y-scale rotation))
+           (send this refresh)))))
+    
+    (define/override (on-paint)
+       (send drawer set-brush no-brush)
+      (when display-select-box (draw-select-box select-box))
+      (draw-objects search-list)
+      (send drawer set-pen normal-pen))
+    
+    (super-instantiate ())))
