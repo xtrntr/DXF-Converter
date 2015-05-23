@@ -12,7 +12,36 @@
          filter-struct-list
          optimize-pattern
          cohen-sutherland
-         arc-intersect?)
+         arc-intersect?
+         get-scales)
+
+;scaling for display - only done once
+(define (get-all-x struct-lst)
+  (flatten (for/list ([i struct-lst])
+             (match i
+               [(line layer highlighted selected visible x1 y1 x2 y2)                           (list x1 x2)]
+               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list (+ x radius) (- x radius))]
+               [(point layer highlighted selected visible x y)                                  (list x)]
+               [(path layer highlighted selected visible path-list)                             (get-all-x path-list)]))))
+(define (get-all-y struct-lst)
+  (flatten (for/list ([i struct-lst])
+             (match i
+               [(line layer highlighted selected visible x1 y1 x2 y2)                           (list y1 y2)]
+               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list (+ y radius) (- y radius))]
+               [(point layer highlighted selected visible x y)                                  (list y)]
+               [(path layer highlighted selected visible path-list)                             (get-all-y path-list)]))))
+
+(define (get-scales struct-lst frame-width frame-height)
+  (let* ((top (biggest (get-all-y struct-lst)))
+         (bottom (smallest (get-all-y struct-lst)))
+         (left (smallest (get-all-x struct-lst)))
+         (right (biggest (get-all-x struct-lst)))
+         (height (abs (- top bottom)))
+         (width (abs (- right left)))
+         (x-scale (/ frame-width width))
+         (y-scale (/ frame-height height))
+         (drawing-scale (smallest (list x-scale y-scale))))
+    (values drawing-scale left bottom)))
 
 ;; geometric functions
 (define (point-in-rect? x y xs ys xb yb)
