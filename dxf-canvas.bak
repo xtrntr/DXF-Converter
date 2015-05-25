@@ -109,8 +109,7 @@
     (define (select-highlighted)
       (lambda (x) 
         (when (path? x) 
-          (filter-struct-list (path-entities x) (select-highlighted))
-          (unless (empty? (filter-struct-list (path-entities x) entity-highlighted))
+          (when (filter-struct-list (path-entities x) (select-highlighted))
             (set-entity-selected! x #t)))
         (when (entity-highlighted x)
           (set-entity-selected! x #t)
@@ -127,12 +126,12 @@
     
     (define (unselect-all)
       (lambda (x) 
-        (when (path? x) (set-entity-selected! x #f) (filter-struct-list (path-entities x) (unselect-all)))
+        (when (path? x) (filter-struct-list (path-entities x) (unselect-all)))
         (set-entity-selected! x #f)))
     
     (define (delete-selected)
       (lambda (x) 
-        (when (path? x) (set-entity-visible! x #f) (set-entity-selected! x #f) (filter-struct-list (path-entities x) (delete-selected)))
+        (when (path? x) (filter-struct-list (path-entities x) (delete-selected)))
         (when (entity-selected x) (set-entity-visible! x #f) (set-entity-selected! x #f))))
     
     (define/public (update-canvas)
@@ -177,9 +176,9 @@
       (define start-panning? (is-mouse-event? 'left-down))
       (define is-panning? (send event dragging?))
       (define end-panning? (is-mouse-event? 'left-up))
-      (define start-selecting? (and (is-mouse-event? 'left-down) (is-key-event? get-control-down)))
-      (define is-selecting? (and (send event dragging?) (is-key-event? get-control-down)))
-      (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-control-down)))
+      (define start-selecting? (and (is-mouse-event? 'left-down) (is-key-event? get-caps-down)))
+      (define is-selecting? (and (send event dragging?) (is-key-event? get-caps-down)))
+      (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-caps-down)))
       (define set-park-position? (and set-park-position (is-mouse-event? 'left-down)))
       
       (cond

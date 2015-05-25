@@ -28,9 +28,8 @@
 
 (define (open-file input-port)
   
-  (define editor-width  1000)
-  (define editor-height 800)
-  (define canvas-height 600)
+  (define editor-width  800)
+  (define editor-height 600)
   
   (define a-frame 
     (new frame%
@@ -73,18 +72,9 @@
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                             (remove-duplicates (map entity-layer struct-list))))
   
-  (define a-list-box
-    (new list-box%
-         [label "Element Display"]
-         [parent a-frame]
-         [min-height 100]
-         [choices '("1" "2")]))
-  
   (define a-canvas
     (new dxf-canvas%
        [parent a-frame]
-       [min-height 600]
-       
        [search-list search-list]
        [x-offset 0]
        [y-offset (- editor-height 150)]
@@ -101,19 +91,10 @@
        [display-select-box #f]
        [select-box '()]))
   
-  (define layer-panel
-    (new horizontal-panel%
-         [parent a-frame]
-         [style '(border)]
-         [min-height 30]
-         [alignment '(center top)]
-         [horiz-margin 0]
-         [vert-margin 0]))
-  
   (for/list ([i layer-list])
     (new check-box%
          (label i)
-         (parent layer-panel)
+         (parent a-frame)
          (callback (lambda (checked e)
                      (define make-visible? (send checked get-value))
                      (define (entity-same-layer? struct) (equal? (entity-layer struct) i))
@@ -124,12 +105,16 @@
                      (define (map-toggle-visibility lst)
                        (cond ((empty? lst) '())
                              ((path? (car lst)) (begin 
+                                                  (display "1")
                                                   (toggle-visibility (car lst))
                                                   (map-toggle-visibility (path-entities (car lst)))
                                                   (map-toggle-visibility (cdr lst))))
                              (else (begin (toggle-visibility (car lst))
                                           (map-toggle-visibility (cdr lst))))))
                      
+                     (display (map entity-same-layer? (filter-struct-list search-list path?)))
+                     (display (entity-layer (car (filter-struct-list search-list path?))))
+                     (display (entity-layer (car (filter-struct-list search-list arc?))))
                      (send a-canvas update-canvas)
                      (map-toggle-visibility (filter-struct-list search-list entity-same-layer?))
                      (send a-canvas draw-objects search-list)
@@ -140,10 +125,6 @@
        [label "Refocus"]
        [parent a-frame]
        [callback (lambda (b e)
-                   (display (format "~a is visible" (length (filter-struct-list search-list (lambda (x) (and (path? x) (entity-visible x)))))))
-                   (display "---------------------------------------------------")
-                   (display (format "~a is selected" (length (filter-struct-list search-list (lambda (x) (and (path? x) (entity-selected x)))))))
-                   (display "---------------------------------------------------")
                    (set-field! x-offset a-canvas 0)
                    (set-field! y-offset a-canvas (- editor-height 150))
                    (set-field! x-scale  a-canvas 1)
@@ -159,7 +140,7 @@
                  (define input-port-or-not (send open run))
                  (when input-port-or-not
                    (open-file input-port-or-not)))))
-
+                     
 (define open (new path-dialog%
                   [existing? #t]
                   [filters (list (list "DXF Files" "*.dxf") (list "Text Files" "*.txt"))]))

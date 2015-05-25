@@ -7,7 +7,7 @@
 
 
 (require "structs.rkt"
-         "geometric-functions.rkt")
+         "geometric_functions.rkt")
 
 (provide generate-pattern-file)
 
