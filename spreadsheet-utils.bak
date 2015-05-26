@@ -1,0 +1,9 @@
+#lang racket
+
+(require structs)
+
+(provide struct-list->string-list)
+
+(define (struct-list->string-list struct-lst)
+  (map (lambda (x) (if path? (struct-list->string-list (path-entities x)) 
+                       (symbol->string (object-name x)))) struct-lst))

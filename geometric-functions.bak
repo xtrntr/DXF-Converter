@@ -1,6 +1,7 @@
 #lang racket
 
-(require "structs.rkt")
+(require "structs.rkt"
+         rackunit)
 
 (provide in-between?
          point-in-rect?
@@ -8,8 +9,9 @@
          smallest
          reasonable-equal?
          get-arc-points
+         filter-struct-list
          optimize-pattern
-         line-intersect?
+         cohen-sutherland
          arc-intersect?
          get-scales)
 
@@ -46,12 +48,12 @@
   (and (> x xs) (< x xb) (> y ys) (< y yb)))
 
 ;; divide the complete 2d space into 9 boxes
-;; cohen-sutherland algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
+;; algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
 ;; region numbers are bit->decimal
 ;; 9   1   5                1001   0001   0101
 ;; 8   0   4      --->      1000   0000   0100
 ;; 10  2   6                1010   0010   0110
-(define (line-intersect? line-struct xs ys xb yb)
+(define (cohen-sutherland line-struct xs ys xb yb)
   (let ((lx1 (line-x1 line-struct))
         (ly1 (line-y1 line-struct))
         (lx2 (line-x2 line-struct))
@@ -284,7 +286,12 @@
          (y2 (get-y-value second-point-narrow-angle second-point-quadrant center-y radius))
          (x3 (get-x-value third-point-narrow-angle third-point-quadrant center-x radius))
          (y3 (get-y-value third-point-narrow-angle third-point-quadrant center-y radius)))
-    (list x1 y1 x2 y2 x3 y3))) 
+    (list x1 y1 x2 y2 x3 y3)))
+
+(define (filter-struct-list struct-list cond)
+  (for/list ([i struct-list] 
+             #:when (cond i))
+    i)) 
 
 ;get all permutations of a set
 (define (get-tours set origin)

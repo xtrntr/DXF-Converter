@@ -7,7 +7,9 @@
          "ids-pattern-generator.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
+         "struct-list-utils.rkt"
          mrlib/path-dialog
+         mrlib/hierlist
          racket/gui/base
          framework)
 
@@ -114,22 +116,48 @@
   (define search-list (rescale struct-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                             (remove-duplicates (map entity-layer struct-list))))
+ 
+  (define main-panel
+    (new horizontal-panel%
+         [parent a-frame]))
+  
+  (define drawing-panel
+    (new vertical-panel%
+         [parent main-panel]
+         [style '(border)]
+         [min-width 800] ))
+  
+  (define spreadsheet-panel
+    (new vertical-panel%
+         [parent main-panel]
+         [style '(border)]
+         [min-width 200]))
   
   (define a-list-box
     (new list-box%
-         [label "Element Display"]
-         [parent a-frame]
+         [label " "]
+         [parent spreadsheet-panel]
          [min-height element-display-height]
-         [choices '("1" "2")]))
+         [choices '()]
+         [style '(extended column-headers)]
+         [columns '("Command" "Starting Point")]))
+  
+  (define (update-spreadsheet lst)
+    (define displayed-list (filter-struct-list lst entity-selected))
+    (if (empty? displayed-list)
+        (clear a-list-box)
+        (send a-list-box set 
+              (struct-list->string-list displayed-list)
+              (get-starting-points displayed-list))))
   
   (define a-canvas
     (new dxf-canvas%
-       [parent a-frame]
-       [min-height 600]
+       [parent drawing-panel]
+       [min-height 800]
        
        [search-list search-list]
        [x-offset 0]
-       [y-offset (- canvas-height 150)]
+       [y-offset canvas-height]
        [drawing-scale drawing-scale]
        [x-scale 1]
        [y-scale -1]
@@ -140,17 +168,16 @@
        [scale-y scale-y]
        [unscale-y unscale-y]
        
+       [update-spreadsheet update-spreadsheet]
        [display-select-box #f]
        [select-box '()]))
   
   (define layer-panel
     (new horizontal-panel%
-         [parent a-frame]
+         [parent drawing-panel]
          [style '(border)]
          [min-height 30]
-         [alignment '(center top)]
-         [horiz-margin 0]
-         [vert-margin 0]))
+         [alignment '(center top)]))
   
   (for/list ([i layer-list])
     (new check-box%
@@ -180,10 +207,28 @@
   
   (new button%
        [label "Refocus"]
-       [parent a-frame]
+       [parent layer-panel]
        [callback (lambda (b e) 
-                   (display (format "For the canvas, actual size is ~a, versus ~a" (call-with-values (thunk (send a-canvas get-client-size)) list)
-                                    (list canvas-height)))
+                   (set-field! x-offset a-canvas 0)
+                   (set-field! y-offset a-canvas (- editor-height 150))
+                   (set-field! x-scale  a-canvas 1)
+                   (set-field! y-scale  a-canvas -1)
+                   (send a-canvas update-canvas))])
+  
+  (new button%
+       [label "Generate for IDS"]
+       [parent spreadsheet-panel]
+       [callback (lambda (b e) 
+                   (set-field! x-offset a-canvas 0)
+                   (set-field! y-offset a-canvas (- editor-height 150))
+                   (set-field! x-scale  a-canvas 1)
+                   (set-field! y-scale  a-canvas -1)
+                   (send a-canvas update-canvas))])
+  
+  (new button%
+       [label "Generate for ILS"]
+       [parent spreadsheet-panel]
+       [callback (lambda (b e) 
                    (set-field! x-offset a-canvas 0)
                    (set-field! y-offset a-canvas (- editor-height 150))
                    (set-field! x-scale  a-canvas 1)

@@ -1,0 +1,12 @@
+#lang racket
+
+(provide real->decimal)
+
+(define (real->decimal n digits)
+    (let* ([e (expt 10 digits)]
+           [num (round (abs (* e n)))]
+           [left (quotient num e)]
+           [right (/ (remainder num e) e)])
+      (exact->inexact (+ left right))))
+
+(real->decimal 10.553996 3)

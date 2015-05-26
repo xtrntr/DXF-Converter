@@ -1,7 +1,6 @@
 #lang racket
 
-(require "structs.rkt"
-         "utils.rkt")
+(require "structs.rkt")
 
 (provide generate-ils-pattern)
 
@@ -35,6 +34,11 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 ;135.224 represented as 135224
 (define (ils-num x)
+  (define (real->decimal n digits)
+    (let* ([e (expt 10 digits)]
+           [num (round (abs (* e n)))])
+      (+ (quotient num e)
+         (/ (remainder num e) e))))
   (* 1000 (real->decimal x 3)))
 
 (define (insert-newline)

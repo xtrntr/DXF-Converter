@@ -2,6 +2,7 @@
 
 (require "structs.rkt"
          "geometric-functions.rkt"
+         "struct-list-utils.rkt"
          racket/draw)
 
 (provide dxf-canvas%)
@@ -19,6 +20,7 @@
                 scale-x
                 unscale-y
                 scale-y
+                update-spreadsheet
                 [x-scale 1]
                 [y-scale -1]
                 [display-select-box #f]
@@ -89,7 +91,7 @@
           ;only calculate intersections for visible and not yet selected items
           (when (and (entity-visible i) (not (entity-selected i)))
             (cond ((line? i) 
-                   (if (cohen-sutherland i small-x small-y big-x big-y) 
+                   (if (line-intersect? i small-x small-y big-x big-y) 
                        (set-entity-highlighted! i #t)
                        (set-entity-highlighted! i #f)))
                   ((arc? i)
@@ -102,39 +104,6 @@
                        (set-entity-highlighted! i #f)))
                   ((path? i)
                    (intersect? x1 y1 x2 y2 (path-entities i))))))))
-    
-    (define (get-relevant-list)
-      (filter-struct-list search-list (lambda (i) (and (entity-visible i) (entity-selected i)))))
-    
-    (define (select-highlighted)
-      (lambda (x) 
-        (when (path? x) 
-          (filter-struct-list (path-entities x) (select-highlighted))
-          (unless (empty? (filter-struct-list (path-entities x) entity-highlighted))
-            (set-entity-selected! x #t)
-            (set-entity-highlighted! x #f)))
-        (when (entity-highlighted x)
-          (set-entity-selected! x #t)
-          (set-entity-highlighted! x #f))))
-    
-    (define (highlight-path)
-      (define (any-entity-highlighted? lst)
-        (cond ((empty? lst) #f)
-              ((entity-highlighted (car lst)) #t)
-              (else (any-entity-highlighted? (cdr lst)))))
-      (map (lambda (x) (when (any-entity-highlighted? (path-entities x))
-                         (foldl set-entity-highlighted! #t (path-entities x))))
-           (filter-struct-list search-list path?)))
-    
-    (define (unselect-all)
-      (lambda (x) 
-        (when (path? x) (set-entity-selected! x #f) (filter-struct-list (path-entities x) (unselect-all)))
-        (set-entity-selected! x #f)))
-    
-    (define (delete-selected)
-      (lambda (x) 
-        (when (and (path? x) (entity-selected x)) (set-entity-visible! x #f) (set-entity-selected! x #f) (filter-struct-list (path-entities x) (delete-selected)))
-        (when (entity-selected x) (set-entity-visible! x #f) (set-entity-selected! x #f))))
     
     (define/public (update-canvas)
       (define drawer (get-dc))
@@ -149,11 +118,13 @@
         (case key
           ['wheel-up    (set! x-scale (+ x-scale 0.1)) 
                         (set! y-scale (- y-scale 0.1))]
-          ['escape      (filter-struct-list search-list (unselect-all))]
+          ['escape      (unselect-all search-list)
+                        (update-spreadsheet search-list)]
           ['wheel-down  (when (> (- x-scale 0.1) 0) 
                           (set! x-scale (- x-scale 0.1))
                           (set! y-scale (+ y-scale 0.1)))]
-          ['#\backspace (filter-struct-list search-list (delete-selected))]))
+          ['#\backspace (delete-selected search-list)
+                        (update-spreadsheet search-list)]))
       (update-canvas))
     
     ;; MOUSE events
@@ -187,7 +158,7 @@
         (set-park-position?
          (display (list (unscale-x scaled-x) (unscale-y scaled-y)))
          (send drawer draw-point scaled-x scaled-y)
-         (display (optimize-pattern (get-relevant-list) (point "origin" (unscale-x scaled-x) (unscale-y scaled-y))))
+         ;(display (optimize-pattern (get-relevant-list) (point "origin" (unscale-x scaled-x) (unscale-y scaled-y))))
          (set! set-park-position #f))
         (start-selecting?
          (set! init-x scaled-x)
@@ -196,12 +167,13 @@
         (end-selecting?
          (send this set-cursor (make-object cursor% 'arrow))
          (set! display-select-box #f)
-         (filter-struct-list search-list (select-highlighted))
+         (select-highlighted search-list)
+         (update-spreadsheet search-list)
          (update-canvas))
         (is-selecting?
          (send this set-cursor (make-object cursor% 'cross))
          (intersect? init-x init-y scaled-x scaled-y search-list)
-         (highlight-path)
+         (highlight-path search-list)
          (set! select-box (list (list init-x init-y scaled-x init-y #t #f)
                                 (list scaled-x init-y scaled-x scaled-y #t #f)
                                 (list scaled-x scaled-y init-x scaled-y #t #f) 
@@ -209,8 +181,7 @@
          (update-canvas))
         (start-panning?
          (set! init-x x)
-         (set! init-y y)
-         (send drawer draw-point scaled-x scaled-y))
+         (set! init-y y))
         (end-panning?
          (send this set-cursor (make-object cursor% 'arrow))
          (set! x-offset (vector-ref (send drawer get-transformation) 1)) 
