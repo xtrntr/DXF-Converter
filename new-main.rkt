@@ -11,26 +11,68 @@
          racket/gui/base
          framework)
 
-(define top-frame (new frame%
-                       [label "Main"]
-                       [width 800]
-                       [height 600]
-                       [alignment (list 'left 'top)]))
+(application:current-app-name "DXF converter") 
+
+(define menu-super-frame%
+  (frame:standard-menus-mixin
+   frame:basic%))
+      
+(define menu-frame%
+  (class menu-super-frame%
+    (inherit get-menu-bar set-icon)
+
+    ;file menu
+    (define/override (file-menu:create-new?) #f)
+    (define/override (file-menu:create-open?) #f)
+    (define/override (file-menu:create-open-recent?) #f)
+    (define/override (file-menu:create-close?) #f)
+    
+    ;edit menu
+    (define/override (edit-menu:create-undo?) #f)
+    (define/override (edit-menu:create-redo?) #f)
+    (define/override (edit-menu:create-cut?) #f)
+    (define/override (edit-menu:create-copy?) #f)
+    (define/override (edit-menu:create-paste?) #f)
+    (define/override (edit-menu:create-clear?) #f)
+    (define/override (edit-menu:create-select-all?) #f)
+    
+    ;help menu
+    (define/override (help-menu:create-about?) #t)
+    
+    ;drag n drop
+    (define/override (on-drop-file pathname)
+      (open-file pathname))
+    
+    (define/override (file-menu:between-save-as-and-print file-menu)
+      (new menu-item%
+           [label "&Open DXF File "]
+           [parent file-menu]
+           [callback (lambda (b e)
+                       (define input-port-or-not (send open run))
+                       (when input-port-or-not
+                         (open-file input-port-or-not)))]))
+    
+    (super-new)))
+
+(define top-frame 
+  (new menu-frame%
+       [label "Main"]
+       [width 800]
+       [height 600]
+       [alignment (list 'left 'top)]))
 
 (send top-frame show #t)
 
-(define menu-bar (new menu-bar%
-                      (parent top-frame)))
-
-(define file (new menu%
-                  (label "&File")
-                  (parent menu-bar)))
+(define open (new path-dialog%
+                  [existing? #t]
+                  [filters (list (list "DXF Files" "*.dxf") (list "Text Files" "*.txt"))]))
 
 (define (open-file input-port)
   
   (define editor-width  1000)
   (define editor-height 800)
   (define canvas-height 600)
+  (define element-display-height 100)
   
   (define a-frame 
     (new frame%
@@ -77,7 +119,7 @@
     (new list-box%
          [label "Element Display"]
          [parent a-frame]
-         [min-height 100]
+         [min-height element-display-height]
          [choices '("1" "2")]))
   
   (define a-canvas
@@ -87,7 +129,7 @@
        
        [search-list search-list]
        [x-offset 0]
-       [y-offset (- editor-height 150)]
+       [y-offset (- canvas-height 150)]
        [drawing-scale drawing-scale]
        [x-scale 1]
        [y-scale -1]
@@ -139,11 +181,9 @@
   (new button%
        [label "Refocus"]
        [parent a-frame]
-       [callback (lambda (b e)
-                   (display (format "~a is visible" (length (filter-struct-list search-list (lambda (x) (and (path? x) (entity-visible x)))))))
-                   (display "---------------------------------------------------")
-                   (display (format "~a is selected" (length (filter-struct-list search-list (lambda (x) (and (path? x) (entity-selected x)))))))
-                   (display "---------------------------------------------------")
+       [callback (lambda (b e) 
+                   (display (format "For the canvas, actual size is ~a, versus ~a" (call-with-values (thunk (send a-canvas get-client-size)) list)
+                                    (list canvas-height)))
                    (set-field! x-offset a-canvas 0)
                    (set-field! y-offset a-canvas (- editor-height 150))
                    (set-field! x-scale  a-canvas 1)
@@ -151,15 +191,3 @@
                    (send a-canvas update-canvas))])
   
   (send a-frame show #t))
-
-(new menu-item%
-     (label "&Open DXF File ")
-     (parent file)
-     (callback (lambda (b e)
-                 (define input-port-or-not (send open run))
-                 (when input-port-or-not
-                   (open-file input-port-or-not)))))
-
-(define open (new path-dialog%
-                  [existing? #t]
-                  [filters (list (list "DXF Files" "*.dxf") (list "Text Files" "*.txt"))]))

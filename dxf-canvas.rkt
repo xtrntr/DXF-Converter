@@ -111,7 +111,8 @@
         (when (path? x) 
           (filter-struct-list (path-entities x) (select-highlighted))
           (unless (empty? (filter-struct-list (path-entities x) entity-highlighted))
-            (set-entity-selected! x #t)))
+            (set-entity-selected! x #t)
+            (set-entity-highlighted! x #f)))
         (when (entity-highlighted x)
           (set-entity-selected! x #t)
           (set-entity-highlighted! x #f))))
@@ -132,7 +133,7 @@
     
     (define (delete-selected)
       (lambda (x) 
-        (when (path? x) (set-entity-visible! x #f) (set-entity-selected! x #f) (filter-struct-list (path-entities x) (delete-selected)))
+        (when (and (path? x) (entity-selected x)) (set-entity-visible! x #f) (set-entity-selected! x #f) (filter-struct-list (path-entities x) (delete-selected)))
         (when (entity-selected x) (set-entity-visible! x #f) (set-entity-selected! x #f))))
     
     (define/public (update-canvas)
