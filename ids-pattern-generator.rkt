@@ -9,9 +9,9 @@
 (require "structs.rkt"
          "geometric-functions.rkt")
 
-(provide generate-pattern-file)
+(provide generate-ids-pattern)
 
-(define (generate-pattern-file struct-list port)
+(define (generate-ids-pattern struct-list port)
   (current-output-port port)
   (printf "[Page=Main]")
   (printf "~n")

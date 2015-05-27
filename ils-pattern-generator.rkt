@@ -58,8 +58,8 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
     [(point layer highlighted selected visible x y)                                   (ils-dot x y)]
     [(path layer highlighted selected visible path-list)                              (ils-path path-list)]))
 
-(define (ils-dot x y)
-  (printf (format "dot(x=~a, y=~a, z=~a; ~a, ~a; ~a, ~a; z=~a; sp=~a; ~a; ~a; z=~a)" (ils-num x) (ils-num y) 0 x-deviation num-repeat y-deviation ret-height ret-speed disp-dur ret-delay clear-height))
+(define (ils-dot x y) ;what is between y-deviation and ret-height?
+  (printf (format "dot(x=~a, y=~a, z=~a; ~a, ~a; ~a, ~a; z=~a; sp=~a; ~a; ~a; z=~a)" (ils-num x) (ils-num y) 0 x-deviation num-repeat y-deviation 0 ret-height ret-speed disp-dur ret-delay clear-height))
   (insert-newline))
 
 (define (ils-line x1 y1 x2 y2)

@@ -2,7 +2,10 @@
 
 (provide column-labels
          ids-header-1
-         ids-header-2)
+         ids-header-2
+         spreadsheet-headers)
+
+(define spreadsheet-headers (list "Command" "Start X" "Start Y" "End X" "End Y"))
 
 (define column-labels (list "Command" "Needle" "Dispense" "X1" "Y1" "Z1" "X2" "Y2" "Z2" "X3" "Y3" "Z3" "Speed" "NeedleGap" "Duration" "Travel Delay" "Retract Delay" "Approach Height" "Retract V" "Retract Heigh" "Clearance Heigh" "Detail Distance" "Arc Radius" "Pitch" "Fill" "Run Time" "Spiral" "RtAngle" "Edge" "IO"))
 

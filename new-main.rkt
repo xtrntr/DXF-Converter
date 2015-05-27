@@ -56,11 +56,19 @@
     
     (super-new)))
 
+(define editor-width  1000)
+(define editor-height 630)
+(define canvas-height 600)
+(define canvas-width 700)
+(define spreadsheet-height 600)
+(define spreadsheet-width 300)
+(define button-height 30)
+
 (define top-frame 
   (new menu-frame%
        [label "Main"]
-       [width 800]
-       [height 600]
+       [width editor-width]
+       [height editor-height]
        [alignment (list 'left 'top)]))
 
 (send top-frame show #t)
@@ -70,11 +78,6 @@
                   [filters (list (list "DXF Files" "*.dxf") (list "Text Files" "*.txt"))]))
 
 (define (open-file input-port)
-  
-  (define editor-width  1000)
-  (define editor-height 800)
-  (define canvas-height 600)
-  (define element-display-height 100)
   
   (define a-frame 
     (new frame%
@@ -112,7 +115,7 @@
                  [(path layer highlighted selected visible path-list)                             (path layer (downscale path-list scale))]))))
   
   (define struct-list (file->struct-list input-port))
-  (define-values (drawing-scale left bottom) (get-scales struct-list editor-width editor-height))
+  (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
   (define search-list (rescale struct-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                             (remove-duplicates (map entity-layer struct-list))))
@@ -124,36 +127,39 @@
   (define drawing-panel
     (new vertical-panel%
          [parent main-panel]
-         [style '(border)]
-         [min-width 800] ))
+         [style '(border)]))
   
   (define spreadsheet-panel
     (new vertical-panel%
          [parent main-panel]
-         [style '(border)]
-         [min-width 200]))
+         [style '(border)]))
   
   (define a-list-box
     (new list-box%
          [label " "]
          [parent spreadsheet-panel]
-         [min-height element-display-height]
+         [min-height spreadsheet-height]
+         [min-width spreadsheet-width]
          [choices '()]
          [style '(extended column-headers)]
-         [columns '("Command" "Starting Point")]))
+         [columns spreadsheet-headers]))
   
   (define (update-spreadsheet lst)
     (define displayed-list (filter-struct-list lst entity-selected))
     (if (empty? displayed-list)
-        (clear a-list-box)
+        (send a-list-box clear)
         (send a-list-box set 
               (struct-list->string-list displayed-list)
-              (get-starting-points displayed-list))))
+              (map to-display (map get-start-x displayed-list))
+              (map to-display (map get-start-y displayed-list))
+              (map to-display (map get-end-x displayed-list))
+              (map to-display (map get-end-y displayed-list)))))
   
   (define a-canvas
     (new dxf-canvas%
        [parent drawing-panel]
-       [min-height 800]
+       [min-height canvas-height]
+       [min-width canvas-width]
        
        [search-list search-list]
        [x-offset 0]
@@ -176,7 +182,7 @@
     (new horizontal-panel%
          [parent drawing-panel]
          [style '(border)]
-         [min-height 30]
+         [min-height button-height]
          [alignment '(center top)]))
   
   (for/list ([i layer-list])
@@ -205,34 +211,54 @@
                      (send a-canvas on-paint)
                      (send a-canvas refresh-now)))))
   
+  (define button-panel-1
+    (new horizontal-panel%
+         [parent spreadsheet-panel]
+         [style '(border)]
+         [min-height button-height]
+         [alignment '(center top)]))
+  
+  (define button-panel-2
+    (new horizontal-panel%
+         [parent spreadsheet-panel]
+         [style '(border)]
+         [min-height button-height]
+         [alignment '(center top)]))
+  
+  (new button%
+       [label "For testing"]
+       [parent button-panel-1]
+       [callback (lambda (b e)
+                   (display (reorder search-list)))])
+  
   (new button%
        [label "Refocus"]
-       [parent layer-panel]
+       [parent button-panel-1]
        [callback (lambda (b e) 
                    (set-field! x-offset a-canvas 0)
                    (set-field! y-offset a-canvas (- editor-height 150))
                    (set-field! x-scale  a-canvas 1)
                    (set-field! y-scale  a-canvas -1)
                    (send a-canvas update-canvas))])
+  
+  (define create (new path-dialog%
+                    [put? #t]
+                    [filters (list (list "Text Files" "*.txt"))]))
   
   (new button%
        [label "Generate for IDS"]
-       [parent spreadsheet-panel]
+       [parent button-panel-2]
        [callback (lambda (b e) 
-                   (set-field! x-offset a-canvas 0)
-                   (set-field! y-offset a-canvas (- editor-height 150))
-                   (set-field! x-scale  a-canvas 1)
-                   (set-field! y-scale  a-canvas -1)
-                   (send a-canvas update-canvas))])
+                   (define stripped (get-relevant-list search-list))
+                   ;binary for osx, text for windows
+                   (generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (new button%
        [label "Generate for ILS"]
-       [parent spreadsheet-panel]
+       [parent button-panel-2]
        [callback (lambda (b e) 
-                   (set-field! x-offset a-canvas 0)
-                   (set-field! y-offset a-canvas (- editor-height 150))
-                   (set-field! x-scale  a-canvas 1)
-                   (set-field! y-scale  a-canvas -1)
-                   (send a-canvas update-canvas))])
+                   (define stripped (get-relevant-list search-list))
+                   ;binary for osx, text for windows
+                   (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (send a-frame show #t))

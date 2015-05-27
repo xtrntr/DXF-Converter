@@ -11,29 +11,28 @@
          optimize-pattern
          line-intersect?
          arc-intersect?
-         get-scales)
+         get-display-scale)
 
 ;scaling for display - only done once
-(define (get-all-x struct-lst)
-  (flatten (for/list ([i struct-lst])
-             (match i
-               [(line layer highlighted selected visible x1 y1 x2 y2)                           (list x1 x2)]
-               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list (+ x radius) (- x radius))]
-               [(point layer highlighted selected visible x y)                                  (list x)]
-               [(path layer highlighted selected visible path-list)                             (get-all-x path-list)]))))
-(define (get-all-y struct-lst)
-  (flatten (for/list ([i struct-lst])
-             (match i
-               [(line layer highlighted selected visible x1 y1 x2 y2)                           (list y1 y2)]
-               [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list (+ y radius) (- y radius))]
-               [(point layer highlighted selected visible x y)                                  (list y)]
-               [(path layer highlighted selected visible path-list)                             (get-all-y path-list)]))))
-
-(define (get-scales struct-lst frame-width frame-height)
-  (let* ((top (biggest (get-all-y struct-lst)))
-         (bottom (smallest (get-all-y struct-lst)))
-         (left (smallest (get-all-x struct-lst)))
-         (right (biggest (get-all-x struct-lst)))
+(define (get-display-scale struct-lst frame-width frame-height)
+  (define (get-bounding-x struct-lst)
+    (flatten (for/list ([i struct-lst])
+               (match i
+                 [(line _ _ _ _ x1 _ x2 _)                 (list x1 x2)]
+                 [(arc _ _ _ _ x _ radius _ _ _ _ _ _ _ _) (list (+ x radius) (- x radius))]
+                 [(point _ _ _ _ x _)                      (list x)]
+                 [(path _ _ _ visible path-list)           (get-bounding-x path-list)]))))
+  (define (get-bounding-y struct-lst)
+    (flatten (for/list ([i struct-lst])
+               (match i
+                 [(line _ _ _ _ _ y1 _ y2)                 (list y1 y2)]
+                 [(arc _ _ _ _ _ y radius _ _ _ _ _ _ _ _) (list (+ y radius) (- y radius))]
+                 [(point _ _ _ _ _ y)                      (list y)]
+                 [(path _ _ _ _ path-list)                 (get-bounding-y path-list)]))))
+  (let* ((top (biggest (get-bounding-y struct-lst)))
+         (bottom (smallest (get-bounding-y struct-lst)))
+         (left (smallest (get-bounding-x struct-lst)))
+         (right (biggest (get-bounding-x struct-lst)))
          (height (abs (- top bottom)))
          (width (abs (- right left)))
          (x-scale (/ frame-width width))
@@ -232,7 +231,7 @@
 ;; 0.9 -> integer test.
 ;; test up to 3 decimal points.
 (define (reasonable-equal? x y)
-  (<= (abs (- x y)) 0.000009))
+  (<= (abs (- x y)) 0.0009))
 
 ;; accurate up to 14 decimal places
 (define (in-between? test-num num-1 num-2)
@@ -319,14 +318,14 @@
 (define (node-distance node-start node-end)
   (define (get-start)
     (match node-start
-      [(line layer highlighted selected visible x1 y1 x2 y2)                           (list x1 y1)]
-      [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list x1 y1)]
-      [(point layer highlighted selected visible x y)                                  (list x y)]))
+      [(line _ _ _ _ x1 y1 _ _)              (list x1 y1)]
+      [(arc _ _ _ _ _ _ _ _ _ x1 y1 _ _ _ _) (list x1 y1)]
+      [(point _ _ _ _ x y)                   (list x y)]))
   (define (get-end)
     (match node-end
-      [(line layer highlighted selected visible x1 y1 x2 y2)                           (list x2 y2)]
-      [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (list x3 y3)]
-      [(point layer highlighted selected visible x y)                                  (list x y)]))
+      [(line _ _ _ _ _ _ x2 y2)              (list x2 y2)]
+      [(arc _ _ _ _ _ _ _ _ _ _ _ _ _ x3 y3) (list x3 y3)]
+      [(point _ _ _ _ x y)                   (list x y)]))
   (apply distance (append (get-start) (get-end))))
   
 (define (optimize-pattern struct-list origin)

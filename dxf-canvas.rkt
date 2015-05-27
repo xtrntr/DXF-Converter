@@ -24,6 +24,7 @@
                 [x-scale 1]
                 [y-scale -1]
                 [display-select-box #f]
+                [display-start-end-points #f]
                 [select-box '()])
     
     (field [set-park-position #f]
@@ -35,27 +36,33 @@
     (define no-brush (new brush% [style 'transparent]))
     (define red-pen (new pen% [color "red"] [width 2]))
     (define normal-pen (new pen% [color "black"] [width 1]))
+    (define highlight-pen (new pen% [color "RoyalBlue"] [width 2]))
     
     ;; DRAWING functions
-    (define (draw-point x y selected highlighted)
+    (define (draw-point x y highlight?)
       (define drawer (get-dc))
-      (if (or selected highlighted)
+      (if highlight?
           (send drawer set-pen red-pen)
           (send drawer set-pen normal-pen))
       (send drawer draw-point x y))
     
-    (define (draw-line x1 y1 x2 y2 selected highlighted)
+    (define (draw-transition-point x y)
       (define drawer (get-dc))
-      (if (or selected highlighted)
+      (send drawer set-pen highlight-pen)
+      (send drawer draw-point x y))
+    
+    (define (draw-line x1 y1 x2 y2 highlight?)
+      (define drawer (get-dc))
+      (if highlight?
           (send drawer set-pen red-pen)
           (send drawer set-pen normal-pen))
       (send drawer draw-line x1 y1 x2 y2))
     
     ;racket's draw-arc function's x,y starts at bottom left corner (docs say top left but inverted because of -ve y-scale)
     ;DXF provided arc x,y coordinates are at the center of the arc/circle
-    (define (draw-arc x y radius start end selected highlighted)
+    (define (draw-arc x y radius start end highlight?)
       (define drawer (get-dc))
-      (if (or selected highlighted)
+      (if highlight?
           (send drawer set-pen red-pen)
           (send drawer set-pen normal-pen))
       (let ((convert-angle1 (degrees->radians (- 360 start))) ;; DXF angles are CW, Racket angles are CCW (because of inverting y scale)
@@ -69,9 +76,9 @@
       (define (apply-procedure x)
         (when (entity-visible x)
           (match x
-            [(line layer highlighted selected visible x1 y1 x2 y2)                           (draw-line x1 y1 x2 y2 selected highlighted)]
-            [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (draw-arc x y radius start end selected highlighted)]
-            [(point layer highlighted selected visible x y)                                  (draw-point x y selected highlighted)]
+            [(line layer highlighted selected visible x1 y1 x2 y2)                           (draw-line x1 y1 x2 y2 (or selected highlighted))]
+            [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (draw-arc x y radius start end (or selected highlighted))]
+            [(point layer highlighted selected visible x y)                                  (draw-point x y (or selected highlighted))]
             [(path layer highlighted selected visible path-list)                             (draw-objects path-list)])))
       (map apply-procedure lst))
     
@@ -79,7 +86,10 @@
       (for/list ([i lst])
         (apply draw-line i)))
     
-    ;; UTILITY functions
+    (define (draw-start-end-points lst)
+      (for/list ([i lst])
+        (apply draw-transition-point i)))
+    
     ;pass intersect? the start and end point of select box and the struct-list
     ;it will traverse the struct-list to see if any elements
     (define (intersect? x1 y1 x2 y2 struct-lst)
@@ -109,7 +119,6 @@
       (define drawer (get-dc))
       (send drawer set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (send this refresh))
-      
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -174,10 +183,10 @@
          (send this set-cursor (make-object cursor% 'cross))
          (intersect? init-x init-y scaled-x scaled-y search-list)
          (highlight-path search-list)
-         (set! select-box (list (list init-x init-y scaled-x init-y #t #f)
-                                (list scaled-x init-y scaled-x scaled-y #t #f)
-                                (list scaled-x scaled-y init-x scaled-y #t #f) 
-                                (list init-x scaled-y init-x init-y #t #f)))
+         (set! select-box (list (list init-x init-y scaled-x init-y #t)
+                                (list scaled-x init-y scaled-x scaled-y #t)
+                                (list scaled-x scaled-y init-x scaled-y #t) 
+                                (list init-x scaled-y init-x init-y #t)))
          (update-canvas))
         (start-panning?
          (set! init-x x)
@@ -197,6 +206,7 @@
       (define drawer (get-dc))
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
+      ;(when display-start-end-points (draw-start-end-points lst))
       (draw-objects search-list)
       (send drawer set-pen normal-pen))
     

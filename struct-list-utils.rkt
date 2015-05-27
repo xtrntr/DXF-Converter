@@ -10,7 +10,13 @@
          highlight-path
          unselect-all
          delete-selected
-         get-starting-points)
+         get-start-x
+         get-start-y
+         get-end-x
+         get-end-y
+         to-display
+         coalesce
+         reorder)
 
 (define (struct-list->string-list struct-lst)
   (map (lambda (x) (capitalize (symbol->string (object-name x)))) struct-lst)
@@ -76,25 +82,86 @@
     (let ((current (first lst)))
       (cond ((and (path? current) (entity-selected current))
              (delete current)
-             (delete-selected (path-entities current)))
+             (delete-selected (path-entities current))
+             (delete-selected (cdr lst)))
             ((entity-selected current)
              (delete current)
              (delete-selected (cdr lst)))
             (else (delete-selected (cdr lst)))))
     '()))
 
-(define (get-starting-points lst)
-  (define (to-display x y)
-    (let* ((x-string (number->string (real->decimal x 3)))
-           (y-string (number->string (real->decimal y 3)))
-           (x-length (length (string->list x-string)))
-           (num-spaces (- 7 x-length)))
-    (format "~a, ~a" x-string y-string)))
-  (flatten (cond ((empty? lst) '())
-        (else (cons 
-               (match (first lst)
-                [(line _ _ _ _ x1 y1 _ _)              (to-display x1 y1)]
-                [(arc _ _ _ _ _ _ _ _ _ x1 y1 _ _ _ _) (to-display x1 y1)]
-                [(point _ _ _ _ x y)                   (to-display x y)]
-                [(path _ _ _ _ path-list)              (get-starting-points (list (first path-list)))])
-               (get-starting-points (cdr lst)))))))
+(define (to-display x)
+  (let ((x-string 0))
+    (if (list? x)
+        (set! x-string (number->string (real->decimal (first x) 3)))
+        (set! x-string (number->string (real->decimal x 3))))
+    (format "~a" x-string)))
+
+(define (get-start-x a-struct)
+  (real->decimal (match a-struct
+    [(struct* line  ([x1 x1]))               x1]
+    [(struct* arc   ([x1 x1]))               x1]
+    [(struct* point ([x x]))                 x]
+    [(struct* path  ([entities entities]))  (get-start-x (first entities))]) 3))
+
+(define (get-start-y a-struct)
+  (real->decimal (match a-struct
+    [(struct* line  ([y1 y1]))               y1]
+    [(struct* arc   ([y1 y1]))               y1]
+    [(struct* point ([y y]))                 y]
+    [(struct* path  ([entities entities]))  (get-start-y (first entities))]) 3))
+
+(define (get-end-x a-struct)
+  (real->decimal (match a-struct
+    [(struct* line  ([x2 x2]))               x2]
+    [(struct* arc   ([x3 x3]))               x3]
+    [(struct* point ([x x]))                 x]
+    [(struct* path  ([entities entities]))  (get-end-x (first entities))]) 3))
+
+(define (get-end-y a-struct)
+  (real->decimal (match a-struct
+    [(struct* line  ([y2 y2]))              y2]
+    [(struct* arc   ([y3 y3]))              y3]
+    [(struct* point ([y y]))                y]
+    [(struct* path  ([entities entities]))  (get-end-y (first entities))]) 3))
+
+(define (get-start a-struct)
+    (list (get-start-x a-struct) (get-start-y a-struct)))
+
+(define (get-end a-struct)
+    (list (get-end-x a-struct) (get-end-y a-struct)))
+
+;struct-list -> hash-list
+(define (coalesce a-list)
+  ;values of the hash table are the structs and the keys its starting points
+  (define (lst->ht lst ht)
+    (if (empty? lst)
+        ht
+        (let ((current (first lst)))
+          (lst->ht (cdr lst) (apply hash-set ht (list (get-start current) current))))))
+  (let ((a-hash (hash)))
+    (lst->ht a-list a-hash)))
+
+(define (reorder a-list)
+  (define (has-connection? ht a-struct)
+    (hash-has-key? ht (get-end a-struct)))
+  ;acc1 stores the list of unlinked elements
+  ;acc2 stores the sorted list
+  (define (iter lst ht acc1 acc2)
+    (cond ((empty? lst) (values acc1 acc2))
+          (else
+           (let* ((current (first lst))
+                  (current-key (get-start current)))
+             (cond ((has-connection? ht current)
+                    (iter (cdr lst) ht acc1 (cons current acc2)))
+                   (else 
+                    (iter (cdr lst) ht (cons current acc1) acc2)))))))
+  (define (sort ht current-struct acc)
+    (cond ((hash-empty? ht) acc)
+          (else (sort (hash-remove ht current-struct) (hash-ref ht (get-end current-struct)) (cons current-struct acc)))))
+  (let ((ht-all (coalesce a-list)))
+    (define-values (unlinked linked) (iter a-list ht-all '() '()))
+    (let ((ht-linked (coalesce linked)))
+      (sort ht-linked (first linked) '()))))
+      
+      
