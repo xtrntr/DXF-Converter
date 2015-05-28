@@ -4,7 +4,6 @@
          "utils.rkt")
 
 (provide struct-list->string-list
-         filter-struct-list
          get-relevant-list
          select-highlighted
          highlight-path
@@ -16,7 +15,9 @@
          get-end-y
          to-display
          coalesce
-         reorder)
+         reorder
+         get-linked-nodes
+         separate-unlinked-elements)
 
 (define (struct-list->string-list struct-lst)
   (map (lambda (x) (capitalize (symbol->string (object-name x)))) struct-lst)
@@ -30,13 +31,8 @@
          (capitalized (list->string (append (list first-letter) (cdr dissected)))))
     capitalized))
 
-(define (filter-struct-list lst cond)
-  (for/list ([i lst] 
-             #:when (cond i))
-    i))
-
 (define (get-relevant-list lst)
-  (filter-struct-list lst (lambda (i) (and (entity-visible i) (entity-selected i)))))
+  (filter (lambda (i) (and (entity-visible i) (entity-selected i))) lst))
     
 (define (select-highlighted lst)
   (define (select x)
@@ -46,7 +42,7 @@
     (let ((current (first lst)))
       (cond ((path? current)
              (select-highlighted (path-entities current))
-             (unless (empty? (filter-struct-list (path-entities current) entity-selected))
+             (unless (empty? (filter entity-selected (path-entities current)))
                (select current))
              (select-highlighted (cdr lst)))
             (else (when (entity-highlighted current) 
@@ -61,7 +57,7 @@
           (else (any-entity-highlighted? (cdr lst)))))
   (map (lambda (x) (when (any-entity-highlighted? (path-entities x))
                      (foldl set-entity-highlighted! #t (path-entities x))))
-       (filter-struct-list lst path?)))
+       (filter path? lst)))
 
 (define (unselect-all lst)
   (unless (empty? lst)
@@ -131,6 +127,46 @@
 (define (get-end a-struct)
     (list (get-end-x a-struct) (get-end-y a-struct)))
 
+(define (get-node a-struct)
+  (list (get-end a-struct) (get-start a-struct)))
+
+(define (get-nodes a-list)
+  (cond ((empty? a-list) '())
+        (else (let ((current (car a-list)))
+                (append (get-node current)
+                        (get-nodes (cdr a-list)))))))
+
+;from a list of duplicates and singles return a list of duplicates
+(define (remove-singles lst)
+  (let iter ([lst lst]
+             [acc1 '()]
+             [acc2 '()])
+    (if (empty? lst)
+        (remove-duplicates acc2)
+        (let ((current (car lst)))
+          (cond ((member current acc1)
+                 (iter (cdr lst) acc1 (cons current acc2)))
+                (else
+                 (iter (cdr lst) (cons current acc1) acc2)))))))
+
+(define (get-linked-nodes a-list)
+  (remove-singles (get-nodes a-list)))
+
+(define (separate-unlinked-elements struct-list)
+  (define node-list (get-linked-nodes struct-list))
+  (define (is-linked? a-struct)
+    (or (member (first (get-node a-struct)) node-list)
+        (member (second (get-node a-struct)) node-list)))
+  (let separate ((unlinked '())
+                 (linked '())
+                 (lst struct-list))
+    (if (empty? lst) 
+        unlinked
+        (let ((current (first lst)))
+          (cond ((is-linked? current)
+                 (separate unlinked (cons current linked) (cdr lst)))
+                (else (separate (cons current unlinked) linked (cdr lst))))))))
+     
 ;struct-list -> hash-list
 (define (coalesce a-list)
   ;values of the hash table are the structs and the keys its starting points
@@ -138,30 +174,39 @@
     (if (empty? lst)
         ht
         (let ((current (first lst)))
-          (lst->ht (cdr lst) (apply hash-set ht (list (get-start current) current))))))
+          (if (point? current)
+              (lst->ht (cdr lst) ht)
+              (lst->ht (cdr lst) (apply hash-set ht (list (get-start current) current)))))))
   (let ((a-hash (hash)))
     (lst->ht a-list a-hash)))
 
 (define (reorder a-list)
-  (define (has-connection? ht a-struct)
-    (hash-has-key? ht (get-end a-struct)))
+  (define (is-end-connected? ht a-struct)
+   (or (hash-has-key? ht (get-end a-struct))))
+  (define (is-start-connected? ht a-struct)
+   (or (hash-has-key? ht (get-start a-struct))))
   ;acc1 stores the list of unlinked elements
-  ;acc2 stores the sorted list
-  (define (iter lst ht acc1 acc2)
-    (cond ((empty? lst) (values acc1 acc2))
+  ;acc2 stores the list of linked elements according to has-connection?
+  (define (iter lst ht acc1 acc2 link-test)
+    (cond ((empty? lst) (list acc1 acc2))
           (else
            (let* ((current (first lst))
                   (current-key (get-start current)))
-             (cond ((has-connection? ht current)
-                    (iter (cdr lst) ht acc1 (cons current acc2)))
+             (cond ((link-test ht current)
+                    (iter (cdr lst) ht acc1 (cons current acc2) link-test))
                    (else 
-                    (iter (cdr lst) ht (cons current acc1) acc2)))))))
+                    (iter (cdr lst) ht (cons current acc1) acc2 link-test)))))))
   (define (sort ht current-struct acc)
     (cond ((hash-empty? ht) acc)
           (else (sort (hash-remove ht current-struct) (hash-ref ht (get-end current-struct)) (cons current-struct acc)))))
-  (let ((ht-all (coalesce a-list)))
-    (define-values (unlinked linked) (iter a-list ht-all '() '()))
-    (let ((ht-linked (coalesce linked)))
-      (sort ht-linked (first linked) '()))))
-      
-      
+  (let* ((ht-all (coalesce a-list))
+         (result (iter a-list ht-all '() '() is-end-connected?)) ;sort a-list into linked and unlinked
+         (unlinked (first result))
+         (linked (second result))
+         (ht-linked (coalesce linked))
+         (result2 (iter unlinked ht-linked '() '() is-start-connected?)) ;further sort unlinked in new-linked and new-unlinked
+         (new-unlinked (first result2)) ;final unlinked
+         (new-linked (append linked (second result2)))
+         (new-ht-linked (coalesce new-linked))
+         (ordered (sort new-ht-linked (first new-linked) '())))
+    ordered))

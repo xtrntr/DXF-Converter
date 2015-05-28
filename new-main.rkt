@@ -145,7 +145,7 @@
          [columns spreadsheet-headers]))
   
   (define (update-spreadsheet lst)
-    (define displayed-list (filter-struct-list lst entity-selected))
+    (define displayed-list (filter entity-selected lst))
     (if (empty? displayed-list)
         (send a-list-box clear)
         (send a-list-box set 
@@ -206,7 +206,7 @@
                                           (map-toggle-visibility (cdr lst))))))
                      
                      (send a-canvas update-canvas)
-                     (map-toggle-visibility (filter-struct-list search-list entity-same-layer?))
+                     (map-toggle-visibility (filter entity-same-layer? search-list))
                      (send a-canvas draw-objects search-list)
                      (send a-canvas on-paint)
                      (send a-canvas refresh-now)))))
@@ -229,7 +229,7 @@
        [label "For testing"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (reorder search-list)))])
+                   (display (separate-unlinked-elements search-list)))])
   
   (new button%
        [label "Refocus"]
