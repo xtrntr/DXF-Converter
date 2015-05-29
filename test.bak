@@ -1,4 +1,4 @@
-#lang racket
+#lang typed/racket
 
 ;; This module reads DXF files and extracts any relevant information. Also creates structs from lists containing DXF entity information
 
@@ -16,6 +16,7 @@
 (define (split str [ptn #rx"[ ]+"])
   (regexp-split ptn (string-trim str)))
 
+(: reader (-> Path-String (List String)))
 (define (reader input-port)
   (define lines (read-chunks input-port))
   (foldl (lambda (f r)
@@ -23,14 +24,16 @@
            (append fst r))
          '() lines))
 
+(: read-chunks (-> Path-String (List String)))
 (define (read-chunks input-port)
   (let loop ([accu '()])
     (define nxt (read-line input-port 'any))
     (if (eof-object? nxt)
-        accu
+        ((lambda (x) x) accu)
         (loop (cons nxt accu)))))
 
 ;; extract the values in one section into a list.
+(: read-chunks (-> Path-String (List String)))
 (define (extract-section lst header)
   (define (extract-until lst keyword)
     (cond ((equal? (car lst) keyword) '())
@@ -241,6 +244,5 @@
 (define (file->struct-list input-port)
   (let* ((file-list (reader (open-input-file input-port)))
          (section-list (extract-section file-list sections))
-         (entity-list (separate-entities section-list))
-         (whatsthis (create-structs entity-list)))
-    (flatten whatsthis)))
+         (entity-list (separate-entities section-list)))
+    (flatten (create-structs entity-list))))

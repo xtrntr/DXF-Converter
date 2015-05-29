@@ -11,7 +11,8 @@
          optimize-pattern
          line-intersect?
          arc-intersect?
-         get-display-scale)
+         get-display-scale
+         get-arc-points)
 
 ;scaling for display - only done once
 (define (get-display-scale struct-lst frame-width frame-height)

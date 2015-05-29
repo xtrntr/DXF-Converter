@@ -4,17 +4,13 @@
          (struct-out line)
          (struct-out arc)
          (struct-out point)
-         (struct-out path)
-         make-point
-         make-arc
-         make-line
-         make-path)
+         (struct-out path))
 
 (struct: entity
-  ([highlighted : Boolean]
+  ([layer : String]
+   [highlighted : Boolean]
    [selected : Boolean]
-   [visible : Boolean]
-   [layer : String])
+   [visible : Boolean])
   #:mutable #:transparent)
 
 (struct line entity 
@@ -44,33 +40,11 @@
   #:transparent)
 
 (struct path entity
-  ([entities : (Listof Any)])
+  ([entities : (List point line arc)])
   #:transparent)
 
-(: make-point (-> String Real Real point))
-(define (make-point layer x y)
-  (point #f #f #f layer x y))
-
-(: make-line (-> String Real Real Real Real line))
-(define (make-line layer x1 y1 x2 y2)
-  (line #f #f #f layer x1 y1 x2 y2))
-
-(: make-arc (-> String Real Real Real Real Real arc))
-(define (make-arc layer center-x center-y radius start end)
-  (let ([arc-pt-ht : HashTable (get-arc-points center-x center-y radius start end)]
-        [x1 : Real             (extract ht "x1")]
-        [y1 : Real             (extract ht "y1")]
-        [x2 : Real             (extract ht "x2")]
-        [y2 : Real             (extract ht "y2")]
-        [x3 : Real             (extract ht "x3")]
-        [y3 : Real             (extract ht "y3")])
-    (arc layer #f #f #f center-x center-y radius start end x1 y1 x2 y2 x3 y3)))
-
-(: make-path (-> String (Listof Any) path))
-(define (make-path layer lst)
-  (path #f #f #f layer lst))
-
-#|lang racket
+#|
+#lang racket
 ;; This module contains methods for geometric manipulation on structs.
 ;; Also includes procedures for converting lists of DXF entities to said structs.
 
@@ -117,4 +91,3 @@
 
 ;(reverse-arc (arc "0" 1 2 3 90 180 1 1 2 2 3 3))
 |#
-
