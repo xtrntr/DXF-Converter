@@ -46,7 +46,7 @@
   #:transparent)
 
 (struct path entity
-  ([entities : (Listof Any)])
+  ([entities : (U line arc)])
   #:transparent)
 
 (: make-point (-> String Real Real point))
@@ -59,16 +59,16 @@
 
 (: make-arc (-> String Real Real Real Real Real arc))
 (define (make-arc layer center-x center-y radius start end)
-  (let ([arc-pt-ht : HashTable (get-arc-points center-x center-y radius start end)]
-        [x1 : Real             (extract ht "x1")]
-        [y1 : Real             (extract ht "y1")]
-        [x2 : Real             (extract ht "x2")]
-        [y2 : Real             (extract ht "y2")]
-        [x3 : Real             (extract ht "x3")]
-        [y3 : Real             (extract ht "y3")])
-    (arc layer #f #f #f center-x center-y radius start end x1 y1 x2 y2 x3 y3)))
+  (let* ([arc-pts : (Listof Real) (get-arc-points center-x center-y radius start end)]
+        [x1 : Real                (first arc-pts)]
+        [y1 : Real                (second arc-pts)]
+        [x2 : Real                (third arc-pts)]
+        [y2 : Real                (fourth arc-pts)]
+        [x3 : Real                (fifth arc-pts)]
+        [y3 : Real                (sixth arc-pts)])
+    (arc #f #f #f layer center-x center-y radius start end x1 y1 x2 y2 x3 y3)))
 
-(: make-path (-> String (Listof Any) path))
+(: make-path (-> String (U line arc) path))
 (define (make-path layer lst)
   (path #f #f #f layer lst))
 

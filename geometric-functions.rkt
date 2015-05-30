@@ -1,18 +1,14 @@
 #lang racket
 
-(require "structs.rkt")
+(require "structs.rkt"
+         "utils.rkt")
 
-(provide in-between?
-         point-in-rect?
-         biggest
-         smallest
-         reasonable-equal?
+(provide point-in-rect?
          get-arc-points
          optimize-pattern
          line-intersect?
          arc-intersect?
-         get-display-scale
-         get-arc-points)
+         get-display-scale)
 
 ;scaling for display - only done once
 (define (get-display-scale struct-lst frame-width frame-height)
@@ -210,34 +206,6 @@
                (line-intersect-arc? xb yb xb ys)
                (line-intersect-arc? xb ys xs ys)) #t)
           (else #f))))
-
-;; auxilliary functions
-(define (best fn lst)
-  (unless (empty? lst)
-    (let ((wins (car lst)))
-      (for/list ([i (cdr lst)])
-        (when (fn i wins)
-          (set! wins i)))
-      wins)))
-
-(define (biggest lst)
-  (best > lst))
-
-(define (smallest lst)
-  (best < lst))
-
-;; this is used to check the equality of two numbers to a set decimal point (currently 5)
-;; 0.009 -> accuracy up to 2 decimal point.
-;; 0.09 -> accuracy up to 1 decimal point.
-;; 0.9 -> integer test.
-;; test up to 3 decimal points.
-(define (reasonable-equal? x y)
-  (<= (abs (- x y)) 0.0009))
-
-;; accurate up to 14 decimal places
-(define (in-between? test-num num-1 num-2)
-  (or (and (> num-1 test-num) (< num-2 test-num))
-      (and (> num-2 test-num) (< num-1 test-num))))
 
 ;get all permutations of a set
 (define (get-tours set origin)
