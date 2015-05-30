@@ -1,5 +1,7 @@
 #lang typed/racket
 
+(require "utils.rkt")
+
 (provide (struct-out entity)
          (struct-out line)
          (struct-out arc)

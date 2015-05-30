@@ -89,37 +89,37 @@
 (define (to-display x)
   (let ((x-string 0))
     (if (list? x)
-        (set! x-string (number->string (real->decimal (first x) 3)))
-        (set! x-string (number->string (real->decimal x 3))))
+        (set! x-string (number->string (round-off (first x))))
+        (set! x-string (number->string (round-off x))))
     (format "~a" x-string)))
 
 (define (get-start-x a-struct)
-  (real->decimal (match a-struct
+  (round-off (match a-struct
     [(struct* line  ([x1 x1]))               x1]
     [(struct* arc   ([x1 x1]))               x1]
     [(struct* point ([x x]))                 x]
-    [(struct* path  ([entities entities]))  (get-start-x (first entities))]) 3))
+    [(struct* path  ([entities entities]))  (get-start-x (first entities))])))
 
 (define (get-start-y a-struct)
-  (real->decimal (match a-struct
+  (round-off (match a-struct
     [(struct* line  ([y1 y1]))               y1]
     [(struct* arc   ([y1 y1]))               y1]
     [(struct* point ([y y]))                 y]
-    [(struct* path  ([entities entities]))  (get-start-y (first entities))]) 3))
+    [(struct* path  ([entities entities]))  (get-start-y (first entities))])))
 
 (define (get-end-x a-struct)
-  (real->decimal (match a-struct
+  (round-off (match a-struct
     [(struct* line  ([x2 x2]))               x2]
     [(struct* arc   ([x3 x3]))               x3]
     [(struct* point ([x x]))                 x]
-    [(struct* path  ([entities entities]))  (get-end-x (first entities))]) 3))
+    [(struct* path  ([entities entities]))  (get-end-x (first entities))])))
 
 (define (get-end-y a-struct)
-  (real->decimal (match a-struct
+  (round-off (match a-struct
     [(struct* line  ([y2 y2]))              y2]
     [(struct* arc   ([y3 y3]))              y3]
     [(struct* point ([y y]))                y]
-    [(struct* path  ([entities entities]))  (get-end-y (first entities))]) 3))
+    [(struct* path  ([entities entities]))  (get-end-y (first entities))])))
 
 (define (get-start a-struct)
     (list (get-start-x a-struct) (get-start-y a-struct)))
