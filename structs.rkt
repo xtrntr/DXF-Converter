@@ -20,52 +20,52 @@
   #:mutable #:transparent)
 
 (struct line entity 
-  ([x1 : Real]
-   [y1 : Real]
-   [x2 : Real]
-   [y2 : Real])
+  ([x1 : Flonum]
+   [y1 : Flonum]
+   [x2 : Flonum]
+   [y2 : Flonum])
   #:transparent)
 
 (struct point entity 
-  ([x : Real]
-   [y : Real])
+  ([x : Flonum]
+   [y : Flonum])
   #:transparent)
 
 (struct arc entity 
-  ([center-x : Real]
-   [center-y : Real]
-   [radius : Real]
-   [start : Real]
-   [end : Real]
-   [x1 : Real]
-   [y1 : Real]
-   [x2 : Real]
-   [y2 : Real]
-   [x3 : Real]
-   [y3 : Real]) 
+  ([center-x : Flonum]
+   [center-y : Flonum]
+   [radius : Flonum]
+   [start : Flonum]
+   [end : Flonum]
+   [x1 : Flonum]
+   [y1 : Flonum]
+   [x2 : Flonum]
+   [y2 : Flonum]
+   [x3 : Flonum]
+   [y3 : Flonum]) 
   #:transparent)
 
 (struct path entity
   ([entities : (U line arc)])
   #:transparent)
 
-(: make-point (-> String Real Real point))
+(: make-point (-> String Flonum Flonum point))
 (define (make-point layer x y)
   (point #f #f #f layer x y))
 
-(: make-line (-> String Real Real Real Real line))
+(: make-line (-> String Flonum Flonum Flonum Flonum line))
 (define (make-line layer x1 y1 x2 y2)
   (line #f #f #f layer x1 y1 x2 y2))
 
-(: make-arc (-> String Real Real Real Real Real arc))
+(: make-arc (-> String Flonum Flonum Flonum Flonum Flonum arc))
 (define (make-arc layer center-x center-y radius start end)
-  (let* ([arc-pts : (Listof Real) (get-arc-points center-x center-y radius start end)]
-        [x1 : Real                (first arc-pts)]
-        [y1 : Real                (second arc-pts)]
-        [x2 : Real                (third arc-pts)]
-        [y2 : Real                (fourth arc-pts)]
-        [x3 : Real                (fifth arc-pts)]
-        [y3 : Real                (sixth arc-pts)])
+  (let* ([arc-pts : (Listof Flonum) (get-arc-points center-x center-y radius start end)]
+        [x1 : Flonum                (first arc-pts)]
+        [y1 : Flonum                (second arc-pts)]
+        [x2 : Flonum                (third arc-pts)]
+        [y2 : Flonum                (fourth arc-pts)]
+        [x3 : Flonum                (fifth arc-pts)]
+        [y3 : Flonum                (sixth arc-pts)])
     (arc #f #f #f layer center-x center-y radius start end x1 y1 x2 y2 x3 y3)))
 
 (: make-path (-> String (U line arc) path))
