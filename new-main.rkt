@@ -1,7 +1,7 @@
 #lang racket
 
 (require "structs.rkt"
-         "read-dxf.rkt"
+         "test.rkt"
          "geometric-functions.rkt"
          "ils-pattern-generator.rkt"
          "ids-pattern-generator.rkt"

@@ -35,7 +35,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 ;135.224 represented as 135224
 (define (ils-num x)
-  (* 1000 (real->decimal x 3)))
+  (* 1000 (round-off x)))
 
 (define (insert-newline)
   (printf "~n"))

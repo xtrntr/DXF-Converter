@@ -4,7 +4,7 @@
 
 (require srfi/1
          "structs.rkt"
-         "geometric_functions.rkt")
+         "geometric-functions.rkt")
 
 (define supported-types '("LWPOLYLINE" "ARC" "POINT" "CIRCLE" "LINE"))
 (define entity-types '("3DFACE"  "3DSOLID"  "ACAD_PROXY_ENTITY" "ARC" "ARCALIGNEDTEXT"  "ATTDEF"  "ATTRIB"  "BODY"  "CIRCLE" "DIMENSION" "ELLIPSE"  "HATCH" "IMAGE"  "INSERT"  "LEADER"  "LINE" "LWPOLYLINE" "MLINE"  "MTEXT"  "OLEFRAME"  "OLE2FRAME"  "POINT" "POLYLINE" "RAY"  "REGION"  "RTEXT"  "SEQEND"  "SHAPE"  "SOLID" "SPLINE" "TEXT"  "TOLERANCE"  "TRACE"  "VERTEX"  "VIEWPORT" "WIPEOUT" "XLINE"))
@@ -27,7 +27,7 @@
   (let loop ([accu '()])
     (define nxt (read-line input-port 'any))
     (if (eof-object? nxt)
-        ((lambda (x) x) accu)
+        accu
         (loop (cons nxt accu)))))
 
 ;; extract the values in one section into a list.
@@ -241,5 +241,6 @@
 (define (file->struct-list input-port)
   (let* ((file-list (reader (open-input-file input-port)))
          (section-list (extract-section file-list sections))
-         (entity-list (separate-entities section-list)))
-    (flatten (create-structs entity-list))))
+         (entity-list (separate-entities section-list))
+         (whatsthis (create-structs entity-list)))
+    (flatten whatsthis)))

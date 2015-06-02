@@ -1,95 +1,19 @@
 #lang typed/racket
 
-(require "structs.rkt")
+(require/typed (only-in srfi/1 break)
+               ;[break (All (T) (-> (-> T Boolean) (Listof T) (Listof T)))])
+               ;[break (All (T) (-> (-> T Boolean) (Values (Listof T) (Listof T))))])
+               [break (All (T) (-> (-> String (U False (Listof T))) (Listof T) (Listof T)))])
 
-(: create-arc2 (-> String Real Real Real Real Real arc))
-(define (create-arc2 layer x1 y1 x2 y2 bulge)
-  
-  (: sqroot (-> Real Number))
-  (define (sqroot x)
-    (integer-sqrt x))
-    
-  (: get-center (-> Real Boolean (List Real Real Real)))
-  (define (get-center angle big-bulge?)
-    (let* ((chord-length (sqroot (+ (expt (- x1 x2) 2) (expt (- y1 y2) 2))))
-           (small-angle (if (< angle pi) angle (- (* 2 pi) angle)))
-           ;negative bulge indicates point 1 goes to point 2 in a CW fashion
-           (is-cw? (negative? bulge))
-           (radius (abs (/ (/ chord-length 2) (sin (/ small-angle 2)))))
-           (midpoint-x (/ (+ x1 x2) 2))
-           (midpoint-y (/ (+ y1 y2) 2))
-           ;normalizing a vector -> calculate x and y length, then divide both x and y component length by the vector length
-           (vector-x (- x1 x2))
-           (vector-y (- y1 y2))
-           (magnitude chord-length)
-           (unit-vector-x (* vector-x (/ 1 magnitude)))
-           (unit-vector-y (* vector-y (/ 1 magnitude)))
-           ;the normal is perpendicular to the vector formed by the 2 arc points
-           (normal-vector-x (* 1 unit-vector-y))
-           (normal-vector-y (* -1 unit-vector-x))
-           (adj (/ (/ chord-length 2) (tan (/ angle 2))))
-           ;2 possible center points
-           (center1-x (+ midpoint-x (* adj normal-vector-x)))
-           (center1-y (+ midpoint-y (* adj normal-vector-y)))
-           (center2-x (- midpoint-x (* adj normal-vector-x)))
-           (center2-y (- midpoint-y (* adj normal-vector-y)))
-           (ax1 (radians->degrees (cos (/ (- x1 center2-x) radius))))
-           (ax2 (radians->degrees (cos (/ (- x2 center2-x) radius))))
-           (cross-product1 (- (* (- x2 x1) (- center1-y y1)) (* (- y2 y1) (- center1-x x1))))
-           (cross-product2 (- (* (- x2 x1) (- center2-y y1)) (* (- y2 y1) (- center2-x x1)))))
-      (if big-bulge? 
-          (if is-cw?                         ;big angle -> CW center and CW arc or CCW center and CCW arc
-              (if (positive? cross-product1) ;positive cross product means center is CW with respect to point1 -> point 2
-                  (list center1-x center1-y radius)
-                  (list center2-x center2-y radius))
-              (if (negative? cross-product2)
-                  (list center2-x center2-y radius)
-                  (list center1-x center1-y radius)))
-          (if is-cw?                         ;small angle -> CW center and CCW arc or CCW center and CW arc
-              (if (positive? cross-product1) ;positive cross product means center is CW with respect to point1 -> point 2
-                  (list center2-x center2-y radius)
-                  (list center1-x center1-y radius))
-              (if (negative? cross-product2)
-                  (list center1-x center1-y radius)
-                  (list center2-x center2-y radius))))))
-  (let* ((arc-angle-rad (abs (* 4 (atan bulge))))
-         (big-bulge? (> arc-angle-rad pi))
-         (small-angle (if (< arc-angle-rad pi) arc-angle-rad (- (* 2 pi) arc-angle-rad)))
-         (is-cw? (negative? bulge))
-         (centerpoints (get-center arc-angle-rad big-bulge?))
-         (center-x (car centerpoints))
-         (center-y (cadr centerpoints))
-         (radius (caddr centerpoints))
-         (top (+ center-y radius))
-         (bottom (- center-y radius))
-         (left (- center-x radius))
-         (right (+ center-x radius))
-         (quad-num (cond ((and (in-between? x1 left center-x) (in-between? y1 top center-y)) 2)
-                         ((and (in-between? x1 left center-x) (in-between? y1 bottom center-y)) 3)
-                         ((and (in-between? x1 right center-x) (in-between? y1 top center-y)) 1)
-                         ((and (in-between? x1 right center-x) (in-between? y1 bottom center-y)) 4)
-                         ;0 is for edge cases.
-                         ((or (reasonable-equal? x1 left) (reasonable-equal? x1 right) (reasonable-equal? y1 top) (reasonable-equal? y1 bottom)) 0)
-                         (else (error "Quadrant not found: " x1 y1))))
-         (angle-to (acos (/ (abs (- x1 center-x)) radius)))
-         (start (radians->degrees (cond ((= quad-num 0) 
-                                         (cond ((reasonable-equal? x1 left) (degrees->radians 180))
-                                               ((reasonable-equal? x1 right) (degrees->radians 0))
-                                               ((reasonable-equal? y1 top) (degrees->radians 90))
-                                               ((reasonable-equal? y1 bottom) (degrees->radians 270))
-                                               (else (display "unaccounted for"))))
-                                        ((= quad-num 1) angle-to)
-                                        ((= quad-num 2) (- (degrees->radians 180) angle-to))
-                                        ((= quad-num 3) (+ (degrees->radians 180) angle-to))
-                                        ((= quad-num 4) (- (degrees->radians 360) angle-to)))))
-         (end (if is-cw? 
-                  (if (negative? (- start (radians->degrees arc-angle-rad)))
-                      (+ 360 (- start (radians->degrees arc-angle-rad)))
-                      (- start (radians->degrees arc-angle-rad)))
-                  (if (< 360 (+ start (radians->degrees arc-angle-rad)))
-                      (- (+ start (radians->degrees arc-angle-rad)) 360)
-                      (+ start (radians->degrees arc-angle-rad))))))
-    ;DXF is CW
-    (if is-cw?
-        (make-arc layer center-x center-y radius end start)
-        (make-arc layer center-x center-y radius start end))))
+(define entity-types '("3DFACE"  "3DSOLID"  "ACAD_PROXY_ENTITY" "ARC" "ARCALIGNEDTEXT"  "ATTDEF"  "ATTRIB"  "BODY"  "CIRCLE" "DIMENSION" "ELLIPSE"  "HATCH" "IMAGE"  "INSERT"  "LEADER"  "LINE" "LWPOLYLINE" "MLINE"  "MTEXT"  "OLEFRAME"  "OLE2FRAME"  "POINT" "POLYLINE" "RAY"  "REGION"  "RTEXT"  "SEQEND"  "SHAPE"  "SOLID" "SPLINE" "TEXT"  "TOLERANCE"  "TRACE"  "VERTEX"  "VIEWPORT" "WIPEOUT" "XLINE"))
+(define lst '("ENTITIES" "0" "LINE" "5" "BA1C" "330" "1F" "100" "AcDbEntity" "8" "0" "370" "0" "100" "AcDbLine" "10" "253.2926653556182" "20" "1478.621431186484" "30" "0.0" "11" "253.2876653556182" "21" "1478.621431186484" "31" "0.0" "0" "LINE" "5" "BA1D" "330" "1F" "100" "AcDbEntity" "8" "0" "370" "0" "100" "AcDbLine" "10" "253.2876653556182" "20" "1478.621431186484" "30" "0.0" "11" "253.2876653556182" "21" "1476.655431186484" "31" "0.0" "0" "LINE" "5" "BA1E" "330" "1F" "100" "AcDbEntity" "8" "0" "370" "0" "100" "AcDbLine" "10" "253.2926653556182" "20" "1476.655431186484" "30" "0.0" "11" "253.2876653556182" "21" "1476.655431186484" "31" "0.0" "0" "LINE" "5" "BA1F" "330" "1F" "100" "AcDbEntity" "8" "0" "370" "0" "100" "AcDbLine" "10" "253.2926653556182" "20" "1476.655431186484" "30" "0.0" "11"))
+
+(break (lambda ([x : String]) (member x entity-types)) lst)
+
+(: cast (All (T) ((Any -> Boolean : T) Any -> T)))
+(define (cast p? x)
+   (if (p? x)
+       x
+       (error "Cast failed")))
+
+(cast exact-integer? (truncate 3))

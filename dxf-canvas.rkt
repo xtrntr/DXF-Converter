@@ -3,6 +3,7 @@
 (require "structs.rkt"
          "geometric-functions.rkt"
          "struct-list-utils.rkt"
+         "utils.rkt"
          racket/draw)
 
 (provide dxf-canvas%)

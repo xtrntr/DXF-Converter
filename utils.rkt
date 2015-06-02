@@ -8,59 +8,64 @@
          smallest
          reasonable-equal?
          in-between?
-         get-arc-points)
+         get-arc-points
+         string->real)
 
-(: round-off (-> Flonum Flonum))
+(: string->real (-> String Real))
+(define (string->real x)
+  (cast (string->number x) Real))
+
+(: round-off (-> Real Real))
 (define (round-off z)
   (let ((power (expt 10 3)))
     (/ (round (* power z)) power)))
 
-(: make-whitespaces (-> Flonum String))
+(: make-whitespaces (-> Real String))
 (define (make-whitespaces x)
       (cond ((= x 0) "")
             (else (string-append " " (make-whitespaces (- x 1))))))
 
-
-(: biggest (-> (Listof Flonum) Flonum))
+(: biggest (-> (Listof Real) Real))
 (define (biggest lst)
-  (let loop : Flonum
-    ([wins : Flonum (car lst)]
-     [lst : (Listof Flonum) lst])
+  (let loop : Real
+    ([wins : Real (car lst)]
+     [lst : (Listof Real) lst])
     (cond ((empty? lst) wins)
           ((> (car lst) wins) (loop (car lst) (cdr lst)))
           (else (loop wins (cdr lst))))))
 
-(: smallest (-> (Listof Flonum) Flonum))
+(: smallest (-> (Listof Real) Real))
 (define (smallest lst)
-  (let loop : Flonum
-    ([wins : Flonum (car lst)]
-     [lst : (Listof Flonum) lst])
+  (let loop : Real
+    ([wins : Real (car lst)]
+     [lst : (Listof Real) lst])
     (cond ((empty? lst) wins)
           ((< (car lst) wins) (loop (car lst) (cdr lst)))
           (else (loop wins (cdr lst))))))
 
-;; this is used to check the equality of two numbers to a set decimal point (currently 5)
+;; this is used to check the equality of two Reals to a set decimal point (currently 5)
 ;; 0.009 -> accuracy up to 2 decimal point.
 ;; 0.09 -> accuracy up to 1 decimal point.
 ;; 0.9 -> integer test.
 ;; test up to 3 decimal points.
-(: reasonable-equal? (-> Flonum Real Boolean))
+(: reasonable-equal? (-> Real Real Boolean))
 (define (reasonable-equal? x y)
   (<= (abs (- x y)) 0.0009))
 
 ;; accurate up to 14 decimal places
-(: in-between? (-> Flonum Real Real Boolean))
+(: in-between? (-> Real Real Real Boolean))
 (define (in-between? test-num num-1 num-2)
   (or (and (> num-1 test-num) (< num-2 test-num))
       (and (> num-2 test-num) (< num-1 test-num))))
 
 ;; NOT YET TESTED PROPERLY.
 ;; from the center xy, start and end points, return x1 y1 x2 y2 x3 y3 which is the start, middle and end point of the arc respectively.
-(: get-arc-points (-> Flonum Flonum Flonum Flonum Flonum (List Flonum Flonum Flonum Flonum Flonum Flonum)))
+(: get-arc-points (-> Real Real Real Real Real (Listof Real)))
 (define (get-arc-points center-x center-y radius start-angle end-angle)
-  (: determine-quadrant (-> (Option Flonum) Real))
+  
+  (: determine-quadrant (-> (Option Real) Real))
   (define (determine-quadrant angle)
-    (assert angle flonum?)
+    (assert angle real?)
     (cond ((or (reasonable-equal? angle 0) (reasonable-equal? angle 90) 
                (reasonable-equal? angle 270)(reasonable-equal? angle 180) 
                (reasonable-equal? angle 360)) 0)
@@ -69,18 +74,18 @@
           ((in-between? angle 180 270) 3)
           ((in-between? angle 270 360) 4)
           (error "Expected a number, given " angle)))
-  (: get-narrow-angle (-> (Option Flonum) (Option Real) Flonum))
+  (: get-narrow-angle (-> (Option Real) (Option Real) Real))
   (define (get-narrow-angle angle quadrant)
-    (assert angle flonum?)
-    (assert quadrant flonum?)
+    (assert angle real?)
+    (assert quadrant real?)
     (cond ((= quadrant 2) (- angle 90))
           ((= quadrant 3) (- angle 180))
           ((= quadrant 4) (- angle 270))
           (else angle)))
-  (: get-x-value (-> (Option Flonum) (Option Real) Flonum Flonum Flonum))
+  (: get-x-value (-> (Option Real) (Option Real) Real Real Real))
   (define (get-x-value angle quadrant center-x radius)
-    (assert angle flonum?)
-    (assert quadrant flonum?)
+    (assert angle real?)
+    (assert quadrant real?)
     (cond ((reasonable-equal? angle 90) center-x)
           ((reasonable-equal? angle 180) (- center-x radius))
           ((reasonable-equal? angle 270) center-x)
@@ -90,10 +95,10 @@
           ((= quadrant 3) (- center-x (* radius (cos (degrees->radians angle)))))
           ((= quadrant 4) (+ center-x (* radius (sin (degrees->radians angle)))))
           (error "Expected a number, given " quadrant)))
-  (: get-y-value (-> (Option Flonum) (Option Real) Flonum Flonum Flonum))
+  (: get-y-value (-> (Option Real) (Option Real) Real Real Real))
   (define (get-y-value angle quadrant center-y radius)
-    (assert angle flonum?)
-    (assert quadrant flonum?)
+    (assert angle real?)
+    (assert quadrant real?)
     (cond ((reasonable-equal? angle 90) (+ center-y radius))
           ((reasonable-equal? angle 180) center-y)
           ((reasonable-equal? angle 270) (- center-y radius))
