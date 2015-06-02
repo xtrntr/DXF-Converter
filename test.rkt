@@ -5,8 +5,7 @@
                )
 
 (require "structs.rkt"
-         "geometric-functions.rkt"
-         "utils.rkt")
+         "geometric-functions.rkt")
 
 (define supported-types '("LWPOLYLINE" "ARC" "POINT" "CIRCLE" "LINE"))
 (define entity-types '("3DFACE"  "3DSOLID"  "ACAD_PROXY_ENTITY" "ARC" "ARCALIGNEDTEXT"  "ATTDEF"  "ATTRIB"  "BODY"  "CIRCLE" "DIMENSION" "ELLIPSE"  "HATCH" "IMAGE"  "INSERT"  "LEADER"  "LINE" "LWPOLYLINE" "MLINE"  "MTEXT"  "OLEFRAME"  "OLE2FRAME"  "POINT" "POLYLINE" "RAY"  "REGION"  "RTEXT"  "SEQEND"  "SHAPE"  "SOLID" "SPLINE" "TEXT"  "TOLERANCE"  "TRACE"  "VERTEX"  "VIEWPORT" "WIPEOUT" "XLINE"))
@@ -54,7 +53,7 @@
                                                                          (separate-entities tail)))
             (separate-entities tail)))))
 
-(: create-structs (-> (Listof (Listof String)) (U path arc line)))
+(: create-structs (-> (Listof (Listof String)) (Listof (Listof String))))
 (define (create-structs entity-list)
   (define my-rest (inst rest String String))
   (map (lambda ([x : (Listof String)])
@@ -66,66 +65,66 @@
        ;[("CIRCLE")     (dxf-circle (rest x))]))
        entity-list))
 
-(: extract-str (-> (HashTable String String) String String))
+(: extract-str (-> HashTable String String))
 (define (extract-str ht header)
   (hash-ref ht header))
 
-(: extract-val (-> (HashTable String String) String Real))
+(: extract-val (-> HashTable String Real))
 (define (extract-val ht header)
-  (define val (string->number (hash-ref ht header)))
-  (assert val real?))
+  (hash-ref ht header))
 
-(: separate (-> (Listof String) (Listof (Pairof String String))))
+(: separate (-> (Listof String) (Listof (List String String))))
 (define (separate lst)
-  (let loop : (Listof (Pairof String String))
-    ([acc : (Listof (Pairof String String)) '()]
+  (let loop : (Listof (List String String))
+    ([acc : (Listof (List String String)) '()]
      [lst : (Listof String) lst])
     (cond ((empty? lst) acc)
-          (else (loop (cons (cons (car lst) (cadr lst)) acc) (cddr lst))))))
+          (else (loop (cons (list (car lst) (cadr lst)) acc) (cddr lst))))))
 
 (: dxf-line (-> (Listof String) line))
 (define (dxf-line lst)
-  (let* ([ht : (HashTable String String) (make-hash (separate lst))]
+  (let* ([ht : HashTable (make-hash (separate lst))]
          [layer : String (extract-str ht "8")]
          [x1 : Real (extract-val ht "10")]
          [y1 : Real (extract-val ht "20")]
          [x2 : Real (extract-val ht "11")]
          [y2 : Real (extract-val ht "21")])
-    (make-line layer x1 y1 x2 y2)))
+    (make-line layer #f #f #f x1 y1 x2 y2)))
 
 (: dxf-point (-> (Listof String) point))
 (define (dxf-point lst)
-  (let* ([ht : (HashTable String String) (make-hash (separate lst))]
+  (let* ([ht : HashTable (make-hash (separate lst))]
          [layer : String (extract-str ht "8")]
          [x : Real       (extract-val ht "10")]
          [y : Real       (extract-val ht "20")])
-    (make-point layer x y)))
+    (make-point layer #f #f #f x y)))
 
 (: dxf-arc (-> (Listof String) arc))
 (define (dxf-arc lst)
-  (let* ([ht : (HashTable String String)        (make-hash (separate lst))]
+  (let* ([ht : HashTable        (make-hash (separate lst))]
          [layer : String        (extract-str ht "8")]
          [center-x : Real       (extract-val ht "10")]
          [center-y : Real       (extract-val ht "20")]
          [radius : Real         (extract-val ht "40")]
          [start : Real          (extract-val ht "50")]
          [end : Real            (extract-val ht "51")])
-    (make-arc layer center-x center-y radius start end)))
+    (make-arc layer #f #f #f center-x center-y radius start end)))
 
 (: dxf-path (-> (Listof String) path))
 (define (dxf-path lst)
-  (let* ([ht : (HashTable String String)        (make-hash (separate lst))]
+  (let* ([ht : HashTable        (make-hash (separate lst))]
          [layer : String        (extract-str ht "8")]
          [closed? : Boolean     (if (equal? (or 1 129) (extract-val ht "70")) #t #f)])
-    (make-path (let open-polyline : (U arc line)
-      ([path-lst : (Listof String) lst]
-       [acc : (U arc line) '()])
+    (let open-polyline : (Listof Any)
+      ([path-lst : (List (Listof String)) lst]
+       [acc : (List (Listof String)) '()]
+       [result : (Listof Any) '()])
       (match lst
       [(list (list "10" x1) (list "20" y1) (list "42" bulge) (list "10" x2) (list "20" y2))        (create-arc2 layer x1 y1 x2 y2 bulge)]
       [(list (list "10" x1) (list "20" y1) (list "10" x2) (list "20" y2))                          (make-line layer x1 y1 x2 y2)]
       [(list (list "10" x1) (list "20" y1) (list "42" bulge) (list "10" x2) (list "20" y2) a ...)  (cons (create-arc2 layer x1 y1 x2 y2 bulge) (open-polyline (append (list (list "10" x2) (list "20" y2)) a)))] 
       [(list (list "10" x1) (list "20" y1) (list "10" x2) (list "20" y2) a ...)                    (cons (make-line layer x1 y1 x2 y2) (open-polyline (append (list (list "10" x2) (list "20" y2)) a)))]
-      [_ (error "This is not expected, given: " lst)])))))
+      [_ (void)]))))
 
 ;; 1) determine the center point of the arc given the angle and the 2 arc points.
 ;; 1.1) calculate the 2 possible center points using vectors. the 2 arc points form a line/chord.
@@ -199,7 +198,7 @@
                          ((and (in-between? x1 right center-x) (in-between? y1 bottom center-y)) 4)
                          ;0 is for edge cases.
                          ((or (reasonable-equal? x1 left) (reasonable-equal? x1 right) (reasonable-equal? y1 top) (reasonable-equal? y1 bottom)) 0)
-                         (else (error "Quadrant not found: " x1 y1))))
+                         (else (display "unaccounted for"))))
          (angle-to (acos (/ (abs (- x1 center-x)) radius)))
          (start (radians->degrees (cond ((= quad-num 0) 
                                          (cond ((reasonable-equal? x1 left) (degrees->radians 180))
@@ -219,9 +218,9 @@
                       (- (+ start (radians->degrees arc-angle-rad)) 360)
                       (+ start (radians->degrees arc-angle-rad))))))
     ;DXF is CW
-    (if is-cw?
-        (make-arc layer center-x center-y radius end start)
-        (make-arc layer center-x center-y radius start end))))
+    (list (if is-cw?
+              (make-arc layer center-x center-y radius end start)
+              (make-arc layer center-x center-y radius start end)))))
 
 
 
