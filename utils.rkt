@@ -9,7 +9,8 @@
          reasonable-equal?
          in-between?
          get-arc-points
-         string->real)
+         string->real
+         break)
 
 (: string->real (-> String Real))
 (define (string->real x)
@@ -57,6 +58,10 @@
 (define (in-between? test-num num-1 num-2)
   (or (and (> num-1 test-num) (< num-2 test-num))
       (and (> num-2 test-num) (< num-1 test-num))))
+
+(: break (All [T] (-> (T -> Any) (Listof T) (Values (Listof T) (Listof T)))))
+(define (break pred lst)
+  (splitf-at lst (negate pred)))
 
 ;; NOT YET TESTED PROPERLY.
 ;; from the center xy, start and end points, return x1 y1 x2 y2 x3 y3 which is the start, middle and end point of the arc respectively.

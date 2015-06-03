@@ -2,8 +2,7 @@
 
 ;; This module reads DXF files and extracts any relevant information. Also creates structs from lists containing DXF entity information
 
-(require srfi/1
-         "structs.rkt"
+(require "structs.rkt"
          "geometric-functions.rkt"
          "utils.rkt")
 
@@ -117,7 +116,7 @@
 (define (list->path lst)
   (define layer (cadr (car (filter-header (take-pair lst) '("8")))))
   (define list-of-arcs-and-lines (separate-lwpolyline (filter-header (take-pair lst) '("70" "10" "20" "42")) layer))
-  (path (layer->string layer) (flatten list-of-arcs-and-lines)))
+  (make-path (layer->string layer) (flatten list-of-arcs-and-lines)))
 
 (define (layer->string x)
   (if (string? x) x (number->string x)))
@@ -217,14 +216,13 @@
               (create-arc layer center-x center-y radius start end)))))
 
 (define (create-line layer x1 y1 x2 y2)
-  (line (layer->string layer) x1 y1 x2 y2))
+  (make-line (layer->string layer) x1 y1 x2 y2))
 
 (define (create-point layer x y)
-  (point (layer->string layer) x y))
+  (make-point (layer->string layer) x y))
 
 (define (create-arc layer x y radius start end)
-  (define list-of-3-points (get-arc-points x y radius start end))
-  (apply arc (append (list (layer->string layer) x y radius start end) list-of-3-points)))
+  (apply make-arc (list (layer->string layer) x y radius start end)))
 
 (define (create-circle layer x y radius) ; creating 2 semicircles with create-arc
   (create-arc (layer->string layer) x y radius 0 360))
