@@ -12,7 +12,8 @@
          make-line
          make-path
          highlight-lst
-         select-lst)
+         select-lst
+         Entities)
 
 (struct: entity
   ([highlighted : Boolean]
@@ -89,5 +90,9 @@
 (: make-path (-> String (Listof (U line arc)) path))
 (define (make-path layer lst)
   (path #f #f #f layer lst))
+
+
+
+(define-type Entities (U line arc path point))
                      
 (define k (make-path "0" (list (make-line "0" 1 2 3 4) (make-line "0" 1 2 3 4))))

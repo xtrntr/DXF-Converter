@@ -4,7 +4,7 @@
          "utils.rkt")
 
 (require/typed (only-in racket/base hash-empty?)
-               [hash-empty? (-> (HashTable (List Real Real) (U line arc path point)) Boolean)])
+               [hash-empty? (-> Header-Value Boolean)])
 
 (provide structs-to-strings
          get-relevant-list
@@ -22,9 +22,9 @@
          get-linked-nodes
          separate-unlinked-elements)
 
-(: structs-to-strings (-> (Listof (U line arc path point)) (Listof String)))
+(: structs-to-strings (-> (Listof Entities) (Listof String)))
 (define (structs-to-strings struct-lst)
-  (map (lambda ([x : (U line arc path point)]) (capitalize (symbol->string (cast (object-name x) Symbol)))) struct-lst))
+  (map (lambda ([x : Entities]) (capitalize (symbol->string (cast (object-name x) Symbol)))) struct-lst))
 
 (: capitalize (-> String String))
 (define (capitalize str)
@@ -33,13 +33,13 @@
          (capitalized (list->string (append (list first-letter) (cdr dissected)))))
     capitalized))
 
-(: get-relevant-list (-> (Listof (U line arc path point)) (Listof (U line arc path point)))) 
+(: get-relevant-list (-> (Listof Entities) (Listof Entities))) 
 (define (get-relevant-list lst)
-  (filter (lambda ([i : (U line arc path point)]) (and (entity-visible i) (entity-selected i))) lst))
+  (filter (lambda ([i : Entities]) (and (entity-visible i) (entity-selected i))) lst))
     
-(: select-highlighted (-> (Listof (U line arc path point)) Void))
+(: select-highlighted (-> (Listof Entities) Void))
 (define (select-highlighted lst)
-  (: select (-> (U line arc path point) Void))
+  (: select (-> Entities Void))
   (define (select x)
     (set-entity-selected! x #t)
     (set-entity-highlighted! x #f))
@@ -55,9 +55,9 @@
                   (select-highlighted (cdr lst)))))
     (void)))
 
-(: highlight-path (-> (Listof (U line arc path point)) Void))
+(: highlight-path (-> (Listof Entities) Void))
 (define (highlight-path lst)
-  (: any-entity-highlighted? (-> (Listof (U line arc path point)) Boolean))
+  (: any-entity-highlighted? (-> (Listof Entities) Boolean))
   (define (any-entity-highlighted? lst)
     (cond ((empty? lst) #f)
           ((entity-highlighted (car lst)) #t)
@@ -69,7 +69,7 @@
                               (highlight-lst (path-entities  (car x))))
                 (loop (cdr x))))))
 
-(: unselect-all (-> (Listof (U line arc path point)) Void))
+(: unselect-all (-> (Listof Entities) Void))
 (define (unselect-all lst)
   (unless (empty? lst)
     (let ((current (first lst)))
@@ -81,9 +81,9 @@
                   (unselect-all (cdr lst))))))
   (void))
 
-(: delete-selected (-> (Listof (U line arc path point)) Void))
+(: delete-selected (-> (Listof Entities) Void))
 (define (delete-selected lst)
-  (: delete (-> (U line arc path point) Void))
+  (: delete (-> Entities Void))
   (define (delete x)
     (set-entity-selected! x #f)
     (set-entity-visible! x #f))
@@ -103,7 +103,7 @@
 (define (to-display x)
   (format "~a" (number->string (round-off x))))
 
-(: get-start-x (-> (U line arc path point) Real))
+(: get-start-x (-> Entities Real))
 (define (get-start-x a-struct)
   (round-off (match a-struct
     [(struct* line  ([x1 x1]))               x1]
@@ -111,7 +111,7 @@
     [(struct* point ([x x]))                 x]
     [(struct* path  ([entities entities]))  (get-start-x (first entities))])))
 
-(: get-start-y (-> (U line arc path point) Real))
+(: get-start-y (-> Entities Real))
 (define (get-start-y a-struct)
   (round-off (match a-struct
     [(struct* line  ([y1 y1]))               y1]
@@ -119,7 +119,7 @@
     [(struct* point ([y y]))                 y]
     [(struct* path  ([entities entities]))  (get-start-y (first entities))])))
 
-(: get-end-x (-> (U line arc path point) Real))
+(: get-end-x (-> Entities Real))
 (define (get-end-x a-struct)
   (round-off (match a-struct
     [(struct* line  ([x2 x2]))               x2]
@@ -127,7 +127,7 @@
     [(struct* point ([x x]))                 x]
     [(struct* path  ([entities entities]))  (get-end-x (first entities))])))
 
-(: get-end-y (-> (U line arc path point) Real))
+(: get-end-y (-> Entities Real))
 (define (get-end-y a-struct)
   (round-off (match a-struct
     [(struct* line  ([y2 y2]))              y2]
@@ -135,19 +135,19 @@
     [(struct* point ([y y]))                y]
     [(struct* path  ([entities entities]))  (get-end-y (first entities))])))
 
-(: get-start (-> (U line arc path point) (List Real Real)))
+(: get-start (-> Entities (List Real Real)))
 (define (get-start a-struct)
     (list (get-start-x a-struct) (get-start-y a-struct)))
 
-(: get-end (-> (U line arc path point) (List Real Real)))
+(: get-end (-> Entities (List Real Real)))
 (define (get-end a-struct)
     (list (get-end-x a-struct) (get-end-y a-struct)))
 
-(: get-node (-> (U line arc path point) (List (List Real Real) (List Real Real))))
+(: get-node (-> Entities (List (List Real Real) (List Real Real))))
 (define (get-node a-struct)
   (list (get-end a-struct) (get-start a-struct)))
 
-(: get-nodes (-> (Listof (U line arc path point)) (Listof (List (List Real Real) (List Real Real)))))
+(: get-nodes (-> (Listof Entities) (Listof (List (List Real Real) (List Real Real)))))
 (define (get-nodes a-list)
   (cond ((empty? a-list) '())
         (else (let ((current (car a-list)))
@@ -169,35 +169,37 @@
                 (else
                  (iter (cdr lst) (cons current acc1) acc2)))))))
 
-(: get-linked-nodes (All [T] (-> (Listof (U line arc path point)) (Listof (List (List Real Real) (List Real Real))))))
+(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof (List (List Real Real) (List Real Real))))))
 (define (get-linked-nodes a-list)
   (remove-singles (get-nodes a-list)))
 
-(: separate-unlinked-elements (-> (Listof (U line arc path point)) (Listof (U line arc path point))))
+(: separate-unlinked-elements (-> (Listof Entities) (Listof Entities)))
 (define (separate-unlinked-elements struct-list)
   (define node-list (get-linked-nodes struct-list))
-  (: is-linked? (-> (U line arc path point) (U False (Listof (List (List Real Real) (List Real Real))))))
+  (: is-linked? (-> Entities (U False (Listof (List (List Real Real) (List Real Real))))))
   (define (is-linked? a-struct)
     (or (member (first (get-node a-struct)) node-list)
         (member (second (get-node a-struct)) node-list)))
-  (let separate : (Listof (U line arc path point))
-    ([unlinked : (Listof (U line arc path point)) '()]
-     [linked : (Listof (U line arc path point)) '()]
-     [lst : (Listof (U line arc path point)) struct-list])
+  (let separate : (Listof Entities)
+    ([unlinked : (Listof Entities) '()]
+     [linked : (Listof Entities) '()]
+     [lst : (Listof Entities) struct-list])
     (if (empty? lst) 
         unlinked
         (let ((current (first lst)))
           (cond ((is-linked? current)
                  (separate unlinked (cons current linked) (cdr lst)))
                 (else (separate (cons current unlinked) linked (cdr lst))))))))
+
+(define-type Header-Value (HashTable (List Real Real) Entities))
      
 ;struct-list -> hash-list
-(: coalesce (-> (Listof (U line arc path point)) (HashTable (List Real Real) (U line arc path point))))
+(: coalesce (-> (Listof Entities) Header-Value))
 (define (coalesce a-list)
   ;values of the hash table are the structs and the keys its starting points
-  (let loop : (HashTable (List Real Real) (U line arc path point))
-    ([lst : (Listof (U line arc path point)) a-list]
-     [ht : (HashTable (List Real Real) (U line arc path point)) (hash)])
+  (let loop : Header-Value
+    ([lst : (Listof Entities) a-list]
+     [ht : Header-Value (hash)])
     (if (empty? lst)
         ht
         (let ((current (first lst)))
@@ -205,17 +207,17 @@
               (loop (cdr lst) ht)
               (loop (cdr lst) (hash-set ht (get-start current) current)))))))
 
-(: reorder (-> (Listof (U line arc path point)) (Listof (U line arc path point))))
+(: reorder (-> (Listof Entities) (Listof Entities)))
 (define (reorder a-list)
-  (: is-end-connected? (-> (HashTable (List Real Real) (U line arc path point)) (U line arc path point) Boolean))
+  (: is-end-connected? (-> Header-Value Entities Boolean))
   (define (is-end-connected? ht a-struct)
    (or (hash-has-key? ht (get-end a-struct))))
-  (: is-start-connected? (-> (HashTable (List Real Real) (U line arc path point)) (U line arc path point) Boolean))
+  (: is-start-connected? (-> Header-Value Entities Boolean))
   (define (is-start-connected? ht a-struct)
    (or (hash-has-key? ht (get-start a-struct))))
   ;acc1 stores the list of unlinked elements
   ;acc2 stores the list of linked elements according to has-connection?
-  (: iter (-> (Listof (U line arc path point)) (HashTable (List Real Real) (U line arc path point)) (Listof (U line arc path point)) (Listof (U line arc path point)) (-> (HashTable (List Real Real) (U line arc path point)) (U line arc path point) Boolean) (List (Listof (U line arc path point)) (Listof (U line arc path point)))))
+  (: iter (-> (Listof Entities) Header-Value (Listof Entities) (Listof Entities) (-> Header-Value Entities Boolean) (List (Listof Entities) (Listof Entities))))
   (define (iter lst ht acc1 acc2 link-test)
     (cond ((empty? lst) (list acc1 acc2))
           (else
@@ -225,7 +227,7 @@
                     (iter (cdr lst) ht acc1 (cons current acc2) link-test))
                    (else 
                     (iter (cdr lst) ht (cons current acc1) acc2 link-test)))))))
-  (: sort (-> (HashTable (List Real Real) (U line arc path point)) (U line arc path point) (Listof (U line arc path point)) (Listof (U line arc path point))))
+  (: sort (-> Header-Value Entities (Listof Entities) (Listof Entities)))
   (define (sort ht current-struct lst)
     (cond ((hash-empty? ht) lst)
           (else (sort (hash-remove ht current-struct) (hash-ref ht (get-end current-struct)) (cons current-struct lst)))))
