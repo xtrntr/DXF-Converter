@@ -7,7 +7,7 @@
          "ids-pattern-generator.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
-         "struct-list-utils.rkt"
+         "test.rkt"
          mrlib/path-dialog
          mrlib/hierlist
          racket/gui/base
@@ -101,18 +101,18 @@
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line layer highlighted selected visible x1 y1 x2 y2)                           (line layer (scale-x x1) (scale-y y1) (scale-x x2) (scale-y y2))]
-                 [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (arc layer (scale-x x) (scale-y y) (* scale radius) start end (scale-x x1) (scale-y y1) (scale-x x2) (scale-y y2) (scale-x x3) (scale-y y3))]
-                 [(point layer highlighted selected visible x y)                                  (point layer (scale-x x) (scale-y y))]
-                 [(path layer highlighted selected visible path-list)                             (path layer (rescale path-list scale))]))))
+                 [(line highlighted selected visible layer x1 y1 x2 y2)                           (make-line layer (scale-x x1) (scale-y y1) (scale-x x2) (scale-y y2))]
+                 [(arc highlighted selected visible layer x y radius start end x1 y1 x2 y2 x3 y3) (make-arc layer (scale-x x) (scale-y y) (* scale radius) start end)]
+                 [(point highlighted selected visible layer x y)                                  (make-point layer (scale-x x) (scale-y y))]
+                 [(path highlighted selected visible layer path-list)                             (make-path layer (rescale path-list scale))]))))
   
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line layer highlighted selected visible x1 y1 x2 y2)                           (line layer (unscale-x x1) (unscale-y y1) (unscale-x x2) (unscale-y y2))]
-                 [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (arc layer (unscale-x x) (unscale-y y) (/ radius scale) start end (unscale-x x1) (unscale-y y1) (unscale-x x2) (unscale-y y2) (unscale-x x3) (unscale-y y3))]
-                 [(point layer highlighted selected visible x y)                                  (point layer (unscale-x x) (unscale-y y))]
-                 [(path layer highlighted selected visible path-list)                             (path layer (downscale path-list scale))]))))
+                 [(line highlighted selected visible layer x1 y1 x2 y2)                           (make-line layer (unscale-x x1) (unscale-y y1) (unscale-x x2) (unscale-y y2))]
+                 [(arc highlighted selected visible layer x y radius start end x1 y1 x2 y2 x3 y3) (make-arc layer (unscale-x x) (unscale-y y) (/ radius scale) start end)]
+                 [(point highlighted selected visible layer x y)                                  (make-point layer (unscale-x x) (unscale-y y))]
+                 [(path highlighted selected visible layer path-list)                             (make-path layer (downscale path-list scale))]))))
   
   (define struct-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
@@ -149,7 +149,7 @@
     (if (empty? displayed-list)
         (send a-list-box clear)
         (send a-list-box set 
-              (struct-list->string-list displayed-list)
+              (structs-to-strings displayed-list)
               (map to-display (map get-start-x displayed-list))
               (map to-display (map get-start-y displayed-list))
               (map to-display (map get-end-x displayed-list))
@@ -229,7 +229,7 @@
        [label "For testing"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (separate-unlinked-elements search-list)))])
+                   (display search-list))])
   
   (new button%
        [label "Refocus"]

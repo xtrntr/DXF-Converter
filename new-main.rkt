@@ -7,7 +7,7 @@
          "ids-pattern-generator.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
-         "test.rkt"
+         "lst-utils.rkt"
          mrlib/path-dialog
          mrlib/hierlist
          racket/gui/base
