@@ -1,13 +1,13 @@
 #lang racket
 
 (require "structs.rkt"
-         "test.rkt"
+         "read-dxf.rkt"
          "geometric-functions.rkt"
          "ils-pattern-generator.rkt"
          "ids-pattern-generator.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
-         "struct-list-utils.rkt"
+         "test.rkt"
          mrlib/path-dialog
          mrlib/hierlist
          racket/gui/base
@@ -229,7 +229,7 @@
        [label "For testing"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (separate-unlinked-elements search-list)))])
+                   (display search-list))])
   
   (new button%
        [label "Refocus"]

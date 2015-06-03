@@ -3,6 +3,7 @@
 (require "structs.rkt"
          "geometric-functions.rkt"
          "struct-list-utils.rkt"
+         "utils.rkt"
          racket/draw)
 
 (provide dxf-canvas%)
@@ -76,10 +77,10 @@
       (define (apply-procedure x)
         (when (entity-visible x)
           (match x
-            [(line layer highlighted selected visible x1 y1 x2 y2)                           (draw-line x1 y1 x2 y2 (or selected highlighted))]
-            [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3) (draw-arc x y radius start end (or selected highlighted))]
-            [(point layer highlighted selected visible x y)                                  (draw-point x y (or selected highlighted))]
-            [(path layer highlighted selected visible path-list)                             (draw-objects path-list)])))
+            [(line highlighted selected visible layer x1 y1 x2 y2)                           (draw-line x1 y1 x2 y2 (or selected highlighted))]
+            [(arc highlighted selected visible layer x y radius start end x1 y1 x2 y2 x3 y3) (draw-arc x y radius start end (or selected highlighted))]
+            [(point highlighted selected visible layer x y)                                  (draw-point x y (or selected highlighted))]
+            [(path highlighted selected visible layer path-list)                             (draw-objects path-list)])))
       (map apply-procedure lst))
     
     (define (draw-select-box lst)

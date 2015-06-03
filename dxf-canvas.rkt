@@ -2,7 +2,7 @@
 
 (require "structs.rkt"
          "geometric-functions.rkt"
-         "struct-list-utils.rkt"
+         "test.rkt"
          "utils.rkt"
          racket/draw)
 
