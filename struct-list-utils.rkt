@@ -17,7 +17,7 @@
          coalesce
          reorder
          get-linked-nodes
-         separate-unlinked-elements)
+         get-unlinked-elements)
 
 (define (struct-list->string-list struct-lst)
   (map (lambda (x) (capitalize (symbol->string (object-name x)))) struct-lst)
@@ -45,7 +45,7 @@
              (unless (empty? (filter entity-selected (path-entities current)))
                (select current))
              (select-highlighted (cdr lst)))
-            (else (when (entity-highlighted current) 
+            (else (when (entity-highlighted current)
                     (select current))
                   (select-highlighted (cdr lst)))))
     '()))
@@ -152,7 +152,7 @@
 (define (get-linked-nodes a-list)
   (remove-singles (get-nodes a-list)))
 
-(define (separate-unlinked-elements struct-list)
+(define (get-unlinked-elements struct-list)
   (define node-list (get-linked-nodes struct-list))
   (define (is-linked? a-struct)
     (or (member (first (get-node a-struct)) node-list)
@@ -176,7 +176,7 @@
         (let ((current (first lst)))
           (if (point? current)
               (lst->ht (cdr lst) ht)
-              (lst->ht (cdr lst) (apply hash-set ht (list (get-start current) current)))))))
+              (lst->ht (cdr lst) (hash-set ht (get-start current) current))))))
   (let ((a-hash (hash)))
     (lst->ht a-list a-hash)))
 

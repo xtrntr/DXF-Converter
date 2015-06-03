@@ -10,7 +10,9 @@
          make-point
          make-arc
          make-line
-         make-path)
+         make-path
+         highlight-lst
+         select-lst)
 
 (struct: entity
   ([highlighted : Boolean]
@@ -49,6 +51,22 @@
   ([entities : (Listof (U line arc))])
   #:transparent)
 
+(: highlight-lst (-> (Listof (U line arc path point)) Void))
+(define (highlight-lst x)
+  (let loop : Void
+    ([lst : (Listof (U line arc path point)) x])
+    (cond ((empty? lst) (void))
+          (else (set-entity-highlighted! (car lst) #t)
+                (loop (cdr lst))))))
+
+(: select-lst (-> (Listof (U line arc path point)) Void))
+(define (select-lst x)
+  (let loop : Void
+    ([lst : (Listof (U line arc path point)) x])
+    (cond ((empty? lst) (void))
+          (else (set-entity-selected! (car lst) #t)
+                (loop (cdr lst))))))
+
 (: make-point (-> String Real Real point))
 (define (make-point layer x y)
   (point #f #f #f layer x y))
@@ -71,52 +89,5 @@
 (: make-path (-> String (Listof (U line arc)) path))
 (define (make-path layer lst)
   (path #f #f #f layer lst))
-
-#|lang racket
-;; This module contains methods for geometric manipulation on structs.
-;; Also includes procedures for converting lists of DXF entities to said structs.
-
-(provide (struct-out entity)
-         (struct-out line)
-         (struct-out arc)
-         (struct-out point)
-         (struct-out path))
-
-;; struct definitions
-(struct entity 
-  (layer
-   [highlighted #:auto #:mutable] 
-   [selected #:auto #:mutable] 
-   [visible #:auto #:mutable]) 
-  #:auto-value #f #:transparent)
-
-(struct path entity
-  (entities)
-  #:transparent)
-
-(struct line entity 
-  (x1 y1 x2 y2) 
-  #:transparent)
-
-(struct point entity 
-  (x y)
-  #:transparent)
-
-(struct arc entity 
-  (center-x center-y radius start end x1 y1 x2 y2 x3 y3) 
-  #:transparent)
-
-(define (reverse-arc a-struct)
-  (let ((start-x (arc-x1 a-struct))
-        (start-y (arc-y1 a-struct))
-        (end-x (arc-x3 a-struct))
-        (end-y (arc-y3 a-struct)))
-    (struct-copy arc a-struct
-                 [x1 end-x]
-                 [y1 end-y]
-                 [x3 start-x]
-                 [y3 start-y])))
-
-;(reverse-arc (arc "0" 1 2 3 90 180 1 1 2 2 3 3))
-|#
-
+                     
+(define k (make-path "0" (list (make-line "0" 1 2 3 4) (make-line "0" 1 2 3 4))))

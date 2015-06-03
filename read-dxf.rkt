@@ -1,125 +1,153 @@
-#lang racket
-
-;; This module reads DXF files and extracts any relevant information. Also creates structs from lists containing DXF entity information
+#lang typed/racket
 
 (require "structs.rkt"
          "geometric-functions.rkt"
          "utils.rkt")
 
+(provide file->struct-list)
+
 (define supported-types '("LWPOLYLINE" "ARC" "POINT" "CIRCLE" "LINE"))
 (define entity-types '("3DFACE"  "3DSOLID"  "ACAD_PROXY_ENTITY" "ARC" "ARCALIGNEDTEXT"  "ATTDEF"  "ATTRIB"  "BODY"  "CIRCLE" "DIMENSION" "ELLIPSE"  "HATCH" "IMAGE"  "INSERT"  "LEADER"  "LINE" "LWPOLYLINE" "MLINE"  "MTEXT"  "OLEFRAME"  "OLE2FRAME"  "POINT" "POLYLINE" "RAY"  "REGION"  "RTEXT"  "SEQEND"  "SHAPE"  "SOLID" "SPLINE" "TEXT"  "TOLERANCE"  "TRACE"  "VERTEX"  "VIEWPORT" "WIPEOUT" "XLINE"))
 (define sections (list "ENTITIES" "ENDSEC"))
 
-(provide file->struct-list)
-
-;; parsing functions
+(: split (-> String (Pairof String (Listof String))))
 (define (split str [ptn #rx"[ ]+"])
   (regexp-split ptn (string-trim str)))
 
-(define (reader input-port)
-  (define lines (read-chunks input-port))
-  (foldl (lambda (f r)
-           (define fst (filter (compose not (curry string=? "")) (split f)))
-           (append fst r))
-         '() lines))
-
+(: read-chunks (-> Input-Port (Listof String)))
 (define (read-chunks input-port)
-  (let loop ([accu '()])
+  (let loop : (Listof String)
+    ([accu : (Listof String) '()])
     (define nxt (read-line input-port 'any))
     (if (eof-object? nxt)
         accu
         (loop (cons nxt accu)))))
 
-;; extract the values in one section into a list.
-(define (extract-section lst header)
-  (define (extract-until lst keyword)
-    (cond ((equal? (car lst) keyword) '())
-          (else (cons (car lst) (extract-until (cdr lst) keyword)))))
-  (extract-until (member (car header) lst) (cadr header)))
+(: reader (-> Input-Port (Listof String)))
+(define (reader input-port)
+  (define lines (read-chunks input-port))
+  (foldl (lambda ([f : String]
+                  [r : (Listof String)])
+           (define fst (filter (compose not (curry string=? "")) (split f)))
+           (append fst r))
+         '() lines))
 
-;; extract individual entities in the ENTITIES section of a DXF file.
-;; this returns a list of lists, with each containing the information of a single entity.
+(: extract-section (-> (Listof String) (List String String) (Listof String)))
+(define (extract-section lst header)
+  (: extract-until (-> (U False (Listof String)) String (Listof String)))
+  (define (extract-until lst keyword)
+    ;need to handle error properly
+    (cond ((not lst) '())
+          ((equal? (car lst) keyword) '())
+          (else (cons (car lst) (extract-until (cdr lst) keyword)))))
+  (extract-until ((inst member String) (car header) lst) (cadr header)))
+
+(: separate-entities (-> (Listof String) (Listof (Listof String))))
 (define (separate-entities lst)
   (if (empty? lst)
       '()
-      (let-values ([(data tail) (break (lambda (element) (member element entity-types)) (rest lst))])
+      (let-values ([(data tail) (break (lambda ([element : String]) (member element entity-types)) (rest lst))])
         (if (member (first lst) supported-types)
-            (begin (cons (cons (first lst) data)
-                         (separate-entities tail)))
+            (begin ((inst cons (Listof String) (Listof (Listof String))) ((inst cons String (Listof String)) (first lst) data)
+                                                                         (separate-entities tail)))
             (separate-entities tail)))))
 
-;; lists of DXF entities come in the format: header-keyvalue header-keyvalue ... header-keyvalue
 
-;forgotten purpose
-(define (string-contains-alphabet? str)
-  (ormap char-alphabetic? (string->list str)))
+(: extract-str (-> (HashTable String String) String String))
+(define (extract-str ht header)
+  (hash-ref ht header))
 
-;; take the pair of the relevant headers for drawing using take-pair,
-(define (take-pair lst)
-  (cond ((> 2 (length lst)) '())
-        (else (cons (list (first lst)
-                          (if (string-contains-alphabet? (second lst)) (second lst) (string->number (second lst))))
-                    (take-pair (cddr lst))))))
+(: extract-val (-> (HashTable String String) String Real))
+(define (extract-val ht header)
+  (define val (string->number (hash-ref ht header)))
+  (assert val real?))
 
-;; and extract the parameters using filter-header
-(define (filter-header lst key)
-  (cond ((empty? lst) '())
-        ((member (car (car lst)) key)
-         (cons (car lst)
-               (filter-header (cdr lst) key)))
-        (else
-         (filter-header (cdr lst) key))))
+(: separate (-> (Listof String) (Listof (Pairof String String))))
+(define (separate lst)
+  (let loop : (Listof (Pairof String String))
+    ([acc : (Listof (Pairof String String)) '()]
+     [lst : (Listof String) lst])
+    (cond ((> 2 (length lst)) acc)
+          (else (loop (cons (cons (car lst) (cadr lst)) acc) (cddr lst))))))
 
-(define (list->line lst)
-  (apply create-line
-         (map cadr (filter-header (take-pair lst) '("8" "10" "20" "11" "21")))))
+(: dxf-line (-> (Listof String) line))
+(define (dxf-line lst)
+  (let* ([ht : (HashTable String String) (make-hash (separate lst))]
+         [layer : String (extract-str ht "8")]
+         [x1 : Real (extract-val ht "10")]
+         [y1 : Real (extract-val ht "20")]
+         [x2 : Real (extract-val ht "11")]
+         [y2 : Real (extract-val ht "21")])
+    (make-line layer x1 y1 x2 y2)))
 
-(define (list->arc lst)
-  (apply create-arc
-         (map cadr (filter-header (take-pair lst) '("8" "10" "20" "40" "50" "51")))))
+(: dxf-point (-> (Listof String) point))
+(define (dxf-point lst)
+  (let* ([ht : (HashTable String String) (make-hash (separate lst))]
+         [layer : String (extract-str ht "8")]
+         [x : Real       (extract-val ht "10")]
+         [y : Real       (extract-val ht "20")])
+    (make-point layer x y)))
+
+(: dxf-arc (-> (Listof String) arc))
+(define (dxf-arc lst)
+  (let* ([ht : (HashTable String String)        (make-hash (separate lst))]
+         [layer : String        (extract-str ht "8")]
+         [center-x : Real       (extract-val ht "10")]
+         [center-y : Real       (extract-val ht "20")]
+         [radius : Real         (extract-val ht "40")]
+         [start : Real          (extract-val ht "50")]
+         [end : Real            (extract-val ht "51")])
+    (make-arc layer center-x center-y radius start end)))
+
+(: dxf-circle (-> (Listof String) arc))
+(define (dxf-circle lst)
+  (let* ([ht : (HashTable String String)        (make-hash (separate lst))]
+         [layer : String        (extract-str ht "8")]
+         [center-x : Real       (extract-val ht "10")]
+         [center-y : Real       (extract-val ht "20")]
+         [radius : Real         (extract-val ht "40")])
+    (make-arc layer center-x center-y radius 0 360)))
+
+(: dxf-path (-> (Listof String) path))
+(define (dxf-path lst)
   
-(define (list->circle lst)
-  (apply create-circle
-         (map cadr (filter-header (take-pair lst) '("8" "10" "20" "40")))))
-
-(define (list->point lst)
-  (apply create-point
-         (map cadr (filter-header (take-pair lst) '("8" "10" "20")))))
- 
-; 1) if 70 = 1 or 129 then closed. store x y value
-; 2) create line for 10 20 10 20
-; 3) create arc for 10 20 42 10 20
-(define (separate-lwpolyline lst layer)
-  (define (closed-polyline lst first-x first-y)
-    (match lst
-      [(list (list "10" x1) (list "20" y1) (list "42" bulge) (list "10" x2) (list "20" y2) a ...)  (cons (create-arc2 layer x1 y1 x2 y2 bulge) (closed-polyline (append (list (list "10" x2) (list "20" y2)) a) first-x first-y))]
-      [(list (list "10" x1) (list "20" y1) (list "10" x2) (list "20" y2) a ...)                    (cons (create-line layer x1 y1 x2 y2) (closed-polyline (append (list (list "10" x2) (list "20" y2)) a) first-x first-y))]
-      [(list (list "10" x1) (list "20" y1) (list "42" bulge))                                      (create-arc2 layer x1 y1 first-x first-y bulge)]
-      [(list (list "10" x1) (list "20" y1))                                                        (create-line layer x1 y1 first-x first-y)]
-      [_ (void)]))
-  (define (open-polyline lst)
-    (match lst
-      [(list (list "10" x1) (list "20" y1) (list "42" bulge) (list "10" x2) (list "20" y2))        (create-arc2 layer x1 y1 x2 y2 bulge)]
-      [(list (list "10" x1) (list "20" y1) (list "10" x2) (list "20" y2))                          (create-line layer x1 y1 x2 y2)]
-      [(list (list "10" x1) (list "20" y1) (list "42" bulge) (list "10" x2) (list "20" y2) a ...)  (cons (create-arc2 layer x1 y1 x2 y2 bulge) (open-polyline (append (list (list "10" x2) (list "20" y2)) a)))] 
-      [(list (list "10" x1) (list "20" y1) (list "10" x2) (list "20" y2) a ...)                    (cons (create-line layer x1 y1 x2 y2) (open-polyline (append (list (list "10" x2) (list "20" y2)) a)))]
-      [(list (list "10" x1) (list "20" y1) (list "42" bulge))                                      (display "error, there should not be a 42 point at the end of an open polyline")]
-      [_ (void)]))
-  (let* ((polyline-flag (cadr (findf (lambda (x) (equal? (car x) "70")) lst)))
-         (closed? (if (equal? polyline-flag (or 1 129)) #t #f))
-         (first-x (cadr (findf (lambda (x) (equal? (car x) "10")) lst)))
-         (first-y (cadr (findf (lambda (x) (equal? (car x) "20")) lst)))) ;1 or 129 for closed, 0 for open
-    (if closed? 
-        (closed-polyline (cdr lst) first-x first-y)
-        (open-polyline (cdr lst)))))
-
-(define (list->path lst)
-  (define layer (cadr (car (filter-header (take-pair lst) '("8")))))
-  (define list-of-arcs-and-lines (separate-lwpolyline (filter-header (take-pair lst) '("70" "10" "20" "42")) layer))
-  (make-path (layer->string layer) (flatten list-of-arcs-and-lines)))
-
-(define (layer->string x)
-  (if (string? x) x (number->string x)))
+  ;string-make
+  (: smake-line (-> String String String String String line))
+  (define (smake-line layer x1 y1 x2 y2)
+    (make-line layer (string->real x1) (string->real y1) (string->real x2) (string->real y2)))
+  
+  (: smake-arc (-> String String String String String String arc))
+  (define (smake-arc layer center-x center-y radius start end)
+      (make-arc2 layer (string->real center-x) (string->real center-y) (string->real radius) (string->real start) (string->real end)))
+  
+  (let* ([ht : (HashTable String String)    (make-hash (separate lst))]
+         [layer : String                    (extract-str ht "8")]
+         [closed? : Boolean                 (if (equal? (or 1 129) (extract-val ht "70")) #t #f)]
+         [first-x : String                  (cadr (cast (memf (lambda ([x : String]) (equal? x "10")) lst) (Listof String)))]
+         [first-y : String                  (cadr (cast (memf (lambda ([x : String]) (equal? x "20")) lst) (Listof String)))])
+    (if closed?
+        (make-path layer 
+                   (let closed-polyline : (Listof (U line arc))
+                     ([path-lst : (Listof String) lst]
+                      [acc : (Listof (U line arc)) null])
+                     (match path-lst
+                       [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
+                       [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
+                       [(list "10" x1 "20" y1 "42" bulge "0")                      (cons (smake-arc layer x1 y1 first-x first-y bulge) acc)]
+                       [(list "10" x1 "20" y1 "0")                                 (cons (smake-line layer x1 y1 first-x first-y) acc)]
+                       [(list _ _ rest ...)                                        (closed-polyline rest acc)]
+                       [_ (error "This is not expected, given: " path-lst)])))
+        (make-path layer 
+               (let open-polyline : (Listof (U line arc))
+                 ([path-lst : (Listof String) lst]
+                  [acc : (Listof (U line arc)) null])
+                 (match path-lst
+                   [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 "0")      (cons (smake-arc layer x1 y1 x2 y2 bulge) acc)]
+                   [(list "10" x1 "20" y1 "10" x2 "20" y2 "0")                 (cons (smake-line layer x1 y1 x2 y2) acc)]
+                   [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
+                   [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
+                   [(list _ _ rest ...)                                        (open-polyline rest acc)]
+                   [_ (error "This is not expected, given: " path-lst)]))))))
 
 ;; 1) determine the center point of the arc given the angle and the 2 arc points.
 ;; 1.1) calculate the 2 possible center points using vectors. the 2 arc points form a line/chord.
@@ -130,9 +158,11 @@
 ;; 2) determine the quadrant where the first arc point is located by separating the bounding box of the circle (with the center points and radius) into 4 areas.
 ;; 3) calculate the angle from start point to x axis.
 ;; 4) when creating an arc from DXF files, the arcs go from start angle to end angle in a clockwise fashion. we want to represent that here.
-(define (create-arc2 layer x1 y1 x2 y2 bulge)
+(: make-arc2 (-> String Real Real Real Real Real arc))
+(define (make-arc2 layer x1 y1 x2 y2 bulge)
+  (: get-center (-> Real Boolean (List Real Real Real)))
   (define (get-center angle big-bulge?)
-    (let* ((chord-length (sqrt (+ (expt (- x1 x2) 2) (expt (- y1 y2) 2))))
+    (let* ((chord-length (sqrt (+ (sqr (- x1 x2)) (sqr (- y1 y2)))))
            (small-angle (if (< angle pi) angle (- (* 2 pi) angle)))
            ;negative bulge indicates point 1 goes to point 2 in a CW fashion
            (is-cw? (negative? bulge))
@@ -191,18 +221,19 @@
                          ((and (in-between? x1 right center-x) (in-between? y1 bottom center-y)) 4)
                          ;0 is for edge cases.
                          ((or (reasonable-equal? x1 left) (reasonable-equal? x1 right) (reasonable-equal? y1 top) (reasonable-equal? y1 bottom)) 0)
-                         (else (display "unaccounted for"))))
+                         (else (error "Quadrant not found: " x1 y1))))
          (angle-to (acos (/ (abs (- x1 center-x)) radius)))
          (start (radians->degrees (cond ((= quad-num 0) 
                                          (cond ((reasonable-equal? x1 left) (degrees->radians 180))
                                                ((reasonable-equal? x1 right) (degrees->radians 0))
                                                ((reasonable-equal? y1 top) (degrees->radians 90))
                                                ((reasonable-equal? y1 bottom) (degrees->radians 270))
-                                               (else (display "unaccounted for"))))
+                                               (error "Quadrant not found: " x1 y1)))
                                         ((= quad-num 1) angle-to)
                                         ((= quad-num 2) (- (degrees->radians 180) angle-to))
                                         ((= quad-num 3) (+ (degrees->radians 180) angle-to))
-                                        ((= quad-num 4) (- (degrees->radians 360) angle-to)))))
+                                        ((= quad-num 4) (- (degrees->radians 360) angle-to))
+                                        (else (error "Quadrant given is: " quad-num)))))
          (end (if is-cw? 
                   (if (negative? (- start (radians->degrees arc-angle-rad)))
                       (+ 360 (- start (radians->degrees arc-angle-rad)))
@@ -211,35 +242,26 @@
                       (- (+ start (radians->degrees arc-angle-rad)) 360)
                       (+ start (radians->degrees arc-angle-rad))))))
     ;DXF is CW
-    (list (if is-cw?
-              (create-arc layer center-x center-y radius end start)
-              (create-arc layer center-x center-y radius start end)))))
+    (if is-cw?
+        (make-arc layer center-x center-y radius end start)
+        (make-arc layer center-x center-y radius start end))))
 
-(define (create-line layer x1 y1 x2 y2)
-  (make-line (layer->string layer) x1 y1 x2 y2))
-
-(define (create-point layer x y)
-  (make-point (layer->string layer) x y))
-
-(define (create-arc layer x y radius start end)
-  (apply make-arc (list (layer->string layer) x y radius start end)))
-
-(define (create-circle layer x y radius) ; creating 2 semicircles with create-arc
-  (create-arc (layer->string layer) x y radius 0 360))
-
-;; convert entity list to their respective structs using above functions
+(: create-structs (-> (Listof (Listof String)) (Listof (U line arc path point))))
 (define (create-structs entity-list)
-  (map (lambda (x) (case (first x)
-                     [("LINE")       (list->line (rest x))]
-                     [("LWPOLYLINE") (list->path (rest x))]
-                     [("CIRCLE")     (list->circle (rest x))]
-                     [("POINT")      (list->point (rest x))]
-                     [("ARC")        (list->arc (rest x))]))
-       entity-list)) 
+  (map (lambda ([x : (Listof String)])
+         (match x
+           [(list "LINE" lst ...)       (dxf-line lst)]
+           [(list "POINT" lst ...)      (dxf-point lst)]
+           [(list "ARC" lst ...)        (dxf-arc lst)]
+           [(list "LWPOLYLINE" lst ...) (dxf-path lst)]
+           [(list "CIRCLE" lst ...)     (dxf-circle lst)]
+           [_ (error "This is not expected, given: " x)]))
+       entity-list))
 
-(define (file->struct-list input-port)
-  (let* ((file-list (reader (open-input-file input-port)))
+(: file->struct-list (-> Path-String (Listof (U line arc path point))))
+(define (file->struct-list path-string)
+  (let* ((file-list (reader (open-input-file path-string)))
          (section-list (extract-section file-list sections))
          (entity-list (separate-entities section-list))
          (whatsthis (create-structs entity-list)))
-    (flatten whatsthis)))
+    whatsthis))
