@@ -135,19 +135,19 @@
     [(struct* point ([y y]))                y]
     [(struct* path  ([entities entities]))  (get-end-y (first entities))])))
 
-(: get-start (-> Entities Node))
+(: get-start (-> Entities (List Real Real)))
 (define (get-start a-struct)
     (list (get-start-x a-struct) (get-start-y a-struct)))
 
-(: get-end (-> Entities Node))
+(: get-end (-> Entities (List Real Real)))
 (define (get-end a-struct)
     (list (get-end-x a-struct) (get-end-y a-struct)))
 
-(: get-node (-> Entities (List Node Node)))
+(: get-node (-> Entities (List (List Real Real) (List Real Real))))
 (define (get-node a-struct)
   (list (get-end a-struct) (get-start a-struct)))
 
-(: get-nodes (-> (Listof Entities) (Listof (List Node Node))))
+(: get-nodes (-> (Listof Entities) (Listof (List (List Real Real) (List Real Real)))))
 (define (get-nodes a-list)
   (cond ((empty? a-list) '())
         (else (let ((current (car a-list)))
@@ -155,12 +155,12 @@
                         (get-nodes (cdr a-list)))))))
 
 ;from a list of duplicates and singles return a list of duplicates
-(: remove-singles (-> (Listof (List Node Node)) (Listof (List Node Node))))
+(: remove-singles (-> (Listof (List (List Real Real) (List Real Real))) (Listof (List (List Real Real) (List Real Real)))))
 (define (remove-singles lst)
-  (let iter : (Listof (List Node Node))
-    ([lst : (Listof (List Node Node)) lst]
-     [acc1 : (Listof (List Node Node)) '()]
-     [acc2 : (Listof (List Node Node)) '()])
+  (let iter : (Listof (List (List Real Real) (List Real Real)))
+    ([lst : (Listof (List (List Real Real) (List Real Real))) lst]
+     [acc1 : (Listof (List (List Real Real) (List Real Real))) '()]
+     [acc2 : (Listof (List (List Real Real) (List Real Real))) '()])
     (if (empty? lst)
         (remove-duplicates acc2)
         (let ((current (car lst)))
@@ -169,14 +169,14 @@
                 (else
                  (iter (cdr lst) (cons current acc1) acc2)))))))
 
-(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof (List Node Node)))))
+(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof (List (List Real Real) (List Real Real))))))
 (define (get-linked-nodes a-list)
   (remove-singles (get-nodes a-list)))
 
 (: separate-unlinked-elements (-> (Listof Entities) (Listof Entities)))
 (define (separate-unlinked-elements struct-list)
   (define node-list (get-linked-nodes struct-list))
-  (: is-linked? (-> Entities (U False (Listof (List Node Node)))))
+  (: is-linked? (-> Entities (U False (Listof (List (List Real Real) (List Real Real))))))
   (define (is-linked? a-struct)
     (or (member (first (get-node a-struct)) node-list)
         (member (second (get-node a-struct)) node-list)))
@@ -191,9 +191,8 @@
                  (separate unlinked (cons current linked) (cdr lst)))
                 (else (separate (cons current unlinked) linked (cdr lst))))))))
 
-(define-type Node (List Real Real))
-(define-type Header-Value (HashTable Node Entities))
-
+(define-type Header-Value (HashTable (List Real Real) Entities))
+     
 ;struct-list -> hash-list
 (: coalesce (-> (Listof Entities) Header-Value))
 (define (coalesce a-list)
