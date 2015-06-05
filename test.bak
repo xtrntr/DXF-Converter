@@ -1,4 +1,4 @@
-#lang racket
+#lang typed/racket
 
 (require "structs.rkt"
          "utils.rkt")
@@ -11,7 +11,9 @@
          get-display-scale)
 
 ;scaling for display - only done once
+(: get-display-scale (-> (Listof Entities) Real Real))
 (define (get-display-scale struct-lst frame-width frame-height)
+  (: get-display-scale (-> (Listof Entities) Real))
   (define (get-bounding-x struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i
@@ -19,6 +21,7 @@
                  [(arc _ _ _ _ x _ radius _ _ _ _ _ _ _ _) (list (+ x radius) (- x radius))]
                  [(point _ _ _ _ x _)                      (list x)]
                  [(path _ _ _ visible path-list)           (get-bounding-x path-list)]))))
+  (: get-display-scale (-> (Listof Entities) Real))
   (define (get-bounding-y struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i
@@ -38,6 +41,7 @@
     (values drawing-scale left bottom)))
 
 ;; geometric functions
+(: point-in-rect? (Real Real Real Real Real Real Boolean))
 (define (point-in-rect? x y xs ys xb yb)
   (and (> x xs) (< x xb) (> y ys) (< y yb)))
 
@@ -47,11 +51,13 @@
 ;; 9   1   5                1001   0001   0101
 ;; 8   0   4      --->      1000   0000   0100
 ;; 10  2   6                1010   0010   0110
+(: line-intersect? (-> line Real Real Real Real Boolean))
 (define (line-intersect? line-struct xs ys xb yb)
   (let ((lx1 (line-x1 line-struct))
         (ly1 (line-y1 line-struct))
         (lx2 (line-x2 line-struct))
         (ly2 (line-y2 line-struct)))
+    (: compute-outcode (-> Real Real Real))
     (define (compute-outcode x y)
       (let ((inside 0))
         (cond ((< x xs) 
@@ -64,6 +70,7 @@
                (set! inside (bitwise-ior inside 8))))
         inside))
     ;return #t if intersect
+    (: trivial-accept? (-> Real Real Boolean))
     (define (trivial-accept? region1 region2)
       (or (not (bitwise-ior region1 region2)) 
           (= region1 0) 
@@ -73,15 +80,19 @@
           (and (= region1 4) (= region2 8))
           (and (= region1 8) (= region2 4))))
     ;return #t if does not intersect
+    (: trivial-reject? (-> Real Real Boolean))
     (define (trivial-reject? region1 region2)  
       (not (= (bitwise-and region1 region2) 0)))
     ;clip until no more ambiguous cases
+    (: clip-until (-> Real Real Real Real))
     (define (clip-until region1 region2 tries)
       (cond ((= tries 0) #f)
             ((trivial-reject? region1 region2) #f)
             ((trivial-accept? region1 region2) #t)
             (else (apply clip-until (append (do-clip region1 region2) (list (- tries 1)))))))
+    (: do-clip (-> Real Real (List Real Real)))
     (define (do-clip region1 region2)
+      (: do-clip (-> Real Boolean))
       (define (not0 num)
         (if (= num 0) #f #t))
       (let* ((new-x 0)
@@ -110,6 +121,7 @@
       (clip-until region1 region2 4))))
 
 ;; these 3 functions calculate the x and y coordinates for arc points
+(: arc-point-x (-> Real Real Real Real))
 (define (arc-point-x circle-x degree radius)
   (let ((adjusted (localize-degree degree)))
     (cond ((or (= degree 90) (= degree 270)) circle-x)
@@ -120,6 +132,7 @@
           ((in-between? degree 180 270) (- circle-x (* radius (cos (degrees->radians adjusted)))))
           ((in-between? degree 270 360) (+ circle-x (* radius (sin (degrees->radians adjusted)))))
           (else (display "error")))))
+(: arc-point-y (-> Real Real Real Real))
 (define (arc-point-y circle-y degree radius)
   (let ((adjusted (localize-degree degree)))
     (cond ((or (= degree 0) (= degree 360) (= degree 180)) circle-y)
@@ -130,6 +143,7 @@
           ((in-between? degree 180 270) (- circle-y (* radius (sin (degrees->radians adjusted)))))
           ((in-between? degree 270 360) (- circle-y (* radius (cos (degrees->radians adjusted)))))
           (else (display "error")))))
+(: localize-degree (-> Real Real))
 (define (localize-degree degree)
   (cond ((in-between? degree 0 90) degree)
         ((in-between? degree 90 180) (- degree 90))
@@ -146,6 +160,7 @@
 ;; 2.3.4) imagine a line that goes through the mid-point of the arc and is parallel to the "dividing line" (hence they have the same slope). 
 ;; 2.3.5) is the y-intercept bigger or smaller than the y-intercept of the dividing line? use that as a barometer for any point intersecting the circle.
 ;; 2.3.6) if the line formed with the intersecting point falls on the right side of the "dividing line" together with the line formed with the mid-point line, then there is an intersection.
+(: localize-degree (-> arc Real Real Real Real Boolean))
 (define (arc-intersect? arc-struct xs ys xb yb)
   (let* ((radius (arc-radius arc-struct))
          (circle-x (arc-center-x arc-struct))
@@ -162,6 +177,7 @@
          ;we calculate the middle arc-point to determine which is the right side
          (half-x (arc-point-x circle-x half-angle radius))
          (half-y (arc-point-y circle-y half-angle radius)))
+    (: right-side-y? (-> Real Real Boolean))
     (define (right-side-y? x y)
       (let* ((dividing-line-slope       (/ (- arc-y2 arc-y1) (- arc-x2 arc-x1)))
              (dividing-line-yintercept  (- arc-y1 (* dividing-line-slope arc-x1)))
@@ -170,6 +186,7 @@
              (point-yintercept          (- y (* dividing-line-slope x))) 
              (point-test                (> point-yintercept dividing-line-yintercept)))
         (eq? right-value-test point-test)))
+    (: line-intersect-arc? (-> Real Real y1 y1 Boolean))
     (define (line-intersect-arc? x1 y1 x2 y2)
       ;return the point where line intersects arc. intersection of a y line with a circle, 2 possible x values
       (define (yline-intersect-circle? y)
