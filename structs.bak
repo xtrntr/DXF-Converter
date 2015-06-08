@@ -13,8 +13,7 @@
          make-path
          highlight-lst
          select-lst
-         Entities
-         reverse-path)
+         Entities)
 
 (struct: entity
   ([highlighted : Boolean]
@@ -92,19 +91,7 @@
 (define (make-path layer lst)
   (path #f #f #f layer lst))
 
-(: reverse-path (-> Entities Entities))
-(define (reverse-path a-struct)
-  (let ([layer : String (entity-layer a-struct)])
-    (match a-struct
-      [(struct* line  ([x1 x1]
-                       [y1 y1]
-                       [x2 x2]
-                       [y2 y2]))               (make-line layer x2 y2 x1 y1)]
-      [(struct* arc   ([center-x center-x]
-                       [center-y center-y]
-                       [radius radius]
-                       [start start]
-                       [end end]))          (make-arc layer center-x center-y radius end start)])))
+
 
 (define-type Entities (U line arc path point))
                      

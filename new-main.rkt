@@ -136,7 +136,7 @@
   
   (define a-list-box
     (new list-box%
-         [label " "]
+         [label #f]
          [parent spreadsheet-panel]
          [min-height spreadsheet-height]
          [min-width spreadsheet-width]
@@ -229,7 +229,7 @@
        [label "For testing"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display search-list))])
+                   (display (reorder (separate-unlinked-elements search-list))))])
   
   (new button%
        [label "Refocus"]

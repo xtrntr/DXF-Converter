@@ -103,6 +103,11 @@
 (define (to-display x)
   (format "~a" (number->string (round-off x))))
 
+
+
+(define-type Point (List Real Real))
+(define-type Header-Value (HashTable Point Entities))
+
 (: get-start-x (-> Entities Real))
 (define (get-start-x a-struct)
   (round-off (match a-struct
@@ -135,32 +140,32 @@
     [(struct* point ([y y]))                y]
     [(struct* path  ([entities entities]))  (get-end-y (first entities))])))
 
-(: get-start (-> Entities Node))
+(: get-start (-> Entities Point))
 (define (get-start a-struct)
     (list (get-start-x a-struct) (get-start-y a-struct)))
 
-(: get-end (-> Entities Node))
+(: get-end (-> Entities Point))
 (define (get-end a-struct)
     (list (get-end-x a-struct) (get-end-y a-struct)))
 
-(: get-node (-> Entities (List Node Node)))
+(: get-node (-> Entities (List Point Point)))
 (define (get-node a-struct)
   (list (get-end a-struct) (get-start a-struct)))
 
-(: get-nodes (-> (Listof Entities) (Listof (List Node Node))))
+(: get-nodes (-> (Listof Entities) (Listof Point)))
 (define (get-nodes a-list)
   (cond ((empty? a-list) '())
         (else (let ((current (car a-list)))
-                (cons (get-node current)
+                (append (get-node current)
                         (get-nodes (cdr a-list)))))))
 
 ;from a list of duplicates and singles return a list of duplicates
-(: remove-singles (-> (Listof (List Node Node)) (Listof (List Node Node))))
+(: remove-singles (-> (Listof Point) (Listof Point)))
 (define (remove-singles lst)
-  (let iter : (Listof (List Node Node))
-    ([lst : (Listof (List Node Node)) lst]
-     [acc1 : (Listof (List Node Node)) '()]
-     [acc2 : (Listof (List Node Node)) '()])
+  (let iter : (Listof Point)
+    ([lst : (Listof Point) lst]
+     [acc1 : (Listof Point) '()]
+     [acc2 : (Listof Point) '()])
     (if (empty? lst)
         (remove-duplicates acc2)
         (let ((current (car lst)))
@@ -169,14 +174,14 @@
                 (else
                  (iter (cdr lst) (cons current acc1) acc2)))))))
 
-(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof (List Node Node)))))
+(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof Point))))
 (define (get-linked-nodes a-list)
   (remove-singles (get-nodes a-list)))
 
 (: separate-unlinked-elements (-> (Listof Entities) (Listof Entities)))
 (define (separate-unlinked-elements struct-list)
   (define node-list (get-linked-nodes struct-list))
-  (: is-linked? (-> Entities (U False (Listof (List Node Node)))))
+  (: is-linked? (-> Entities (U True False (Listof Point))))
   (define (is-linked? a-struct)
     (or (member (first (get-node a-struct)) node-list)
         (member (second (get-node a-struct)) node-list)))
@@ -185,18 +190,23 @@
      [linked : (Listof Entities) '()]
      [lst : (Listof Entities) struct-list])
     (if (empty? lst) 
-        unlinked
+        linked
         (let ((current (first lst)))
-          (cond ((is-linked? current)
+          (cond ((and (not (point? current)) (is-linked? current))
                  (separate unlinked (cons current linked) (cdr lst)))
                 (else (separate (cons current unlinked) linked (cdr lst))))))))
 
-(define-type Node (List Real Real))
-(define-type Header-Value (HashTable Node Entities))
+(: end-ht (-> (Listof Entities) Header-Value))
+(define (end-ht a-list)
+  (coalesce a-list get-end))
+
+(: start-ht (-> (Listof Entities) Header-Value))
+(define (start-ht a-list)
+  (coalesce a-list get-start))
 
 ;struct-list -> hash-list
-(: coalesce (-> (Listof Entities) Header-Value))
-(define (coalesce a-list)
+(: coalesce (-> (Listof Entities) (-> Entities Point) Header-Value))
+(define (coalesce a-list key)
   ;values of the hash table are the structs and the keys its starting points
   (let loop : Header-Value
     ([lst : (Listof Entities) a-list]
@@ -206,40 +216,24 @@
         (let ((current (first lst)))
           (if (point? current)
               (loop (cdr lst) ht)
-              (loop (cdr lst) (hash-set ht (get-start current) current)))))))
+              (loop (cdr lst) (hash-set ht (key current) current)))))))
 
-(: reorder (-> (Listof Entities) (Listof Entities)))
+(: reorder (-> (Listof Entities) (Listof (Listof Entities))))
 (define (reorder a-list)
-  (: is-end-connected? (-> Header-Value Entities Boolean))
-  (define (is-end-connected? ht a-struct)
-   (or (hash-has-key? ht (get-end a-struct))))
-  (: is-start-connected? (-> Header-Value Entities Boolean))
-  (define (is-start-connected? ht a-struct)
-   (or (hash-has-key? ht (get-start a-struct))))
-  ;acc1 stores the list of unlinked elements
-  ;acc2 stores the list of linked elements according to has-connection?
-  (: iter (-> (Listof Entities) Header-Value (Listof Entities) (Listof Entities) (-> Header-Value Entities Boolean) (List (Listof Entities) (Listof Entities))))
-  (define (iter lst ht acc1 acc2 link-test)
-    (cond ((empty? lst) (list acc1 acc2))
-          (else
-           (let* ((current (first lst))
-                  (current-key (get-start current)))
-             (cond ((link-test ht current)
-                    (iter (cdr lst) ht acc1 (cons current acc2) link-test))
-                   (else 
-                    (iter (cdr lst) ht (cons current acc1) acc2 link-test)))))))
-  (: sort (-> Header-Value Entities (Listof Entities) (Listof Entities)))
-  (define (sort ht current-struct lst)
-    (cond ((hash-empty? ht) lst)
-          (else (sort (hash-remove ht current-struct) (hash-ref ht (get-end current-struct)) (cons current-struct lst)))))
-  (let* ((ht-all (coalesce a-list))
-         (result (iter a-list ht-all '() '() is-end-connected?)) ;sort a-list into linked and unlinked
-         (unlinked (first result))
-         (linked (second result))
-         (ht-linked (coalesce linked))
-         (result2 (iter unlinked ht-linked '() '() is-start-connected?)) ;further sort unlinked in new-linked and new-unlinked
-         (new-unlinked (first result2)) ;final unlinked
-         (new-linked (append linked (second result2)))
-         (new-ht-linked (coalesce new-linked))
-         (ordered (sort new-ht-linked (first new-linked) '())))
-    ordered))
+  ;in one DXF pattern i have a single path joined in a anti-clockwise fashion.. except for one arc that moves from start to end in a clockwise fashion.
+  (let ((ht-start (start-ht a-list))
+        (ht-end   (end-ht a-list)))
+    (let sort : (Listof (Listof Entities))
+      ([ht-s : Header-Value ht-start]
+       [ht-e : Header-Value ht-end]
+       [current : Entities (car a-list)]
+       [a-path : (U Null (Listof Entities)) '()]
+       [result : (Listof (Listof Entities)) '()])
+      (cond ((hash-empty? ht-s) result)
+            ((hash-has-key? ht-s (get-end current))
+             (sort (hash-remove ht-s (get-start current)) (hash-remove ht-e (get-end current)) (hash-ref ht-s (get-end current)) (cons current a-path) result))
+            ((hash-has-key? ht-e (get-start current))
+             (sort (hash-remove ht-s (get-start current)) (hash-remove ht-e (get-end current)) (hash-ref ht-e (get-end current)) (cons (reverse-path current) a-path) result))
+            (else
+             (sort ht-s ht-e (car (hash-values ht-s)) '() (cons a-path result)))))))
+    
