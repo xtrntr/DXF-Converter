@@ -12,10 +12,6 @@
          highlight-path
          unselect-all
          delete-selected
-         get-start-x
-         get-start-y
-         get-end-x
-         get-end-y
          to-display
          coalesce
          reorder
@@ -104,15 +100,15 @@
   (format "~a" (number->string (round-off x))))
 
 
-(define-type Header-Value (HashTable Point Entities))
+(define-type Header-Value (HashTable point Entities))
 
 ;from a list of duplicates and singles return a list of duplicates
-(: remove-singles (-> (Listof Point) (Listof Point)))
+(: remove-singles (-> (Listof point) (Listof point)))
 (define (remove-singles lst)
-  (let iter : (Listof Point)
-    ([lst : (Listof Point) lst]
-     [acc1 : (Listof Point) '()]
-     [acc2 : (Listof Point) '()])
+  (let iter : (Listof point)
+    ([lst : (Listof point) lst]
+     [acc1 : (Listof point) '()]
+     [acc2 : (Listof point) '()])
     (if (empty? lst)
         (remove-duplicates acc2)
         (let ((current (car lst)))
@@ -121,7 +117,7 @@
                 (else
                  (iter (cdr lst) (cons current acc1) acc2)))))))
 
-(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof Point))))
+(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof point))))
 (define (get-linked-nodes a-list)
   (remove-singles (get-nodes a-list)))
 
@@ -130,7 +126,7 @@
   
   (define node-list (get-linked-nodes struct-list))
   
-  (: is-linked? (-> Entities (U True False (Listof Point))))
+  (: is-linked? (-> Entities (U True False (Listof point))))
   (define (is-linked? a-struct)
     (or (member (first (get-node a-struct)) node-list)
         (member (second (get-node a-struct)) node-list)))
@@ -138,14 +134,14 @@
   (let separate : (Listof Entities)
     ([unlinked : (Listof Entities) '()]
      [linked : (Listof Entities) '()]
-     [lst : (Listof Entities) struct-list]
-     [result: (Listof (Listof Entities)) '()])
+     [lst : (Listof Entities) struct-list])
     (if (empty? lst) 
-        result
+        linked
         (let ((current (first lst)))
           (cond ((and (not (point? current)) (is-linked? current))
                  (separate unlinked (cons current linked) (cdr lst)))
-                (else (separate (cons current unlinked) linked (cdr lst))))))))
+                (else 
+                 (separate (cons current unlinked) linked (cdr lst))))))))
 
 (: end-ht (-> (Listof Entities) Header-Value))
 (define (end-ht a-list)
@@ -156,7 +152,7 @@
   (coalesce a-list get-start))
 
 ;struct-list -> hash-list
-(: coalesce (-> (Listof Entities) (-> Entities Point) Header-Value))
+(: coalesce (-> (Listof Entities) (-> Entities point) Header-Value))
 (define (coalesce a-list key)
   ;values of the hash table are the structs and the keys its starting points
   (let loop : Header-Value

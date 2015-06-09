@@ -3,8 +3,6 @@
 (require "structs.rkt"
          "read-dxf.rkt"
          "geometric-functions.rkt"
-         "ils-pattern-generator.rkt"
-         "ids-pattern-generator.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
          "lst-utils.rkt"
@@ -87,32 +85,32 @@
          [alignment (list 'left 'top)]))
   
   (define (scale-x coord)
-    (* drawing-scale (- coord left)))
+    (* drawing-scale (- (point-x coord) left)))
   
   (define (scale-y coord)
-    (* drawing-scale (- coord bottom)))
+    (* drawing-scale (- (point-y coord) bottom)))
   
   (define (unscale-x coord)
-    (+ left (/ coord drawing-scale)))
+    (+ left (/ (point-x coord) drawing-scale)))
   
   (define (unscale-y coord)
-    (+ bottom (/ coord drawing-scale)))
+    (+ bottom (/ (point-y coord) drawing-scale)))
   
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer x1 y1 x2 y2)                           (make-line layer (scale-x x1) (scale-y y1) (scale-x x2) (scale-y y2))]
-                 [(arc highlighted selected visible layer x y radius start end x1 y1 x2 y2 x3 y3) (make-arc layer (scale-x x) (scale-y y) (* scale radius) start end)]
-                 [(point highlighted selected visible layer x y)                                  (make-point layer (scale-x x) (scale-y y))]
-                 [(path highlighted selected visible layer path-list)                             (make-path layer (rescale path-list scale))]))))
+                 [(line highlighted selected visible layer p1 p2)                           (make-line layer (scale-x p1) (scale-y p1) (scale-x p2) (scale-y p2))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (scale-x center) (scale-y center) (* scale radius) start end)]
+                 [(dot highlighted selected visible layer p)                                (make-dot layer (scale-x p) (scale-y p))]
+                 [(path highlighted selected visible layer path-list)                       (make-path layer (rescale path-list scale))]))))
   
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer x1 y1 x2 y2)                           (make-line layer (unscale-x x1) (unscale-y y1) (unscale-x x2) (unscale-y y2))]
-                 [(arc highlighted selected visible layer x y radius start end x1 y1 x2 y2 x3 y3) (make-arc layer (unscale-x x) (unscale-y y) (/ radius scale) start end)]
-                 [(point highlighted selected visible layer x y)                                  (make-point layer (unscale-x x) (unscale-y y))]
-                 [(path highlighted selected visible layer path-list)                             (make-path layer (downscale path-list scale))]))))
+                 [(line highlighted selected visible layer p1 p2)                           (make-line layer (unscale-x p1) (unscale-y p1) (unscale-x p2) (unscale-y p2))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (unscale-x center) (unscale-y center) (/ radius scale) start end)]
+                 [(dot highlighted selected visible layer p)                                (make-dot layer (unscale-x p) (unscale-y p))]
+                 [(path highlighted selected visible layer path-list)                       (make-path layer (rescale downscale scale))]))))
   
   (define struct-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
@@ -150,10 +148,10 @@
         (send a-list-box clear)
         (send a-list-box set 
               (structs-to-strings displayed-list)
-              (map to-display (map get-start-x displayed-list))
-              (map to-display (map get-start-y displayed-list))
-              (map to-display (map get-end-x displayed-list))
-              (map to-display (map get-end-y displayed-list)))))
+              (map to-display (map point-x (map get-start displayed-list)))
+              (map to-display (map point-y (map get-start displayed-list)))
+              (map to-display (map point-x (map get-end displayed-list)))
+              (map to-display (map point-y (map get-end displayed-list))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -250,15 +248,17 @@
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-relevant-list search-list))
+                   (display "1"))])
                    ;binary for osx, text for windows
-                   (generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+                   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (new button%
        [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-relevant-list search-list))
+                   (display "1"))])
                    ;binary for osx, text for windows
-                   (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+                   ;(generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (send a-frame show #t))

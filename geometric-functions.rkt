@@ -1,11 +1,11 @@
 #lang racket
 
 (require "structs.rkt"
-         "utils.rkt")
+         "utils.rkt"
+         "macros.rkt")
 
 (provide point-in-rect?
          get-arc-points
-         optimize-pattern
          line-intersect?
          arc-intersect?
          get-display-scale)
@@ -14,18 +14,19 @@
 (define (get-display-scale struct-lst frame-width frame-height)
   (define (get-bounding-x struct-lst)
     (flatten (for/list ([i struct-lst])
-               (match i
-                 [(line _ _ _ _ x1 _ x2 _)                 (list x1 x2)]
-                 [(arc _ _ _ _ x _ radius _ _ _ _ _ _ _ _) (list (+ x radius) (- x radius))]
-                 [(point _ _ _ _ x _)                      (list x)]
-                 [(path _ _ _ visible path-list)           (get-bounding-x path-list)]))))
+               ((match-struct (dot  (list (point-x p))) 
+                              (line (list (point-x p1) (point-x p2)))
+                              (arc  (list (+ (point-x center) radius) (- (point-x center) radius)))
+                              (path get-bounding-x entities)) i))))
   (define (get-bounding-y struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line _ _ _ _ _ y1 _ y2)                 (list y1 y2)]
-                 [(arc _ _ _ _ _ y radius _ _ _ _ _ _ _ _) (list (+ y radius) (- y radius))]
-                 [(point _ _ _ _ _ y)                      (list y)]
-                 [(path _ _ _ _ path-list)                 (get-bounding-y path-list)]))))
+                 [(struct* line  ([p1 p1]
+                                  [p2 p2]))              (list (point-y p1) (point-y p2))]
+                 [(struct* arc   ([center center]
+                                  [radius radius]))      (list (+ (point-y center) radius) (- (point-y center) radius))]
+                 [(struct* dot   ([p p]))                (list (point-y p))]
+                 [(struct* path  ([entities entities]))  (get-bounding-y entities)]))))
   (let* ((top (biggest (get-bounding-y struct-lst)))
          (bottom (smallest (get-bounding-y struct-lst)))
          (left (smallest (get-bounding-x struct-lst)))
@@ -48,10 +49,10 @@
 ;; 8   0   4      --->      1000   0000   0100
 ;; 10  2   6                1010   0010   0110
 (define (line-intersect? line-struct xs ys xb yb)
-  (let ((lx1 (line-x1 line-struct))
-        (ly1 (line-y1 line-struct))
-        (lx2 (line-x2 line-struct))
-        (ly2 (line-y2 line-struct)))
+  (let ((lx1 (point-x (line-p1 line-struct)))
+        (ly1 (point-y (line-p1 line-struct)))
+        (lx2 (point-x (line-p2 line-struct)))
+        (ly2 (point-y( line-p2 line-struct))))
     (define (compute-outcode x y)
       (let ((inside 0))
         (cond ((< x xs) 
@@ -148,8 +149,8 @@
 ;; 2.3.6) if the line formed with the intersecting point falls on the right side of the "dividing line" together with the line formed with the mid-point line, then there is an intersection.
 (define (arc-intersect? arc-struct xs ys xb yb)
   (let* ((radius (arc-radius arc-struct))
-         (circle-x (arc-center-x arc-struct))
-         (circle-y (arc-center-y arc-struct))
+         (circle-x (point-x (arc-center arc-struct)))
+         (circle-y (point-y (arc-center arc-struct)))
          (start (arc-start arc-struct))
          (end (arc-end arc-struct))
          (angle-difference (if (> end start) (- end start) (+ (- 360 start) end)))
@@ -218,37 +219,3 @@
 
 (define (distance x1 y1 x2 y2)
   (sqrt (+ (sqr (abs (- x1 x2))) (sqr (abs (- y1 y2))))))
-
-(define (get-best-tour list-of-tours)
-  (unless (empty? list-of-tours)
-    (let* ((best-tour (car list-of-tours))
-           (best-distance (tour-distance best-tour)))
-      (for/list ([a-tour (cdr list-of-tours)])
-        (when (> (tour-distance a-tour) best-distance)
-          (set! best-tour a-tour)
-          (set! best-distance (tour-distance a-tour))))
-      best-tour)))
-
-;a-tour is a list of nodes
-;show the distance for a given tour route
-(define (tour-distance a-tour)
-  (cond ((empty? a-tour) (error "should not happen"))
-        ((= (length a-tour) 1) 0)
-        (else (+ (tour-distance (cdr a-tour)) (node-distance (car a-tour) (cadr a-tour))))))
-
-;get the start and end of a node and find their distance
-(define (node-distance node-start node-end)
-  (define (get-start)
-    (match node-start
-      [(line _ _ _ _ x1 y1 _ _)              (list x1 y1)]
-      [(arc _ _ _ _ _ _ _ _ _ x1 y1 _ _ _ _) (list x1 y1)]
-      [(point _ _ _ _ x y)                   (list x y)]))
-  (define (get-end)
-    (match node-end
-      [(line _ _ _ _ _ _ x2 y2)              (list x2 y2)]
-      [(arc _ _ _ _ _ _ _ _ _ _ _ _ _ x3 y3) (list x3 y3)]
-      [(point _ _ _ _ x y)                   (list x y)]))
-  (apply distance (append (get-start) (get-end))))
-  
-(define (optimize-pattern struct-list origin)
-  (get-best-tour (get-tours struct-list origin)))
