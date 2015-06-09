@@ -104,60 +104,7 @@
   (format "~a" (number->string (round-off x))))
 
 
-
-(define-type Point (List Real Real))
 (define-type Header-Value (HashTable Point Entities))
-
-(: get-start-x (-> Entities Real))
-(define (get-start-x a-struct)
-  (round-off (match a-struct
-    [(struct* line  ([x1 x1]))               x1]
-    [(struct* arc   ([x1 x1]))               x1]
-    [(struct* point ([x x]))                 x]
-    [(struct* path  ([entities entities]))  (get-start-x (first entities))])))
-
-(: get-start-y (-> Entities Real))
-(define (get-start-y a-struct)
-  (round-off (match a-struct
-    [(struct* line  ([y1 y1]))               y1]
-    [(struct* arc   ([y1 y1]))               y1]
-    [(struct* point ([y y]))                 y]
-    [(struct* path  ([entities entities]))  (get-start-y (first entities))])))
-
-(: get-end-x (-> Entities Real))
-(define (get-end-x a-struct)
-  (round-off (match a-struct
-    [(struct* line  ([x2 x2]))               x2]
-    [(struct* arc   ([x3 x3]))               x3]
-    [(struct* point ([x x]))                 x]
-    [(struct* path  ([entities entities]))  (get-end-x (first entities))])))
-
-(: get-end-y (-> Entities Real))
-(define (get-end-y a-struct)
-  (round-off (match a-struct
-    [(struct* line  ([y2 y2]))              y2]
-    [(struct* arc   ([y3 y3]))              y3]
-    [(struct* point ([y y]))                y]
-    [(struct* path  ([entities entities]))  (get-end-y (first entities))])))
-
-(: get-start (-> Entities Point))
-(define (get-start a-struct)
-    (list (get-start-x a-struct) (get-start-y a-struct)))
-
-(: get-end (-> Entities Point))
-(define (get-end a-struct)
-    (list (get-end-x a-struct) (get-end-y a-struct)))
-
-(: get-node (-> Entities (List Point Point)))
-(define (get-node a-struct)
-  (list (get-end a-struct) (get-start a-struct)))
-
-(: get-nodes (-> (Listof Entities) (Listof Point)))
-(define (get-nodes a-list)
-  (cond ((empty? a-list) '())
-        (else (let ((current (car a-list)))
-                (append (get-node current)
-                        (get-nodes (cdr a-list)))))))
 
 ;from a list of duplicates and singles return a list of duplicates
 (: remove-singles (-> (Listof Point) (Listof Point)))
@@ -180,17 +127,21 @@
 
 (: separate-unlinked-elements (-> (Listof Entities) (Listof Entities)))
 (define (separate-unlinked-elements struct-list)
+  
   (define node-list (get-linked-nodes struct-list))
+  
   (: is-linked? (-> Entities (U True False (Listof Point))))
   (define (is-linked? a-struct)
     (or (member (first (get-node a-struct)) node-list)
         (member (second (get-node a-struct)) node-list)))
+  
   (let separate : (Listof Entities)
     ([unlinked : (Listof Entities) '()]
      [linked : (Listof Entities) '()]
-     [lst : (Listof Entities) struct-list])
+     [lst : (Listof Entities) struct-list]
+     [result: (Listof (Listof Entities)) '()])
     (if (empty? lst) 
-        linked
+        result
         (let ((current (first lst)))
           (cond ((and (not (point? current)) (is-linked? current))
                  (separate unlinked (cons current linked) (cdr lst)))
