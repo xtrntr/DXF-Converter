@@ -14,10 +14,13 @@
 (define (get-display-scale struct-lst frame-width frame-height)
   (define (get-bounding-x struct-lst)
     (flatten (for/list ([i struct-lst])
-               ((match-struct (dot  (list (point-x p))) 
-                              (line (list (point-x p1) (point-x p2)))
-                              (arc  (list (+ (point-x center) radius) (- (point-x center) radius)))
-                              (path get-bounding-x entities)) i))))
+               (match i
+                 [(struct* line  ([p1 p1]
+                                  [p2 p2]))              (list (point-x p1) (point-x p2))]
+                 [(struct* arc   ([center center]
+                                  [radius radius]))      (list (+ (point-x center) radius) (- (point-x center) radius))]
+                 [(struct* dot   ([p p]))                (list (point-x p))]
+                 [(struct* path  ([entities entities]))  (get-bounding-x entities)]))))
   (define (get-bounding-y struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i

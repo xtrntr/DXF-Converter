@@ -6,6 +6,7 @@
          "constants.rkt"
          "dxf-canvas.rkt"
          "lst-utils.rkt"
+         "ils-pattern-generator.rkt"
          mrlib/path-dialog
          mrlib/hierlist
          racket/gui/base
@@ -110,7 +111,7 @@
                  [(line highlighted selected visible layer p1 p2)                           (make-line layer (unscale-x p1) (unscale-y p1) (unscale-x p2) (unscale-y p2))]
                  [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (unscale-x center) (unscale-y center) (/ radius scale) start end)]
                  [(dot highlighted selected visible layer p)                                (make-dot layer (unscale-x p) (unscale-y p))]
-                 [(path highlighted selected visible layer path-list)                       (make-path layer (rescale downscale scale))]))))
+                 [(path highlighted selected visible layer path-list)                       (make-path layer (downscale path-list scale))]))))
   
   (define struct-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
@@ -257,8 +258,7 @@
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-relevant-list search-list))
-                   (display "1"))])
                    ;binary for osx, text for windows
-                   ;(generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+                   (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (send a-frame show #t))
