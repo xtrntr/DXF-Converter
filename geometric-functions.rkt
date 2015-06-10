@@ -1,8 +1,7 @@
 #lang racket
 
 (require "structs.rkt"
-         "utils.rkt"
-         "macros.rkt")
+         "utils.rkt")
 
 (provide point-in-rect?
          get-arc-points
@@ -14,10 +13,13 @@
 (define (get-display-scale struct-lst frame-width frame-height)
   (define (get-bounding-x struct-lst)
     (flatten (for/list ([i struct-lst])
-               ((match-struct (dot  (list (point-x p))) 
-                              (line (list (point-x p1) (point-x p2)))
-                              (arc  (list (+ (point-x center) radius) (- (point-x center) radius)))
-                              (path get-bounding-x entities)) i))))
+               (match i
+                 [(struct* line  ([p1 p1]
+                                  [p2 p2]))              (list (point-x p1) (point-x p2))]
+                 [(struct* arc   ([center center]
+                                  [radius radius]))      (list (+ (point-x center) radius) (- (point-x center) radius))]
+                 [(struct* dot   ([p p]))                (list (point-x p))]
+                 [(struct* path  ([entities entities]))  (get-bounding-x entities)]))))
   (define (get-bounding-y struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i
@@ -153,7 +155,7 @@
          (circle-y (point-y (arc-center arc-struct)))
          (start (arc-start arc-struct))
          (end (arc-end arc-struct))
-         (angle-difference (if (> end start) (- end start) (+ (- 360 start) end)))
+         (angle-difference (if (> end start) (- end start) (+ (- 360 start) end)))         
          (half-angle (if (> end start) (/ (+ start end) 2) (if (< 360 (+ 180 (/ (+ start end) 2))) (- (+ 180 (/ (+ start end) 2)) 360) (+ 180 (/ (+ start end) 2)))))
          (radius (arc-radius arc-struct))
          (arc-x1 (arc-point-x circle-x start radius))

@@ -1,7 +1,6 @@
 #lang typed/racket
 
 (require "structs.rkt"
-         "geometric-functions.rkt"
          "utils.rkt")
 
 (provide file->struct-list)

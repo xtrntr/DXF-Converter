@@ -3,9 +3,6 @@
 (require "structs.rkt"
          "utils.rkt")
 
-(require/typed (only-in racket/list flatten)
-               [flatten (All (T) (-> (Listof (U T (Listof T))) (Listof T)))])
-
 (provide point-in-rect?
          get-arc-points
          line-intersect?
@@ -17,20 +14,24 @@
 (define (get-display-scale struct-lst frame-width frame-height)
   (: get-bounding-x (-> (Listof Entities) (Listof Real)))
   (define (get-bounding-x struct-lst)
-    (flatten (for/list : (Listof (U Real (Listof Real)))
-               ([i : Entities struct-lst])
-               ((match-struct (dot  (list (point-x p))) 
-                              (line (list (point-x p1) (point-x p2)))
-                              (arc  (list (+ (point-x center) radius) (- (point-x center) radius)))
-                              (path (lambda ([x : (Listof Entities)]) (get-bounding-x x)))) i))))
+    (let loop : (Listof Real)
+      ([lst : (Listof Entities) struct-lst]
+       [acc : (Listof Real) '()])
+      (cond ((empty? lst) acc)
+            (else (loop (cdr lst) (append ((match-struct (dot  (list (point-x p))) 
+                                                         (line (list (point-x p1) (point-x p2)))
+                                                         (arc  (list (+ (point-x center) radius) (- (point-x center) radius)))
+                                                         (path (lambda ([x : (Listof Entities)]) (get-bounding-x x)))) (car lst)) acc))))))
   (: get-bounding-y (-> (Listof Entities) (Listof Real)))
   (define (get-bounding-y struct-lst)
-    (flatten (for/list : (Listof (U Real (Listof Real)))
-               ([i : Entities struct-lst])
-               ((match-struct (dot  (list (point-y p))) 
-                              (line (list (point-y p1) (point-y p2)))
-                              (arc  (list (+ (point-y center) radius) (- (point-y center) radius)))
-                              (path (lambda ([x : (Listof Entities)]) (get-bounding-y x)))) i))))
+    (let loop : (Listof Real)
+      ([lst : (Listof Entities) struct-lst]
+       [acc : (Listof Real) '()])
+      (cond ((empty? lst) acc)
+            (else (loop (cdr lst) (append ((match-struct (dot  (list (point-y p))) 
+                                                         (line (list (point-y p1) (point-y p2)))
+                                                         (arc  (list (+ (point-y center) radius) (- (point-y center) radius)))
+                                                         (path (lambda ([x : (Listof Entities)]) (get-bounding-y x)))) (car lst)) acc))))))
   (let* ((top (biggest (get-bounding-y struct-lst)))
          (bottom (smallest (get-bounding-y struct-lst)))
          (left (smallest (get-bounding-x struct-lst)))
@@ -139,7 +140,6 @@
          (center-y : Real (point-y (arc-center arc-struct)))
          (start : Real (arc-start arc-struct))
          (end : Real (arc-end arc-struct))
-         (radius : Real (arc-radius arc-struct))
          (angle-difference : Real (if (> end start) (- end start) (+ (- 360 start) end)))
          [arc-pts : (Listof Real) (get-arc-points center-x center-y radius start end)]
          [x1 : Real (first arc-pts)]
@@ -148,62 +148,64 @@
          [y2 : Real (fourth arc-pts)]
          [x3 : Real (fifth arc-pts)]
          [y3 : Real (sixth arc-pts)])
-    
-    (: right-side-y? (-> (List Real Real) Boolean))
-    (define (right-side-y? lst)
-      (let* ((x (first lst))
-             (y (second lst))
-             (dividing-line-slope       (/ (- y3 y1) (- x3 x1)))
-             (dividing-line-yintercept  (- y1 (* dividing-line-slope x1)))
-             (right-yintercept          (- y2 (* dividing-line-slope x2)))
-             (right-value-test          (> right-yintercept dividing-line-yintercept))
-             (point-yintercept          (- y (* dividing-line-slope x))) 
-             (point-test                (> point-yintercept dividing-line-yintercept)))
-        (eq? right-value-test point-test)))
-    
-    (: line-intersect-arc? (-> Real Real Real Real (U False (-> (Listof (List Real Real)) Boolean))))
+  
+    (: line-intersect-arc? (-> Real Real Real Real Boolean))
     (define (line-intersect-arc? x1 y1 x2 y2)
       ;return the point where line intersects arc. intersection of a y line with a circle, 2 possible x values
-      (: yline-intersect-circle? (-> Real (U Boolean (List (List Real Real)) (List (List Real Real) (List Real Real)))))
+      (: yline-intersect-circle? (-> Real (U Boolean (Listof (List Real Real)))))
       (define (yline-intersect-circle? y)
-        (let ((result1 : Real (+ center-x (cast (sqrt (- (sqr radius) (sqr (- y center-y)))) Real)))
-              (result2 : Real (- center-x (cast (sqrt (- (sqr radius) (sqr (- y center-y)))) Real))))
+        (let ((result1 : (U Number Real) (+ center-x (sqrt (- (sqr radius) (sqr (- y center-y))))))
+              (result2 : (U Number Real) (- center-x (sqrt (- (sqr radius) (sqr (- y center-y)))))))
           (if (real? result1)
-              (cond ((and (in-between? result1 xs xb) (in-between? result2 xs xb)) 
-                     (list (list result1 y) (list result2 y)))
-                    ((in-between? result1 xs xb)
-                     (list (list result1 y)))
-                    ((in-between? result2 xs xb) 
-                     (list (list result2 y)))
-                    (else #f))
+              (let ([result1 : Real (cast result1 Real)]
+                    [result2 : Real (cast result2 Real)])
+                (cond ((and (in-between? result1 xs xb) (in-between? result2 xs xb)) 
+                       (list (list result1 y) (list result2 y)))
+                      ((in-between? result1 xs xb)
+                       (list (list result1 y)))
+                      ((in-between? result2 xs xb) 
+                       (list (list result2 y)))
+                      (else #f)))
               #f)))
       
       ;return the point where line intersects arc. intersection of a x line with a circle, 2 possible y values
       (: xline-intersect-circle? (-> Real (U Boolean (Listof (List Real Real)))))
       (define (xline-intersect-circle? x)
-        (let ((result1 : Real (+ center-y (cast (sqrt (- (sqr radius) (sqr (- x center-x)))) Real)))
-              (result2 : Real (- center-y (cast (sqrt (- (sqr radius) (sqr (- x center-x)))) Real))))
+        (let ([result1 : (U Number Real) (+ center-y (sqrt (- (sqr radius) (sqr (- x center-x)))))]
+              [result2 : (U Number Real) (- center-y (sqrt (- (sqr radius) (sqr (- x center-x)))))])
           (if (real? result1)
-              (cond ((and (in-between? result1 ys yb) (in-between? result2 ys yb)) 
-                     (list (list x result1) (list x result2)))
-                    ((in-between? result1 ys yb) 
-                     (list (list x result1)))
-                    ((in-between? result2 ys yb) 
-                     (list (list x result2)))
-                    (else #f))
+              (let ([result1 : Real (cast result1 Real)]
+                    [result2 : Real (cast result2 Real)])
+                (cond ((and (in-between? result1 ys yb) (in-between? result2 ys yb))
+                       (list (list x result1) (list x result2)))
+                      ((in-between? result1 ys yb)
+                       (list (list x result1)))
+                      ((in-between? result2 ys yb)
+                       (list (list x result2)))
+                      (else #f)))
               #f)))
+      
+      (: right-side-y? (-> (List Real Real) Boolean))
+      (define (right-side-y? lst)
+        (let* ((x (first lst))
+               (y (second lst))
+               (dividing-line-slope       (/ (- y3 y1) (- x3 x1)))
+               (dividing-line-yintercept  (- y1 (* dividing-line-slope x1)))
+               (right-yintercept          (- y2 (* dividing-line-slope x2)))
+               (right-value-test          (> right-yintercept dividing-line-yintercept))
+               (point-yintercept          (- y (* dividing-line-slope x))) 
+               (point-test                (> point-yintercept dividing-line-yintercept)))
+          (eq? right-value-test point-test)))
       
       (if (= x1 x2)
           ((lambda ([x : (U Boolean (Listof (List Real Real)))]) 
              (if (not x) #f
-                 (lambda ([y : (Listof (List Real Real))]) 
-                   (ormap right-side-y? y))))
-           (xline-intersect-circle? x1))       ;is a x line, find y values
+                 (ormap right-side-y? (cast x (Listof (List Real Real))))))
+           (xline-intersect-circle? x1)) ;is a x line, find y values
           ((lambda ([x : (U Boolean (Listof (List Real Real)))]) 
              (if (not x) #f
-                 (lambda ([y : (Listof (List Real Real))]) 
-                   (ormap right-side-y? y))))
-           (yline-intersect-circle? y1))))      ;is a y line, find x values
+                 (ormap right-side-y? (cast x (Listof (List Real Real))))))
+           (yline-intersect-circle? y1)))) ;is a y line, find x values
     
     (cond ((or (point-in-rect? x1 y1 xs ys xb yb) (point-in-rect? x3 y3 xs ys xb yb)) #t)
           ((or (line-intersect-arc? xs ys xs yb) 

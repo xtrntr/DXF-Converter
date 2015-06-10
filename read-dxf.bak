@@ -80,13 +80,13 @@
          [y2 : Real (extract-val ht "21")])
     (make-line layer x1 y1 x2 y2)))
 
-(: dxf-point (-> (Listof String) point))
+(: dxf-point (-> (Listof String) dot))
 (define (dxf-point lst)
   (let* ([ht : (HashTable String String) (make-hash (separate lst))]
          [layer : String (extract-str ht "8")]
          [x : Real       (extract-val ht "10")]
          [y : Real       (extract-val ht "20")])
-    (make-point layer x y)))
+    (make-dot layer x y)))
 
 (: dxf-arc (-> (Listof String) arc))
 (define (dxf-arc lst)
@@ -246,7 +246,7 @@
         (make-arc layer center-x center-y radius end start)
         (make-arc layer center-x center-y radius start end))))
 
-(: create-structs (-> (Listof (Listof String)) (Listof (U line arc path point))))
+(: create-structs (-> (Listof (Listof String)) (Listof Entities)))
 (define (create-structs entity-list)
   (map (lambda ([x : (Listof String)])
          (match x
@@ -258,7 +258,7 @@
            [_ (error "This is not expected, given: " x)]))
        entity-list))
 
-(: file->struct-list (-> Path-String (Listof (U line arc path point))))
+(: file->struct-list (-> Path-String (Listof Entities)))
 (define (file->struct-list path-string)
   (let* ((file-list (reader (open-input-file path-string)))
          (section-list (extract-section file-list sections))

@@ -19,7 +19,8 @@
          get-end
          get-start
          get-node
-         get-nodes)
+         get-nodes
+         match-struct)
 
 (define-type Entities (U line arc path dot))
 
@@ -100,13 +101,11 @@
 (: reverse-path (-> Entities Entities))
 (define (reverse-path a-struct)
   (let ([layer : String (entity-layer a-struct)])
-    (match a-struct
-      [(struct* line  ([p1 p1]
-                       [p2 p2]))            (make-line layer (point-x p2) (point-y p2) (point-x p1) (point-y p1))]
-      [(struct* arc   ([center center]
-                       [radius radius]
-                       [start start]
-                       [end end]))          (make-arc layer (point-x center) (point-y center) radius end start)])))
+    ((match-struct (dot (make-dot layer (point-x p) (point-y p)))
+                   (line (make-line layer (point-x p2) (point-y p2) (point-x p1) (point-y p1)))
+                   (arc (make-arc layer (point-x center) (point-y center) radius end start))
+                   (path (lambda (x) (make-path layer (reverse x)))))
+     a-struct)))
 
 (: round-off-point (-> point point))
 (define (round-off-point p)
@@ -114,17 +113,19 @@
 
 (: get-start (-> Entities point))
 (define (get-start a-struct)
-  (round-off-point (match a-struct
-                     [(struct* line  ([p1 p1]))               p1]
-                     [(struct* arc   ([p1 p1]))               p1]
-                     [(struct* path  ([entities entities]))  (get-start (first entities))])))
+  (round-off-point ((match-struct (dot p)
+                                  (line p1)
+                                  (arc p1)
+                                  (path (lambda (x) (get-start (first x)))))
+                    a-struct)))
 
 (: get-end (-> Entities point))
 (define (get-end a-struct)
-  (round-off-point (match a-struct
-                     [(struct* line  ([p2 p2]))               p2]
-                     [(struct* arc   ([p3 p3]))               p3]
-                     [(struct* path  ([entities entities]))  (get-end (last entities))])))
+  (round-off-point ((match-struct (dot p)
+                                  (line p2)
+                                  (arc p3)
+                                  (path (lambda (x) (get-end (last x)))))
+                    a-struct)))
 
 (: get-node (-> Entities (List point point)))
 (define (get-node a-struct)
@@ -136,3 +137,17 @@
         (else (let ((current (car a-list)))
                 (append (get-node current)
                         (get-nodes (cdr a-list)))))))
+
+(define-syntax match-struct
+  (lambda (stx)
+    (syntax-case stx ()
+      [(_ (dot a) (line b) (arc c) (path d))
+       (with-syntax  ([tmp0 (syntax->datum #'a)]
+                      [tmp1 (syntax->datum #'b)]
+                      [tmp2 (syntax->datum #'c)])
+       #'(lambda (a-struct)
+           (match a-struct
+             [(dot highlighted selected visible layer p)                                tmp0]
+             [(line highlighted selected visible layer p1 p2)                           tmp1]
+             [(arc highlighted selected visible layer center radius start end p1 p2 p3) tmp2]
+             [(path highlighted selected visible layer entities)                        (d entities)])))])))

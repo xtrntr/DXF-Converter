@@ -2,10 +2,11 @@
 
 (require "structs.rkt"
          "read-dxf.rkt"
-         "geometric-functions.rkt"
+         "canvas-utils.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
          "lst-utils.rkt"
+         "ils-pattern-generator.rkt"
          mrlib/path-dialog
          mrlib/hierlist
          racket/gui/base
@@ -248,9 +249,8 @@
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-relevant-list search-list))
-                   (display "1"))])
                    ;binary for osx, text for windows
-                   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+                   (generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (new button%
        [label "Generate for ILS"]
