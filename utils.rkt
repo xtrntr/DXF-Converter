@@ -1,6 +1,6 @@
 #lang typed/racket
 
-;this module should be stand alone
+;this module must be stand alone i.e. purely numerical functions
 
 (provide round-off
          make-whitespaces
@@ -63,49 +63,6 @@
 (define (break pred lst)
   (splitf-at lst (negate pred)))
 
-(: get-arc-points (-> Real Real Real Real Real (Listof Real)))
-(define (get-arc-points center-x center-y radius start end)
-  ;; these 3 functions calculate the x and y coordinates for arc points
-  (: localize-degree (-> Real Real))
-  (define (localize-degree degree)
-    (cond ((in-between? degree 0 90) degree)
-          ((in-between? degree 90 180) (- degree 90))
-          ((in-between? degree 180 270) (- degree 180))
-          ((in-between? degree 270 360) (- degree 270))
-          (else degree)))
-  (: arc-point-x (-> Real Real Real Real))
-  (define (arc-point-x circle-x degree radius)
-    (let ([adjusted : Real (localize-degree degree)])
-      (cond ((or (= degree 90) (= degree 270)) circle-x)
-            ((or (= degree 360) (= degree 0)) (+ circle-x radius)) 
-            ((= degree 180) (- circle-x radius))
-            ((in-between? degree 0 90)    (+ circle-x (* radius (cos (degrees->radians adjusted)))))
-            ((in-between? degree 90 180)  (- circle-x (* radius (sin (degrees->radians adjusted)))))
-            ((in-between? degree 180 270) (- circle-x (* radius (cos (degrees->radians adjusted)))))
-            ((in-between? degree 270 360) (+ circle-x (* radius (sin (degrees->radians adjusted)))))
-            (else (error "Expected a number, given " degree)))))
-  (: arc-point-y (-> Real Real Real Real))
-  (define (arc-point-y circle-y degree radius)
-    (let ([adjusted : Real (localize-degree degree)])
-      (cond ((or (= degree 0) (= degree 360) (= degree 180)) circle-y)
-            ((= degree 90) (+ circle-y radius))
-            ((= degree 270) (- circle-y radius))
-            ((in-between? degree 0 90)    (+ circle-y (* radius (sin (degrees->radians adjusted)))))
-            ((in-between? degree 90 180)  (+ circle-y (* radius (cos (degrees->radians adjusted)))))
-            ((in-between? degree 180 270) (- circle-y (* radius (sin (degrees->radians adjusted)))))
-            ((in-between? degree 270 360) (- circle-y (* radius (cos (degrees->radians adjusted)))))
-            (else (error "Expected a number, given " degree)))))
-  (let* ((mid (if (> end start) (/ (+ start end) 2) (if (< 360 (+ 180 (/ (+ start end) 2))) (- (+ 180 (/ (+ start end) 2)) 360) (+ 180 (/ (+ start end) 2)))))
-         (x1 (arc-point-x center-x start radius))
-         (y1 (arc-point-y center-y start radius))
-         ;we calculate the middle arc-point to determine which is the right side
-         (x2 (arc-point-x center-x mid radius))
-         (y2 (arc-point-y center-y mid radius))
-         (x3 (arc-point-x center-x end radius))
-         (y3 (arc-point-y center-y end radius)))
-    (list x1 y1 x2 y2 x3 y3)))
-
-#|
 ;; NOT YET TESTED PROPERLY.
 ;; from the center xy, start and end points, return x1 y1 x2 y2 x3 y3 which is the start, middle and end point of the arc respectively.
 (: get-arc-points (-> Real Real Real Real Real (Listof Real)))
@@ -179,4 +136,3 @@
 ;for (get-arc-points  35.72747415069246 248.39734121147703 26.58788774003842 111.212723819 180.0)
 ;should return (9.139 ...) (10.941 
 ;instead it returns (10.941089388271768 258.0176792973305) 20.70863089581764 270.3370340480322 (9.139586410654056 248.39734121147703)
-|#

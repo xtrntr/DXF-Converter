@@ -1,7 +1,7 @@
 #lang racket/gui
 
 (require "structs.rkt"
-         "canvas-utils.rkt"
+         "geometric-functions.rkt"
          "lst-utils.rkt"
          "utils.rkt"
          racket/draw)
