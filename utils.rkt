@@ -10,7 +10,15 @@
          in-between?
          get-arc-points
          string->real
+         capitalize
          break)
+
+(: capitalize (-> String String))
+(define (capitalize str)
+  (let* ((dissected (string->list str))
+         (first-letter (char-upcase (car dissected)))
+         (capitalized (list->string (append (list first-letter) (cdr dissected)))))
+    capitalized))
 
 (: string->real (-> String Real))
 (define (string->real x)

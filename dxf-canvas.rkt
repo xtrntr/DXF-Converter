@@ -1,7 +1,7 @@
 #lang racket/gui
 
 (require "structs.rkt"
-         "geometric-functions.rkt"
+         "canvas-utils.rkt"
          "lst-utils.rkt"
          "utils.rkt"
          racket/draw)
@@ -121,6 +121,26 @@
       (send drawer set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (send this refresh))
     
+    ;this only highlights the end and start of detected paths.
+    ;lst should be (Listof (Listof Entities)) - a list of path-lists.
+    ;(define (highlight-points lst)
+    ;  )
+    
+    ;; POPUP MENU
+    (define popup
+      (new popup-menu%
+           [title "ugh"]))
+    
+    ;; POPUP MENU items
+    (define select-append-option
+      (new menu-item%
+           [label "Append selected items into a single path"]
+           [parent popup]
+           [callback (lambda (b e)
+                       (define selected-entities (get-selected search-list))
+                       (define paths (sort selected-entities))
+                       (display paths))]))
+    
     ;; KEYBOARD events
     (define/override (on-char event)
       (let ((key (send event get-key-code)))
@@ -157,18 +177,20 @@
       
       ;key and mouse combinations
       (define start-panning? (is-mouse-event? 'left-down))
-      (define is-panning? (send event dragging?))
+      (define is-panning? (and (send event dragging?) (not (is-mouse-event? 'right-down))))
       (define end-panning? (is-mouse-event? 'left-up))
       (define start-selecting? (and (is-mouse-event? 'left-down) (is-key-event? get-control-down)))
       (define is-selecting? (and (send event dragging?) (is-key-event? get-control-down)))
       (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-control-down)))
       (define set-park-position? (and set-park-position (is-mouse-event? 'left-down)))
+      (define show-popup? (is-mouse-event? 'right-down))
       
       (cond
+        (show-popup?
+         (send this popup-menu popup x y))
         (set-park-position?
          (display (list (unscale-x scaled-x) (unscale-y scaled-y)))
          (send drawer draw-point scaled-x scaled-y)
-         ;(display (optimize-pattern (get-relevant-list) (point "origin" (unscale-x scaled-x) (unscale-y scaled-y))))
          (set! set-park-position #f))
         (start-selecting?
          (set! init-x scaled-x)
@@ -183,7 +205,7 @@
         (is-selecting?
          (send this set-cursor (make-object cursor% 'cross))
          (intersect? init-x init-y scaled-x scaled-y search-list)
-         (highlight-path search-list)
+         (highlight-lst search-list)
          (set! select-box (list (list init-x init-y scaled-x init-y #t)
                                 (list scaled-x init-y scaled-x scaled-y #t)
                                 (list scaled-x scaled-y init-x scaled-y #t) 

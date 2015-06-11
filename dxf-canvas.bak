@@ -2,7 +2,7 @@
 
 (require "structs.rkt"
          "geometric-functions.rkt"
-         "test.rkt"
+         "lst-utils.rkt"
          "utils.rkt"
          racket/draw)
 
@@ -40,7 +40,7 @@
     (define highlight-pen (new pen% [color "RoyalBlue"] [width 2]))
     
     ;; DRAWING functions
-    (define (draw-point x y highlight?)
+    (define (draw-dot x y highlight?)
       (define drawer (get-dc))
       (if highlight?
           (send drawer set-pen red-pen)
@@ -77,10 +77,10 @@
       (define (apply-procedure x)
         (when (entity-visible x)
           (match x
-            [(line highlighted selected visible layer x1 y1 x2 y2)                           (draw-line x1 y1 x2 y2 (or selected highlighted))]
-            [(arc highlighted selected visible layer x y radius start end x1 y1 x2 y2 x3 y3) (draw-arc x y radius start end (or selected highlighted))]
-            [(point highlighted selected visible layer x y)                                  (draw-point x y (or selected highlighted))]
-            [(path highlighted selected visible layer path-list)                             (draw-objects path-list)])))
+            [(line highlighted selected visible layer p1 p2)                           (draw-line (point-x p1) (point-y p1) (point-x p2) (point-y p2) (or selected highlighted))]
+            [(arc highlighted selected visible layer center radius start end p1 p2 p3) (draw-arc (point-x center) (point-y center) radius start end (or selected highlighted))]
+            [(dot highlighted selected visible layer p)                                (draw-dot (point-x p) (point-y p) (or selected highlighted))]
+            [(path highlighted selected visible layer path-list)                       (draw-objects path-list)])))
       (map apply-procedure lst))
     
     (define (draw-select-box lst)

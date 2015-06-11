@@ -7,32 +7,24 @@
                [hash-empty? (-> Header-Value Boolean)])
 
 (provide structs-to-strings
-         get-relevant-list
+         get-selected
          select-highlighted
-         highlight-path
+         highlight-lst
          unselect-all
          delete-selected
          to-display
-         coalesce
-         reorder
          get-linked-nodes
-         separate-unlinked-elements)
+         get-linked-elements
+         sort)
 
 (: structs-to-strings (-> (Listof Entities) (Listof String)))
 (define (structs-to-strings struct-lst)
   (map (lambda ([x : Entities]) (capitalize (symbol->string (cast (object-name x) Symbol)))) struct-lst))
 
-(: capitalize (-> String String))
-(define (capitalize str)
-  (let* ((dissected (string->list str))
-         (first-letter (char-upcase (car dissected)))
-         (capitalized (list->string (append (list first-letter) (cdr dissected)))))
-    capitalized))
-
-(: get-relevant-list (-> (Listof Entities) (Listof Entities))) 
-(define (get-relevant-list lst)
+(: get-selected (-> (Listof Entities) (Listof Entities))) 
+(define (get-selected lst)
   (filter (lambda ([i : Entities]) (and (entity-visible i) (entity-selected i))) lst))
-    
+
 (: select-highlighted (-> (Listof Entities) Void))
 (define (select-highlighted lst)
   (: select (-> Entities Void))
@@ -51,8 +43,8 @@
                   (select-highlighted (cdr lst)))))
     (void)))
 
-(: highlight-path (-> (Listof Entities) Void))
-(define (highlight-path lst)
+(: highlight-lst (-> (Listof Entities) Void))
+(define (highlight-lst lst)
   (: any-entity-highlighted? (-> (Listof Entities) Boolean))
   (define (any-entity-highlighted? lst)
     (cond ((empty? lst) #f)
@@ -99,9 +91,6 @@
 (define (to-display x)
   (format "~a" (number->string (round-off x))))
 
-
-(define-type Header-Value (HashTable point Entities))
-
 ;from a list of duplicates and singles return a list of duplicates
 (: remove-singles (-> (Listof point) (Listof point)))
 (define (remove-singles lst)
@@ -121,32 +110,12 @@
 (define (get-linked-nodes a-list)
   (remove-singles (get-nodes a-list)))
 
-(: separate-unlinked-elements (-> (Listof Entities) (Listof Entities)))
-(define (separate-unlinked-elements struct-list)
-  
-  (define node-list (get-linked-nodes struct-list))
-  
-  (: is-linked? (-> Entities (U True False (Listof point))))
-  (define (is-linked? a-struct)
-    (or (member (first (get-node a-struct)) node-list)
-        (member (second (get-node a-struct)) node-list)))
-  
-  (let separate : (Listof Entities)
-    ([unlinked : (Listof Entities) '()]
-     [linked : (Listof Entities) '()]
-     [lst : (Listof Entities) struct-list])
-    (if (empty? lst) 
-        linked
-        (let ((current (first lst)))
-          (cond ((and (not (point? current)) (is-linked? current))
-                 (separate unlinked (cons current linked) (cdr lst)))
-                (else 
-                 (separate (cons current unlinked) linked (cdr lst))))))))
-
+;returns a hashtable where keys are ENDPOINTS
 (: end-ht (-> (Listof Entities) Header-Value))
 (define (end-ht a-list)
   (coalesce a-list get-end))
 
+;returns a hashtable where keys are STARTPOINTS
 (: start-ht (-> (Listof Entities) Header-Value))
 (define (start-ht a-list)
   (coalesce a-list get-start))
@@ -165,22 +134,51 @@
               (loop (cdr lst) ht)
               (loop (cdr lst) (hash-set ht (key current) current)))))))
 
-(: reorder (-> (Listof Entities) (Listof (Listof Entities))))
-(define (reorder a-list)
-  ;in one DXF pattern i have a single path joined in a anti-clockwise fashion.. except for one arc that moves from start to end in a clockwise fashion.
-  (let ((ht-start (start-ht a-list))
-        (ht-end   (end-ht a-list)))
-    (let sort : (Listof (Listof Entities))
-      ([ht-s : Header-Value ht-start]
-       [ht-e : Header-Value ht-end]
-       [current : Entities (car a-list)]
+;takes a list of elements and sorts them into lists - in which they are inter-connected to other elements in the list, forming a path
+(: sort (-> (Listof Entities) (Listof (Listof Entities))))
+(define (sort lst)
+  (let* ([separated (get-linked-elements lst)]
+         (linked (first separated))
+         (unlinked (second separated)))
+    (let sort-paths : (Listof (Listof Entities))
+      ([ht-s : Header-Value (start-ht linked)]
+       [ht-e : Header-Value (end-ht linked)]
+       [current : Entities (car linked)]
        [a-path : (U Null (Listof Entities)) '()]
        [result : (Listof (Listof Entities)) '()])
       (cond ((hash-empty? ht-s) result)
-            ((hash-has-key? ht-s (get-end current))
-             (sort (hash-remove ht-s (get-start current)) (hash-remove ht-e (get-end current)) (hash-ref ht-s (get-end current)) (cons current a-path) result))
-            ((hash-has-key? ht-e (get-start current))
-             (sort (hash-remove ht-s (get-start current)) (hash-remove ht-e (get-end current)) (hash-ref ht-e (get-end current)) (cons (reverse-path current) a-path) result))
             (else
-             (sort ht-s ht-e (car (hash-values ht-s)) '() (cons a-path result)))))))
+             (let ([current-end (get-end current)]
+                   [current-start (get-start current)])
+               (cond ((hash-has-key? ht-s current-end) ;normal case. end of current has a match in start of next
+                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-s current-end) (cons current a-path) result))
+                     ((hash-has-key? ht-e current-start) ;normal case. start of current has a match in end of next
+                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-e current-end) (cons current a-path) result))
+                     ((hash-has-key? ht-e current-end) ;weird case. end of current has a match in end of next. 1-2-1
+                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-e current-end) (cons current a-path) result))
+                     ((hash-has-key? ht-s current-start) ;weird case. start of current has a match in start of next. 2-1-2
+                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-e current-end) (cons current a-path) result))
+                     (else 
+                      (sort-paths ht-s ht-e (car (hash-values ht-s)) '() (cons a-path result))))))))))
     
+(: get-linked-elements (-> (Listof Entities) (List (Listof Entities) (Listof Entities))))
+(define (get-linked-elements struct-list)
+  
+  (define node-list (get-linked-nodes struct-list))
+  
+  (: is-linked? (-> Entities (U True False (Listof point))))
+  (define (is-linked? a-struct)
+    (or (member (first (get-node a-struct)) node-list)
+        (member (second (get-node a-struct)) node-list)))
+  
+  (let separate : (List (Listof Entities) (Listof Entities))
+    ([unlinked : (Listof Entities) '()]
+     [linked : (Listof Entities) '()]
+     [lst : (Listof Entities) struct-list])
+    (if (empty? lst) 
+        (list linked unlinked)
+        (let ((current (first lst)))
+          (cond ((and (not (point? current)) (is-linked? current))
+                 (separate unlinked (cons current linked) (cdr lst)))
+                (else 
+                 (separate (cons current unlinked) linked (cdr lst))))))))

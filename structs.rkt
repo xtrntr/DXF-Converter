@@ -9,12 +9,11 @@
          (struct-out point)
          (struct-out path)
          Entities
+         Header-Value
          make-dot
          make-arc
          make-line
          make-path
-         highlight-lst
-         select-lst
          reverse-path
          get-end
          get-start
@@ -23,6 +22,7 @@
          match-struct)
 
 (define-type Entities (U line arc path dot))
+(define-type Header-Value (HashTable point Entities)) ;DXF is of the format "header_0" "value_0" ... "header_n" "value_n"
 
 (struct point 
   ([x : Real]
@@ -58,22 +58,6 @@
 (struct path entity
   ([entities : (Listof (U line arc))])
   #:transparent)
-
-(: highlight-lst (-> (Listof Entities) Void))
-(define (highlight-lst x)
-  (let loop : Void
-    ([lst : (Listof Entities) x])
-    (cond ((empty? lst) (void))
-          (else (set-entity-highlighted! (car lst) #t)
-                (loop (cdr lst))))))
-
-(: select-lst (-> (Listof Entities) Void))
-(define (select-lst x)
-  (let loop : Void
-    ([lst : (Listof Entities) x])
-    (cond ((empty? lst) (void))
-          (else (set-entity-selected! (car lst) #t)
-                (loop (cdr lst))))))
 
 (: make-dot (-> String Real Real dot))
 (define (make-dot layer x y)

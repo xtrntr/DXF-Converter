@@ -2,10 +2,11 @@
 
 (require "structs.rkt"
          "read-dxf.rkt"
-         "geometric-functions.rkt"
+         "canvas-utils.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
          "lst-utils.rkt"
+         
          "ils-pattern-generator.rkt"
          mrlib/path-dialog
          mrlib/hierlist
@@ -228,7 +229,7 @@
        [label "For testing"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (reorder (separate-unlinked-elements search-list))))])
+                   (display (sort (get-selected search-list))))])
   
   (new button%
        [label "Refocus"]
@@ -248,7 +249,7 @@
        [label "Generate for IDS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-relevant-list search-list))
+                   (define stripped (get-selected search-list))
                    (display "1"))])
                    ;binary for osx, text for windows
                    ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
@@ -257,7 +258,7 @@
        [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-relevant-list search-list))
+                   (define stripped (get-selected search-list))
                    ;binary for osx, text for windows
                    (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
