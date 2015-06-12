@@ -6,7 +6,7 @@
          "constants.rkt"
          "dxf-canvas.rkt"
          "lst-utils.rkt"
-         
+         "utils.rkt"
          "ils-pattern-generator.rkt"
          mrlib/path-dialog
          mrlib/hierlist
@@ -229,7 +229,7 @@
        [label "For testing"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (sort (get-selected search-list))))])
+                   (display (remove-singles (get-nodes (get-selected search-list)))))])
   
   (new button%
        [label "Refocus"]

@@ -12,10 +12,8 @@
          highlight-lst
          unselect-all
          delete-selected
-         to-display
-         get-linked-nodes
-         get-linked-elements
-         sort)
+         remove-singles
+         get-nodes)
 
 (: structs-to-strings (-> (Listof Entities) (Listof String)))
 (define (structs-to-strings struct-lst)
@@ -87,98 +85,47 @@
             (else (delete-selected (cdr lst)))))
     (void)))
 
-(: to-display (-> Real String))
-(define (to-display x)
-  (format "~a" (number->string (round-off x))))
+(: get-node (-> Entities Connection))
+(define (get-node a-struct)
+  (list (get-end a-struct) (get-start a-struct)))
+
+(: get-nodes (-> (Listof Entities) (Listof Connection)))
+(define (get-nodes lst)
+  (let loop : (Listof Connection)
+    ([acc : (Listof Connection) '()]
+     [lst : (Listof Entities) lst])
+    (cond ((empty? lst) acc)
+          (else (loop (cons (get-node (car lst)) acc) (cdr lst))))))
+
+;member-nested only works for a specific edge case for now
+(: member-nested (-> point (Listof Connection) Boolean))
+(define (member-nested key lst)
+  (let loop : Boolean
+    ([acc : (Listof point) '()]
+     [lst : (Listof Connection) lst])
+    (cond ((empty? lst) (if (not (member key acc)) #f #t))
+          (else (loop (append (car lst) acc) (cdr lst))))))
 
 ;from a list of duplicates and singles return a list of duplicates
-(: remove-singles (-> (Listof point) (Listof point)))
+(: remove-singles (-> (Listof Connection) (Listof Connection)))
 (define (remove-singles lst)
-  (let iter : (Listof point)
-    ([lst : (Listof point) lst]
-     [acc1 : (Listof point) '()]
-     [acc2 : (Listof point) '()])
+  (let loop : (Listof Connection)
+    ([lst : (Listof Connection) lst]
+     [acc1 : (Listof Connection) '()]
+     [acc2 : (Listof Connection) '()])
     (if (empty? lst)
         (remove-duplicates acc2)
         (let ((current (car lst)))
-          (cond ((member current acc1)
-                 (iter (cdr lst) acc1 (cons current acc2)))
+          (cond ((or (member-nested (car current) acc1) (member-nested (cadr current) acc1))
+                 (loop (cdr lst) acc1 (cons current acc2)))
                 (else
-                 (iter (cdr lst) (cons current acc1) acc2)))))))
+                 (loop (cdr lst) (cons current acc1) acc2)))))))
 
-(: get-linked-nodes (All [T] (-> (Listof Entities) (Listof point))))
-(define (get-linked-nodes a-list)
-  (remove-singles (get-nodes a-list)))
-
-;returns a hashtable where keys are ENDPOINTS
-(: end-ht (-> (Listof Entities) Header-Value))
-(define (end-ht a-list)
-  (coalesce a-list get-end))
-
-;returns a hashtable where keys are STARTPOINTS
-(: start-ht (-> (Listof Entities) Header-Value))
-(define (start-ht a-list)
-  (coalesce a-list get-start))
-
-;struct-list -> hash-list
-(: coalesce (-> (Listof Entities) (-> Entities point) Header-Value))
-(define (coalesce a-list key)
-  ;values of the hash table are the structs and the keys its starting points
-  (let loop : Header-Value
-    ([lst : (Listof Entities) a-list]
-     [ht : Header-Value (hash)])
-    (if (empty? lst)
-        ht
-        (let ((current (first lst)))
-          (if (point? current)
-              (loop (cdr lst) ht)
-              (loop (cdr lst) (hash-set ht (key current) current)))))))
-
-;takes a list of elements and sorts them into lists - in which they are inter-connected to other elements in the list, forming a path
-(: sort (-> (Listof Entities) (Listof (Listof Entities))))
-(define (sort lst)
-  (let* ([separated (get-linked-elements lst)]
-         (linked (first separated))
-         (unlinked (second separated)))
-    (let sort-paths : (Listof (Listof Entities))
-      ([ht-s : Header-Value (start-ht linked)]
-       [ht-e : Header-Value (end-ht linked)]
-       [current : Entities (car linked)]
-       [a-path : (U Null (Listof Entities)) '()]
-       [result : (Listof (Listof Entities)) '()])
-      (cond ((hash-empty? ht-s) result)
-            (else
-             (let ([current-end (get-end current)]
-                   [current-start (get-start current)])
-               (cond ((hash-has-key? ht-s current-end) ;normal case. end of current has a match in start of next
-                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-s current-end) (cons current a-path) result))
-                     ((hash-has-key? ht-e current-start) ;normal case. start of current has a match in end of next
-                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-e current-end) (cons current a-path) result))
-                     ((hash-has-key? ht-e current-end) ;weird case. end of current has a match in end of next. 1-2-1
-                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-e current-end) (cons current a-path) result))
-                     ((hash-has-key? ht-s current-start) ;weird case. start of current has a match in start of next. 2-1-2
-                      (sort-paths (hash-remove ht-s current-start) (hash-remove ht-e current-end) (hash-ref ht-e current-end) (cons current a-path) result))
-                     (else 
-                      (sort-paths ht-s ht-e (car (hash-values ht-s)) '() (cons a-path result))))))))))
-    
-(: get-linked-elements (-> (Listof Entities) (List (Listof Entities) (Listof Entities))))
-(define (get-linked-elements struct-list)
-  
-  (define node-list (get-linked-nodes struct-list))
-  
-  (: is-linked? (-> Entities (U True False (Listof point))))
-  (define (is-linked? a-struct)
-    (or (member (first (get-node a-struct)) node-list)
-        (member (second (get-node a-struct)) node-list)))
-  
-  (let separate : (List (Listof Entities) (Listof Entities))
-    ([unlinked : (Listof Entities) '()]
-     [linked : (Listof Entities) '()]
-     [lst : (Listof Entities) struct-list])
-    (if (empty? lst) 
-        (list linked unlinked)
-        (let ((current (first lst)))
-          (cond ((and (not (point? current)) (is-linked? current))
-                 (separate unlinked (cons current linked) (cdr lst)))
-                (else 
-                 (separate (cons current unlinked) linked (cdr lst))))))))
+#|
+(: get-paths (All [T] (-> (Listof Entities) (Listof (Listof point)))))
+(define (get-paths a-list)
+  (define linked-nodes (remove-singles (get-nodes a-list)))
+  (let loop : (Listof (Listof point))
+    ([acc : (Listof (Listof point)) '()]
+     [
+|#

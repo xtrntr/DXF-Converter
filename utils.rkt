@@ -3,6 +3,7 @@
 ;this module must be stand alone i.e. purely numerical functions
 
 (provide round-off
+         to-display
          make-whitespaces
          biggest
          smallest
@@ -19,6 +20,10 @@
          (first-letter (char-upcase (car dissected)))
          (capitalized (list->string (append (list first-letter) (cdr dissected)))))
     capitalized))
+
+(: to-display (-> Real String))
+(define (to-display x)
+  (format "~a" (number->string (round-off x))))
 
 (: string->real (-> String Real))
 (define (string->real x)

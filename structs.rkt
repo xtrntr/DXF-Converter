@@ -10,6 +10,7 @@
          (struct-out path)
          Entities
          Header-Value
+         Connection
          make-dot
          make-arc
          make-line
@@ -17,11 +18,10 @@
          reverse-path
          get-end
          get-start
-         get-node
-         get-nodes
          match-struct)
 
 (define-type Entities (U line arc path dot))
+(define-type Connection (List point point))
 (define-type Header-Value (HashTable point Entities)) ;DXF is of the format "header_0" "value_0" ... "header_n" "value_n"
 
 (struct point 
@@ -110,17 +110,6 @@
                                   (arc p3)
                                   (path (lambda (x) (get-end (last x)))))
                     a-struct)))
-
-(: get-node (-> Entities (List point point)))
-(define (get-node a-struct)
-  (list (get-end a-struct) (get-start a-struct)))
-
-(: get-nodes (-> (Listof Entities) (Listof point)))
-(define (get-nodes a-list)
-  (cond ((empty? a-list) '())
-        (else (let ((current (car a-list)))
-                (append (get-node current)
-                        (get-nodes (cdr a-list)))))))
 
 (define-syntax match-struct
   (lambda (stx)
