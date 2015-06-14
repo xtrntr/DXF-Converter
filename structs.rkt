@@ -18,7 +18,8 @@
          reverse-path
          get-end
          get-start
-         match-struct)
+         match-struct
+         connected?)
 
 (define-type Entities (U line arc path dot))
 (define-type Connection (List point point))
@@ -110,6 +111,17 @@
                                   (arc p3)
                                   (path (lambda (x) (get-end (last x)))))
                     a-struct)))
+
+(: connected? (-> Connection Connection Boolean))
+(define (connected? node1 node2)
+  (let ([start1 (car node1)]
+        [end1 (cadr node1)]
+        [start2 (car node2)]
+        [end2 (cadr node2)])
+    (or (equal? start1 end2)
+        (equal? start1 start2)
+        (equal? end1 end2)
+        (equal? end1 start2))))
 
 (define-syntax match-struct
   (lambda (stx)

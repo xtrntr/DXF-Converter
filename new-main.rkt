@@ -229,7 +229,7 @@
        [label "For testing"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (remove-singles (get-nodes (get-selected search-list)))))])
+                   (display (map length (sort (get-nodes (get-selected search-list))))))])
   
   (new button%
        [label "Refocus"]

@@ -12,8 +12,8 @@
          highlight-lst
          unselect-all
          delete-selected
-         remove-singles
-         get-nodes)
+         get-nodes
+         sort)
 
 (: structs-to-strings (-> (Listof Entities) (Listof String)))
 (define (structs-to-strings struct-lst)
@@ -97,35 +97,38 @@
     (cond ((empty? lst) acc)
           (else (loop (cons (get-node (car lst)) acc) (cdr lst))))))
 
-;member-nested only works for a specific edge case for now
-(: member-nested (-> point (Listof Connection) Boolean))
-(define (member-nested key lst)
-  (let loop : Boolean
-    ([acc : (Listof point) '()]
-     [lst : (Listof Connection) lst])
-    (cond ((empty? lst) (if (not (member key acc)) #f #t))
-          (else (loop (append (car lst) acc) (cdr lst))))))
-
-;from a list of duplicates and singles return a list of duplicates
-(: remove-singles (-> (Listof Connection) (Listof Connection)))
-(define (remove-singles lst)
-  (let loop : (Listof Connection)
-    ([lst : (Listof Connection) lst]
-     [acc1 : (Listof Connection) '()]
-     [acc2 : (Listof Connection) '()])
-    (if (empty? lst)
-        (remove-duplicates acc2)
-        (let ((current (car lst)))
-          (cond ((or (member-nested (car current) acc1) (member-nested (cadr current) acc1))
-                 (loop (cdr lst) acc1 (cons current acc2)))
-                (else
-                 (loop (cdr lst) (cons current acc1) acc2)))))))
-
-#|
-(: get-paths (All [T] (-> (Listof Entities) (Listof (Listof point)))))
-(define (get-paths a-list)
-  (define linked-nodes (remove-singles (get-nodes a-list)))
-  (let loop : (Listof (Listof point))
-    ([acc : (Listof (Listof point)) '()]
-     [
-|#
+;sort a list of nodes into a list of lists containing connected nodes
+(: sort (-> (Listof Connection) (Listof (Listof Connection))))
+(define (sort lst)
+  (: is-connected? (-> Connection (Listof Connection) Boolean))
+  (define (is-connected? node lst)
+    (cond ((empty? lst) #f)
+          (else
+           (let ([comparison (car lst)])
+             (cond ((connected? node (car lst)) #t)
+                   (else (is-connected? node (cdr lst))))))))
+  (: find-node (-> (Listof Connection) (Listof Connection) Connection))
+  (define (find-node from to)
+    (cond ((empty? from) (error "Expected a valid connection, given " from to))
+          (else
+           (let ([node1 (car from)]
+                 [node2 (car to)])
+             (cond ((connected? node1 node2)
+                    node2)
+                   (else (find-node (cdr from) to)))))))
+  (let loop : (Listof (Listof Connection))
+    ([current-path : (Listof Connection) '()]
+     [nodes : (Listof Connection) lst]
+     [result : (Listof (Listof Connection)) '()]) 
+    (cond ((empty? nodes) 
+           (if (empty? current-path)
+               result
+               (cons current-path result)))
+          (else
+           (let ([current-node (car nodes)])
+             (cond ((empty? current-path)
+                    (loop (cons current-node current-path) (cdr nodes) result))
+                   ((ormap (lambda ([x : Connection]) (is-connected? x nodes)) current-path) ;check if any connection in current-path to nodes
+                    (loop (cons (find-node current-path nodes) current-path) (cdr nodes) result))
+                   (else
+                    (loop '() nodes (cons current-path result)))))))))

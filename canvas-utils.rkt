@@ -210,15 +210,3 @@
                (line-intersect-arc? xb yb xb ys)
                (line-intersect-arc? xb ys xs ys)) #t)
           (else #f))))
-
-;get all permutations of a set
-(define (get-tours set origin)
-  (map (lambda (x) (append (list origin) x (list origin))) ;append the origin to the start and end of each permutation
-       (let loop ([temp-set set] [tail '()])
-         (if (empty? temp-set) 
-             (list tail) 
-             (append-map (lambda (x) ;map a procedure onto each element of temp-set, then append them afterwards
-                           (loop (remq x temp-set) (cons x tail))) temp-set)))))
-
-(define (distance x1 y1 x2 y2)
-  (sqrt (+ (sqr (abs (- x1 x2))) (sqr (abs (- y1 y2))))))
