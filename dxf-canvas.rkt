@@ -179,9 +179,9 @@
       (define start-panning? (is-mouse-event? 'left-down))
       (define is-panning? (and (send event dragging?) (not (is-mouse-event? 'right-down))))
       (define end-panning? (is-mouse-event? 'left-up))
-      (define start-selecting? (and (is-mouse-event? 'left-down) (is-key-event? get-caps-down))) ;get-control-down
-      (define is-selecting? (and (send event dragging?) (is-key-event? get-caps-down)))
-      (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-caps-down)))
+      (define start-selecting? (and (is-mouse-event? 'left-down) (is-key-event? get-control-down))) ;get-control-down, get-caps-down
+      (define is-selecting? (and (send event dragging?) (is-key-event? get-control-down)))
+      (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-control-down)))
       (define set-park-position? (and set-park-position (is-mouse-event? 'left-down)))
       (define show-popup? (is-mouse-event? 'right-down))
       
