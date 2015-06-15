@@ -8,13 +8,14 @@
 
 (provide structs-to-strings
          get-selected
+         get-visible
          select-highlighted
          highlight-lst
          unselect-all
          delete-selected
          get-nodes
          sort
-         reorder)
+         get-start/end-nodes)
 
 (: structs-to-strings (-> (Listof Entities) (Listof String)))
 (define (structs-to-strings struct-lst)
@@ -23,6 +24,10 @@
 (: get-selected (-> (Listof Entities) (Listof Entities))) 
 (define (get-selected lst)
   (filter (lambda ([i : Entities]) (and (entity-visible i) (entity-selected i))) lst))
+
+(: get-visible (-> (Listof Entities) (Listof Entities))) 
+(define (get-visible lst)
+  (filter (lambda ([i : Entities]) (entity-visible i)) lst))
 
 (: select-highlighted (-> (Listof Entities) Void))
 (define (select-highlighted lst)
@@ -106,7 +111,7 @@
     (cond ((empty? lst) #f)
           (else
            (let ([comparison (car lst)])
-             (cond ((connected? node (car lst)) #t)
+             (cond ((connected? node comparison) #t)
                    (else (is-connected? node (cdr lst))))))))
   (: find-node (-> (Listof Connection) (Listof Connection) Connection))
   (define (find-node from to)
@@ -126,7 +131,9 @@
     (cond ((empty? nodes) 
            (if (empty? current-path)
                result
-               (cons current-path result)))
+               (if (empty? result)
+                   (list current-path)
+                   (cons current-path result))))
           (else
            (let ([current-node (car nodes)])
              (cond ((empty? current-path)
@@ -166,11 +173,9 @@
   (define node-lst (connections->nodes lst))
   (empty? (get-path-ends node-lst)))
 
-(: reorder (-> (Listof Connection) (Listof point)))
-(define (reorder lst)
+(: get-start/end-nodes (-> (Listof Connection) (Listof point)))
+(define (get-start/end-nodes lst)
   (define node-lst (connections->nodes lst))
   (if (closed-path? lst)
       node-lst
       (get-path-ends node-lst)))
-
-(closed-path? (list (list (point 0 0) (point 0 1)) (list (point 0 1) (point 1 1)) (list (point 1 1) (point 1 0)) (list (point 1 0) (point 0 0))))

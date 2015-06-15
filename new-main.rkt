@@ -165,8 +165,6 @@
        [x-offset 0]
        [y-offset canvas-height]
        [drawing-scale drawing-scale]
-       [x-scale 1]
-       [y-scale -1]
        
        ;scaling and unscaling methods. placed outside because they depend on left/bottom that are calculated when opening a struct-list for the first time.
        [scale-x scale-x]
@@ -174,9 +172,7 @@
        [scale-y scale-y]
        [unscale-y unscale-y]
        
-       [update-spreadsheet update-spreadsheet]
-       [display-select-box #f]
-       [select-box '()]))
+       [update-spreadsheet update-spreadsheet]))
   
   (define layer-panel
     (new horizontal-panel%
@@ -226,10 +222,11 @@
          [alignment '(center top)]))
   
   (new button%
-       [label "For testing"]
+       [label "Reorder paths"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (map reorder (sort (get-nodes (get-selected search-list))))))])
+                   (set-field! reorder? a-canvas #t)
+                   )])
   
   (new button%
        [label "Refocus"]

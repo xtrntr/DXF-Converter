@@ -114,14 +114,18 @@
 
 (: connected? (-> Connection Connection Boolean))
 (define (connected? node1 node2)
+  (: point-equal? (-> point point Boolean))
+  (define (point-equal? n1 n2)
+    (and (= (point-x n1) (point-x n2))
+         (= (point-y n1) (point-y n2))))
   (let ([start1 (car node1)]
         [end1 (cadr node1)]
         [start2 (car node2)]
         [end2 (cadr node2)])
-    (or (equal? start1 end2)
-        (equal? start1 start2)
-        (equal? end1 end2)
-        (equal? end1 start2))))
+    (or (point-equal? start1 end2)
+        (point-equal? start1 start2)
+        (point-equal? end1 end2)
+        (point-equal? end1 start2))))
 
 (define-syntax match-struct
   (lambda (stx)

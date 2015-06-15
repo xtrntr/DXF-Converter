@@ -24,8 +24,8 @@
                 update-spreadsheet
                 [x-scale 1]
                 [y-scale -1]
+                [reorder? #f]
                 [display-select-box #f]
-                [display-start-end-points #f]
                 [select-box '()])
     
     (field [set-park-position #f]
@@ -37,7 +37,7 @@
     (define no-brush (new brush% [style 'transparent]))
     (define red-pen (new pen% [color "red"] [width 2]))
     (define normal-pen (new pen% [color "black"] [width 1]))
-    (define highlight-pen (new pen% [color "RoyalBlue"] [width 2]))
+    (define big-red (new pen% [color "red"] [width 5]))
     
     ;; DRAWING functions
     (define (draw-dot x y highlight?)
@@ -47,10 +47,10 @@
           (send drawer set-pen normal-pen))
       (send drawer draw-point x y))
     
-    (define (draw-transition-point x y)
+    (define (draw-start/end-nodes a-point)
       (define drawer (get-dc))
-      (send drawer set-pen highlight-pen)
-      (send drawer draw-point x y))
+      (send drawer set-pen big-red)
+      (send drawer draw-point (point-x a-point) (point-y a-point)))
     
     (define (draw-line x1 y1 x2 y2 highlight?)
       (define drawer (get-dc))
@@ -86,10 +86,6 @@
     (define (draw-select-box lst)
       (for/list ([i lst])
         (apply draw-line i)))
-    
-    (define (draw-start-end-points lst)
-      (for/list ([i lst])
-        (apply draw-transition-point i)))
     
     ;pass intersect? the start and end point of select box and the struct-list
     ;it will traverse the struct-list to see if any elements
@@ -229,7 +225,8 @@
       (define drawer (get-dc))
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
-      ;(when display-start-end-points (draw-start-end-points lst))
+      (define paths (sort (get-nodes (get-selected search-list))))
+      (when reorder? (map draw-start/end-nodes (flatten (map get-start/end-nodes paths))))
       (draw-objects search-list)
       (send drawer set-pen normal-pen))
     
