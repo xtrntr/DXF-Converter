@@ -117,11 +117,7 @@
       (send drawer set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (send this refresh))
     
-    ;this only highlights the end and start of detected paths.
-    ;lst should be (Listof (Listof Entities)) - a list of path-lists.
-    ;(define (highlight-points lst)
-    ;  )
-    
+    #|
     ;; POPUP MENU
     (define popup
       (new popup-menu%
@@ -136,6 +132,7 @@
                        (define selected-entities (get-selected search-list))
                        (define paths (sort selected-entities))
                        (display paths))]))
+    |#
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -172,6 +169,7 @@
       (define scaled-y (scaley-to-display (send event get-y)))
       
       ;key and mouse combinations
+      (define querying? (is-mouse-event? motion))
       (define start-panning? (is-mouse-event? 'left-down))
       (define is-panning? (and (send event dragging?) (not (is-mouse-event? 'right-down))))
       (define end-panning? (is-mouse-event? 'left-up))
@@ -179,11 +177,8 @@
       (define is-selecting? (and (send event dragging?) (is-key-event? get-control-down)))
       (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-control-down)))
       (define set-park-position? (and set-park-position (is-mouse-event? 'left-down)))
-      (define show-popup? (is-mouse-event? 'right-down))
       
       (cond
-        (show-popup?
-         (send this popup-menu popup x y))
         (set-park-position?
          (display (list (unscale-x scaled-x) (unscale-y scaled-y)))
          (send drawer draw-point scaled-x scaled-y)
@@ -225,8 +220,9 @@
       (define drawer (get-dc))
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
-      (define paths (sort (get-nodes (get-selected search-list))))
-      (when reorder? (map draw-start/end-nodes (flatten (map get-start/end-nodes paths))))
+      (define path-lst (sort (get-nodes (get-selected search-list))))
+      (define node-lst (flatten (map get-start/end-nodes paths)))
+      (when reorder? (map draw-start/end-nodes node-lst))
       (draw-objects search-list)
       (send drawer set-pen normal-pen))
     

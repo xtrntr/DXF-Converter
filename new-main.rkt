@@ -226,6 +226,7 @@
        [parent button-panel-1]
        [callback (lambda (b e)
                    (set-field! reorder? a-canvas #t)
+                   (send a-canvas update-canvas)
                    )])
   
   (new button%
