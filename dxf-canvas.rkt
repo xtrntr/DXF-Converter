@@ -162,17 +162,17 @@
     ;; POPUP MENU items
     (define clockwise-item
       (new menu-item%
-           [label "Form a closed path that moves clockwise from this point."]
+           [label "Form a path that moves clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       )]))
+                       (set highlighted-point (void)))]))
     
     (define anticlockwise-item
       (new menu-item%
-           [label "Form a closed path that moves anti-clockwise from this point."]
+           [label "Form a path that moves anti-clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       )]))
+                       (set highlighted-point (void)))]))
     
     
     ;; KEYBOARD events
@@ -203,8 +203,8 @@
       (define (is-mouse-event? query)
         (equal? query (send event get-event-type)))
      
-      (define scaled-x (mouse2display-x (send event get-x)))
-      (define scaled-y (mouse2display-y (send event get-y)))
+      (define scaled-x (mouse2display-x x))
+      (define scaled-y (mouse2display-y y))
       
       ;key and mouse combinations
       (define click-right (is-mouse-event? 'right-down))
@@ -215,7 +215,7 @@
       (define dragging (send event dragging?)) ;click and hold
       
       (define start-panning? click-left)
-      (define is-panning? dragging)
+      (define is-panning? (and dragging (number? init-x) (number? init-y)))
       (define end-panning? release-left)
       (define start-selecting? (and click-left hold-ctrl)) 
       (define is-selecting? (and dragging hold-ctrl))
@@ -226,8 +226,9 @@
       (send this refresh-now)
       
       (cond
-        ((and highlighted-point click-right)
-         )
+        ((and (point? highlighted-point) click-right)
+         (set highlighted-point (void))
+         (send this popup-menu popup x y))
         (start-selecting?
          (set! init-x scaled-x)
          (set! init-y scaled-y)
@@ -253,6 +254,9 @@
          (set! init-x x)
          (set! init-y y))
         (end-panning?
+         ;see conditions for is-panning? to understand setting init-x and init-y values
+         (set! init-x #f)
+         (set! init-y #f)
          (send this set-cursor (make-object cursor% 'arrow))
          (set! x-offset (vector-ref (send drawer get-transformation) 1)) 
          (set! y-offset (vector-ref (send drawer get-transformation) 2)))
@@ -267,7 +271,7 @@
       (define drawer (get-dc))
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
-      (cursor-nearby? (- cursor-x 2) (- cursor-y 0.5) (+ cursor-x 2) (+ cursor-y 0.5) node-lst)
+      (cursor-nearby? (- cursor-x 3) (- cursor-y 3) (+ cursor-x 3) (+ cursor-y 3) node-lst)
       (draw-objects search-list)
       (send drawer set-pen normal-pen))
     

@@ -30,6 +30,7 @@
 (define (string->real x)
   (cast (string->number x) Real))
 
+;3 decimal place
 (: round-off (-> Real Real))
 (define (round-off z)
   (let* ([power (expt 10 3)]
@@ -38,12 +39,21 @@
         0.0
         result)))
 
+;1 decimal place
+(: round-1 (-> Real Real))
+(define (round-1 z)
+  (let* ([power (expt 10 0)]
+         [result (/ (round (* power z)) power)])
+    (if (= result -0.0)
+        0.0
+        result)))
+
 (: round-to-int (-> Real Integer))
 (define (round-to-int x)
-  (let* ((3dp (round-off x))
-         (str (number->string 3dp))
+  (let* ((1dp (round-1 x))
+         (str (number->string 1dp))
          (len (string-length str))
-         (str-int (substring str 0 (- len 4)))
+         (str-int (substring str 0 (- len 2)))
          (result (cast (string->number str-int) Integer)))
     result))
 
