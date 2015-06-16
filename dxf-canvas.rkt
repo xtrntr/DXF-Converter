@@ -11,33 +11,52 @@
 (define dxf-canvas%
   (class canvas%
     ;shorten
+    
     (inherit get-dc)
     
     (init-field search-list
                 x-offset
                 y-offset
                 drawing-scale
+                
+                ;methods
                 unscale-x
-                scale-x
                 unscale-y
+                scale-x
                 scale-y
-                update-spreadsheet
-                [x-scale 1]
-                [y-scale -1]
-                [reorder? #f]
-                [display-select-box #f]
-                [select-box '()])
+                update-spreadsheet)
     
-    (field [set-park-position #f]
-           [rotation 0]
+    (field [rotation 0]
            [init-x 0]
            [init-y 0]
-           [transformation-matrix (vector 1 0 0 1 0 0)])
+           [transformation-matrix (vector 1 0 0 1 0 0)]
+           [x-scale 1]
+           [y-scale -1]
+           [display-select-box #f]
+           [reorder? #f]
+           [cursor-x 0]
+           [cursor-y 0]
+           [highlighted-point '()]
+           [select-box '()]
+           [node-lst '()])
     
     (define no-brush (new brush% [style 'transparent]))
-    (define red-pen (new pen% [color "red"] [width 2]))
+    (define red-pen (new pen% [color "RoyalBlue"] [width 1]))
     (define normal-pen (new pen% [color "black"] [width 1]))
-    (define big-red (new pen% [color "red"] [width 5]))
+    (define big-red-pen (new pen% [color "RoyalBlue"] [width 5]))
+    (define orange-pen (new pen% [color "Orange"] [width 5]))
+    
+    ;; MOUSE SCALING
+    ;scale mouse coordinates to display coordinates
+    (define (mouse2display-x x)
+      (/ (- x x-offset) x-scale))
+    (define (mouse2display-y y) 
+      (/ (- y y-offset) y-scale))
+    ;scale display coordinates to mouse
+    (define (display2mouse-x x)
+      (+ (* x x-scale) x-offset))
+    (define (display2mouse-y y)
+      (+ (* y y-scale) y-offset))
     
     ;; DRAWING functions
     (define (draw-dot x y highlight?)
@@ -47,9 +66,11 @@
           (send drawer set-pen normal-pen))
       (send drawer draw-point x y))
     
-    (define (draw-start/end-nodes a-point)
+    (define (draw-start/end-nodes a-point highlight?)
       (define drawer (get-dc))
-      (send drawer set-pen big-red)
+      (if highlight?
+          (send drawer set-pen orange-pen)
+          (send drawer set-pen big-red-pen))
       (send drawer draw-point (point-x a-point) (point-y a-point)))
     
     (define (draw-line x1 y1 x2 y2 highlight?)
@@ -86,53 +107,73 @@
     (define (draw-select-box lst)
       (for/list ([i lst])
         (apply draw-line i)))
-    
-    ;pass intersect? the start and end point of select box and the struct-list
-    ;it will traverse the struct-list to see if any elements
-    (define (intersect? x1 y1 x2 y2 struct-lst)
+      
+    (define (cursor-nearby? x1 y1 x2 y2 lst)
       (let ((big-x (biggest (list x1 x2)))
             (big-y (biggest (list y1 y2)))
             (small-x (smallest (list x1 x2)))
             (small-y (smallest (list y1 y2))))
-        (for/list ([i struct-lst])
-          ;only calculate intersections for visible and not yet selected items
-          (when (and (entity-visible i) (not (entity-selected i)))
-            (cond ((line? i) 
-                   (if (line-intersect? i small-x small-y big-x big-y) 
-                       (set-entity-highlighted! i #t)
-                       (set-entity-highlighted! i #f)))
-                  ((arc? i)
-                   (if (arc-intersect? i small-x small-y big-x big-y) 
-                       (set-entity-highlighted! i #t)
-                       (set-entity-highlighted! i #f)))
-                  ((point? i)
-                   (if (point-in-rect? (point-x i) (point-y i) small-x small-y big-x big-y) 
-                       (set-entity-highlighted! i #t)
-                       (set-entity-highlighted! i #f)))
-                  ((path? i)
-                   (intersect? x1 y1 x2 y2 (path-entities i))))))))
+        (when reorder? 
+          (for/list ([i lst])
+            (cond ((point-in-rect? (point-x i) (point-y i) small-x small-y big-x big-y) 
+                   (draw-start/end-nodes i #t)
+                   (set! highlighted-point i))
+                  (else (draw-start/end-nodes i #f)))))))
+    
+    ;pass intersect? the start and end point of select box and the struct-list
+    ;it will traverse the struct-list to see if any elements
+      (define (intersect? x1 y1 x2 y2 lst)
+        (let ((big-x (biggest (list x1 x2)))
+              (big-y (biggest (list y1 y2)))
+              (small-x (smallest (list x1 x2)))
+              (small-y (smallest (list y1 y2))))
+          (for/list ([i lst])
+            ;only calculate intersections for visible and not yet selected items
+            (when (and (entity-visible i) (not (entity-selected i)))
+              (cond ((line? i) 
+                     (if (line-intersect? i small-x small-y big-x big-y) 
+                         (set-entity-highlighted! i #t)
+                         (set-entity-highlighted! i #f)))
+                    ((arc? i)
+                     (if (arc-intersect? i small-x small-y big-x big-y) 
+                         (set-entity-highlighted! i #t)
+                         (set-entity-highlighted! i #f)))
+                    ((point? i)
+                     (if (point-in-rect? (point-x i) (point-y i) small-x small-y big-x big-y) 
+                         (set-entity-highlighted! i #t)
+                         (set-entity-highlighted! i #f)))
+                    ((path? i)
+                     (intersect? x1 y1 x2 y2 (path-entities i))))))))
     
     (define/public (update-canvas)
       (define drawer (get-dc))
       (send drawer set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (send this refresh))
     
-    #|
+    (define (update-node-lst)
+      (define path-lst (sort (get-nodes (get-selected search-list))))
+      (set! node-lst (flatten (map get-start/end-nodes path-lst))))
+    
     ;; POPUP MENU
     (define popup
       (new popup-menu%
            [title "ugh"]))
     
     ;; POPUP MENU items
-    (define select-append-option
+    (define clockwise-item
       (new menu-item%
-           [label "Append selected items into a single path"]
+           [label "Form a closed path that moves clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define selected-entities (get-selected search-list))
-                       (define paths (sort selected-entities))
-                       (display paths))]))
-    |#
+                       )]))
+    
+    (define anticlockwise-item
+      (new menu-item%
+           [label "Form a closed path that moves anti-clockwise from this point."]
+           [parent popup]
+           [callback (lambda (b e)
+                       )]))
+    
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -142,11 +183,13 @@
           ['wheel-up    (set! x-scale (+ x-scale 0.1)) 
                         (set! y-scale (- y-scale 0.1))]
           ['escape      (unselect-all search-list)
+                        (update-node-lst)
                         (update-spreadsheet search-list)]
           ['wheel-down  (when (> (- x-scale 0.1) 0) 
                           (set! x-scale (- x-scale 0.1))
                           (set! y-scale (+ y-scale 0.1)))]
           ['#\backspace (delete-selected search-list)
+                        (update-node-lst)
                         (update-spreadsheet search-list)]))
       (update-canvas))
     
@@ -159,30 +202,32 @@
         (send event query))
       (define (is-mouse-event? query)
         (equal? query (send event get-event-type)))
-      
-      ;scale the x and y values.
-      (define (scalex-to-display x)
-        (/ (- x x-offset) x-scale))
-      (define (scaley-to-display y) 
-        (/ (- y y-offset) y-scale))
-      (define scaled-x (scalex-to-display (send event get-x)))
-      (define scaled-y (scaley-to-display (send event get-y)))
+     
+      (define scaled-x (mouse2display-x (send event get-x)))
+      (define scaled-y (mouse2display-y (send event get-y)))
       
       ;key and mouse combinations
-      (define querying? (is-mouse-event? motion))
-      (define start-panning? (is-mouse-event? 'left-down))
-      (define is-panning? (and (send event dragging?) (not (is-mouse-event? 'right-down))))
-      (define end-panning? (is-mouse-event? 'left-up))
-      (define start-selecting? (and (is-mouse-event? 'left-down) (is-key-event? get-control-down))) ;get-control-down, get-caps-down
-      (define is-selecting? (and (send event dragging?) (is-key-event? get-control-down)))
-      (define end-selecting? (and (is-mouse-event? 'left-up) (is-key-event? get-control-down)))
-      (define set-park-position? (and set-park-position (is-mouse-event? 'left-down)))
+      (define click-right (is-mouse-event? 'right-down))
+      (define click-left (is-mouse-event? 'left-down))
+      (define release-left (is-mouse-event? 'left-up))
+      (define hold-ctrl (is-key-event? get-control-down))
+      (define caps-on (is-key-event? get-caps-down))
+      (define dragging (send event dragging?)) ;click and hold
+      
+      (define start-panning? click-left)
+      (define is-panning? dragging)
+      (define end-panning? release-left)
+      (define start-selecting? (and click-left hold-ctrl)) 
+      (define is-selecting? (and dragging hold-ctrl))
+      (define end-selecting? (and release-left hold-ctrl))
+      
+      (set! cursor-x scaled-x)
+      (set! cursor-y scaled-y)
+      (send this refresh-now)
       
       (cond
-        (set-park-position?
-         (display (list (unscale-x scaled-x) (unscale-y scaled-y)))
-         (send drawer draw-point scaled-x scaled-y)
-         (set! set-park-position #f))
+        ((and highlighted-point click-right)
+         )
         (start-selecting?
          (set! init-x scaled-x)
          (set! init-y scaled-y)
@@ -192,10 +237,12 @@
          (set! display-select-box #f)
          (select-highlighted search-list)
          (update-spreadsheet search-list)
+         (update-node-lst)
          (update-canvas))
         (is-selecting?
          (send this set-cursor (make-object cursor% 'cross))
          (intersect? init-x init-y scaled-x scaled-y search-list)
+         (update-node-lst)
          (highlight-lst search-list)
          (set! select-box (list (list init-x init-y scaled-x init-y #t)
                                 (list scaled-x init-y scaled-x scaled-y #t)
@@ -220,9 +267,7 @@
       (define drawer (get-dc))
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
-      (define path-lst (sort (get-nodes (get-selected search-list))))
-      (define node-lst (flatten (map get-start/end-nodes paths)))
-      (when reorder? (map draw-start/end-nodes node-lst))
+      (cursor-nearby? (- cursor-x 2) (- cursor-y 0.5) (+ cursor-x 2) (+ cursor-y 0.5) node-lst)
       (draw-objects search-list)
       (send drawer set-pen normal-pen))
     

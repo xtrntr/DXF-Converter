@@ -3,6 +3,7 @@
 ;this module must be stand alone i.e. purely numerical functions
 
 (provide round-off
+         round-to-int
          to-display
          make-whitespaces
          biggest
@@ -36,6 +37,15 @@
     (if (= result -0.0)
         0.0
         result)))
+
+(: round-to-int (-> Real Integer))
+(define (round-to-int x)
+  (let* ((3dp (round-off x))
+         (str (number->string 3dp))
+         (len (string-length str))
+         (str-int (substring str 0 (- len 4)))
+         (result (cast (string->number str-int) Integer)))
+    result))
 
 (: make-whitespaces (-> Real String))
 (define (make-whitespaces x)

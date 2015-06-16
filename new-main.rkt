@@ -11,9 +11,10 @@
          mrlib/path-dialog
          mrlib/hierlist
          racket/gui/base
-         framework)
+         framework
+         profile)
 
-(application:current-app-name "DXF converter") 
+(application:current-app-name "DXF converter")
 
 (define menu-super-frame%
   (frame:standard-menus-mixin
@@ -162,6 +163,7 @@
        [min-width canvas-width]
        
        [search-list search-list]
+       
        [x-offset 0]
        [y-offset canvas-height]
        [drawing-scale drawing-scale]

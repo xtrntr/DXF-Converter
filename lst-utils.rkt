@@ -58,7 +58,7 @@
     ([x : (Listof path) (filter path? lst)])
     (cond ((empty? x) (void))
           (else (when (any-entity-highlighted? (path-entities (car x)))
-                              (highlight-lst (path-entities  (car x))))
+                              (map (lambda ([i : Entities]) (set-entity-highlighted! i #t)) (path-entities (car x))))
                 (loop (cdr x))))))
 
 (: unselect-all (-> (Listof Entities) Void))
@@ -103,6 +103,7 @@
     (cond ((empty? lst) acc)
           (else (loop (cons (get-node (car lst)) acc) (cdr lst))))))
 
+;for now: 6/16/15, this is only applicable to non path entities
 ;sort a list of nodes into a list of lists containing connected nodes
 (: sort (-> (Listof Connection) (Listof (Listof Connection))))
 (define (sort lst)
