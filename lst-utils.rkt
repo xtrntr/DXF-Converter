@@ -156,8 +156,6 @@
           (else
            (loop (cdr lst) (append (car lst) acc))))))
 
-;from a list of duplicates and singles return a list of duplicates
-
 (: get-path-ends (-> (Listof node) (U (Listof node) Null)))
 (define (get-path-ends lst)
   (let loop : (U (Listof node) Null)
@@ -200,6 +198,48 @@
                    [n2 (get-end entity)])
               (loop (ht-add (ht-add ht n1 entity) n2 entity) (cdr lst)))))))
 
+;given a chosen node, find the path(listof connection) within the path-lst(listof (listof connection))
+(: find-connection (-> node (Listof (Listof Connection)) (Listof Connection)))
+(define (find-connection n lst)
+  (let main : (Listof Connection)
+    [(connection-lst : (Listof (Listof Connection)) lst)]
+    (if (ormap (lambda ([x : Connection])
+                 (or (equal? (car x) n) (equal? (cadr x) n))) (car lst))
+        (car lst)
+        (main (cdr lst)))))
+
+;given a chosen starting node and its path, return the reordered list of nodes from start and end
+(: reorder-connection (-> node (Listof Connection) (Listof node)))
+(define (reorder-connection n lst)
+  (define conn-start (findf (lambda ([x : Connection]) (equal? (car x) n)) lst))
+  (define-values (tail start) (break (lambda ([x : Connection]) (equal? x conn-start)) lst))
+  (let flatten : (Listof node)
+    ([lst : (Listof Connection) (append start tail)]
+     [acc : (Listof node) '()])
+    (cond ((empty? lst) acc)
+          (else (flatten (cdr lst) (append (car lst) acc))))))
+
+;return the struct whose starting point matches the given node. if this is not possible, then return the reversed struct whose ending point matches the given node.
+(: get-starting-stuct (-> node (Listof Entities) Entities))
+(define (get-starting-struct n entity-lst)
+  (let loop : Entities
+    ([lst : (Listof Entities) entity-lst])
+    (cond ((empty? lst) (error "Expected a valid entity, given " node entity-lst))
+          ((equal? (get-start (car lst)) n) (car lst))
+          ((equal? (get-end (car lst)) n) (reverse-direction (car lst)))
+          (else
+           (loop (cdr lst))))))
+
+;given the reordered list of nodes from start to end, return the equivalent in a list of entities
+(: reorder-nodes (-> (Listof node) Node-Structs (Listof Entities)))
+(define (reorder-nodes lst ht)
+  (let loop : (Listof Entities)
+    ([acc : (Listof Entities) '()]
+     [node-lst : (Listof node) lst])
+    (cond ((empty? node-lst) acc)
+          (else
+           (loop (append (list (get-starting-struct (car node-lst) (hash-ref ht (car node-lst)))) acc) (cdr node-lst))))))
+
 ;for lack of a more descriptive name
 ;take a starting/ending node and a ht and returns the path formed 
 (: form-path (-> point Node-Structs Boolean (Listof Entities)))
@@ -209,22 +249,6 @@
         [layer (entity-layer first-entity)]
         [open-path? (= (length possibilities) 1)])
     (if open-path?
-        (make-path layer 
-                   ;this loop returns the ordered list of entities from a starting node
-                   ;it needs a function that takes a node and returns an entity
-                   ;needs another function that takes a node and returns the next node
-                   ;an edge case is if a node forks into two paths, but we won't handle that now
-                   (let loop : (Listof Entities)
-                     ([acc : (Listof Entities) '()]
-                      [prev : node]
-                      [current : node node])
-                     (cond ((equal? prev current) acc)
-                           (else
-                            (loop (append (list (start-node->entity current)) acc) current (next-node current))))))
+        (make-path layer (reorder-nodes 
         ;if it is a closed path, then we need to reorder for clockwise/anticlockwise directions
-        ;a helper function that would be extremely useful is to determine the connections.
-          
-
-
-
-
+        ;a helper function that would be extremely useful is to determine the connections.        
