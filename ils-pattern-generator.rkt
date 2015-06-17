@@ -36,7 +36,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 ;135.224 represented as 135224
 (: ils-num (-> Real Real))
 (define (ils-num x)
-  (* 1000 (round-off x)))
+  (* 1000 (round-3 x)))
 
 (: insert-newline (-> Void))
 (define (insert-newline)
@@ -61,9 +61,9 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 (: struct-to-format (-> Entities Void))
 (define (struct-to-format a-struct)
   (match a-struct
-    [(dot highlighted selected visible layer p)                                (ils-dot (point-x p) (point-y p))]
-    [(line highlighted selected visible layer p1 p2)                           (ils-line (point-x p1) (point-y p1) (point-x p2) (point-y p2))]
-    [(arc highlighted selected visible layer center radius start end p1 p2 p3) (ils-arc (point-x p1) (point-y p1) (point-x p2) (point-y p2) (point-x p3) (point-y p3))]
+    [(dot highlighted selected visible layer p)                                (ils-dot (node-x p) (node-y p))]
+    [(line highlighted selected visible layer p1 p2)                           (ils-line (node-x p1) (node-y p1) (node-x p2) (node-y p2))]
+    [(arc highlighted selected visible layer center radius start end p1 p2 p3) (ils-arc (node-x p1) (node-y p1) (node-x p2) (node-y p2) (node-x p3) (node-y p3))]
     [(path highlighted selected visible layer entities)                        (ils-path entities)]))
 
 (: ils-dot (-> Real Real Void))
@@ -153,39 +153,39 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
     (cond ((= (length lst) 1)
            (match current
               [(line highlighted selected visible layer p1 p2)                            (if (arc? prev)
-                                                                                             (ils-link-arc-end (point-x p1) (point-y p1))
-                                                                                             (ils-line-point (point-x p1) (point-y p1)))
-                                                                                         (ils-line-end (point-x p2) (point-y p2))]
+                                                                                             (ils-link-arc-end (node-x p1) (node-y p1))
+                                                                                             (ils-line-point (node-x p1) (node-y p1)))
+                                                                                         (ils-line-end (node-x p2) (node-y p2))]
              [(arc highlighted selected visible layer center radius start end p1 p2 p3)  (if (arc? prev)
-                                                                                             (ils-link-arc-restart (point-x p1) (point-y p1))
-                                                                                             (ils-link-arc-start (point-x p1) (point-y p1)))
+                                                                                             (ils-link-arc-restart (node-x p1) (node-y p1))
+                                                                                             (ils-link-arc-start (node-x p1) (node-y p1)))
                                                                                          (spacing)(spacing)
-                                                                                         (ils-arc-point (point-x p2) (point-y p2))
-                                                                                         (ils-arc-end (point-x p3) (point-y p3))]))
+                                                                                         (ils-arc-point (node-x p2) (node-y p2))
+                                                                                         (ils-arc-end (node-x p3) (node-y p3))]))
           ((line-line? prev current)
            (assert prev line?) (assert current line?)
-           (ils-line-point (point-x (line-p1 current)) (point-y (line-p1 current)))
+           (ils-line-point (node-x (line-p1 current)) (node-y (line-p1 current)))
            (iterate (cdr lst) current))
           ((arc-line? prev current)
            (assert prev arc?) (assert current line?)
-           (ils-link-arc-end (point-x (line-p1 current)) (point-y (line-p1 current)))
+           (ils-link-arc-end (node-x (line-p1 current)) (node-y (line-p1 current)))
            (iterate (cdr lst) current))
           ((arc-arc? prev current)
            (assert prev arc?) (assert current arc?)
-           (ils-link-arc-restart (point-x (arc-p1 current)) (point-y (arc-p1 current)))
+           (ils-link-arc-restart (node-x (arc-p1 current)) (node-y (arc-p1 current)))
            (spacing)(spacing)
-           (ils-arc-point (point-x (arc-p2 current)) (point-y (arc-p2 current)))
+           (ils-arc-point (node-x (arc-p2 current)) (node-y (arc-p2 current)))
            (iterate (cdr lst) current))
           ((line-arc? prev current)
            (assert prev line?) (assert current arc?)
-           (ils-link-arc-start (point-x (arc-p1 current)) (point-y (arc-p1 current)))
+           (ils-link-arc-start (node-x (arc-p1 current)) (node-y (arc-p1 current)))
            (spacing)(spacing)
-           (ils-arc-point (point-x (arc-p2 current)) (point-y (arc-p2 current)))
+           (ils-arc-point (node-x (arc-p2 current)) (node-y (arc-p2 current)))
            (iterate (cdr lst) current))))
   (unless (= (length path-list) 1)
     (let ([start : (U line arc) (car path-list)])
       (match start
-        [(line highlighted selected visible layer p1 p2)                            (ils-line-start (point-x p1) (point-y p1))]
-        [(arc highlighted selected visible layer center radius start end p1 p2 p3)  (ils-arc-start (point-x p1) (point-y p1))
-                                                                                    (ils-arc-point (point-x p2) (point-y p2))])
+        [(line highlighted selected visible layer p1 p2)                            (ils-line-start (node-x p1) (node-y p1))]
+        [(arc highlighted selected visible layer center radius start end p1 p2 p3)  (ils-arc-start (node-x p1) (node-y p1))
+                                                                                    (ils-arc-point (node-x p2) (node-y p2))])
       (iterate (cdr path-list) start))))

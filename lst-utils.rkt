@@ -4,7 +4,7 @@
          "utils.rkt")
 
 (require/typed (only-in racket/base hash-empty?)
-               [hash-empty? (-> Header-Value Boolean)])
+               [hash-empty? (-> Node-Structs Boolean)])
 
 (provide structs-to-strings
          get-selected
@@ -15,7 +15,8 @@
          delete-selected
          get-nodes
          sort
-         get-start/end-nodes)
+         get-start/end-nodes
+         make-ht)
 
 (: structs-to-strings (-> (Listof Entities) (Listof String)))
 (define (structs-to-strings struct-lst)
@@ -146,25 +147,25 @@
                     (loop '() nodes (cons current-path result)))))))))
 
 
-(: connections->nodes (-> (Listof Connection) (Listof point)))
+(: connections->nodes (-> (Listof Connection) (Listof node)))
 (define (connections->nodes lst)
-  (let loop : (Listof point)
+  (let loop : (Listof node)
     ([lst : (Listof Connection) lst]
-     [acc : (Listof point) '()])
+     [acc : (Listof node) '()])
     (cond ((empty? lst) acc)
           (else
            (loop (cdr lst) (append (car lst) acc))))))
 
 ;from a list of duplicates and singles return a list of duplicates
 
-(: get-path-ends (-> (Listof point) (U (Listof point) Null)))
+(: get-path-ends (-> (Listof node) (U (Listof node) Null)))
 (define (get-path-ends lst)
-  (let loop : (U (Listof point) Null)
-    ([dupl : (Listof point) '()]
-     [singles : (Listof point) '()]
-     [lst : (Listof point) lst])
+  (let loop : (U (Listof node) Null)
+    ([dupl : (Listof node) '()]
+     [singles : (Listof node) '()]
+     [lst : (Listof node) lst])
     (cond ((empty? lst) (remove* dupl singles))
-          (((lambda ([x : (Listof point)]) (member (car lst) x)) singles)
+          (((lambda ([x : (Listof node)]) (member (car lst) x)) singles)
            (loop (cons (car lst) dupl) (cons (car lst) singles) (cdr lst)))
           (else
            (loop dupl (cons (car lst) singles) (cdr lst))))))
@@ -174,9 +175,56 @@
   (define node-lst (connections->nodes lst))
   (empty? (get-path-ends node-lst)))
 
-(: get-start/end-nodes (-> (Listof Connection) (Listof point)))
+(: get-start/end-nodes (-> (Listof Connection) (Listof node)))
 (define (get-start/end-nodes lst)
   (define node-lst (connections->nodes lst))
   (if (closed-path? lst)
       node-lst
       (get-path-ends node-lst)))
+
+(: make-ht (-> (Listof Entities) Node-Structs))
+(define (make-ht entity-lst)
+  ;add if no existing key or append to existing key
+  (: ht-add (-> Node-Structs node Entities Node-Structs))
+  (define (ht-add ht key val)
+    (if (hash-has-key? ht key)
+        (hash-set ht key (append (list val) (hash-ref ht key)))
+        (hash-set ht key (list val))))
+  (let loop : Node-Structs
+    [(ht : Node-Structs (hash))
+     (lst : (Listof Entities) entity-lst)]
+     (cond ((empty? lst) ht)
+           (else
+            (let* ([entity (car lst)]
+                   [n1 (get-start entity)]
+                   [n2 (get-end entity)])
+              (loop (ht-add (ht-add ht n1 entity) n2 entity) (cdr lst)))))))
+
+;for lack of a more descriptive name
+;take a starting/ending node and a ht and returns the path formed 
+(: form-path (-> point Node-Structs Boolean (Listof Entities)))
+(define (form-path node node-lst ht clockwise?)
+  (let ([possibilities (hash-ref ht node)]
+        [first-entity (car possibilities)]
+        [layer (entity-layer first-entity)]
+        [open-path? (= (length possibilities) 1)])
+    (if open-path?
+        (make-path layer 
+                   ;this loop returns the ordered list of entities from a starting node
+                   ;it needs a function that takes a node and returns an entity
+                   ;needs another function that takes a node and returns the next node
+                   ;an edge case is if a node forks into two paths, but we won't handle that now
+                   (let loop : (Listof Entities)
+                     ([acc : (Listof Entities) '()]
+                      [prev : node]
+                      [current : node node])
+                     (cond ((equal? prev current) acc)
+                           (else
+                            (loop (append (list (start-node->entity current)) acc) current (next-node current))))))
+        ;if it is a closed path, then we need to reorder for clockwise/anticlockwise directions
+        ;a helper function that would be extremely useful is to determine the connections.
+          
+
+
+
+

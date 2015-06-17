@@ -6,26 +6,26 @@
          (struct-out line)
          (struct-out arc)
          (struct-out dot)
-         (struct-out point)
+         (struct-out node)
          (struct-out path)
          Entities
-         Header-Value
+         Node-Structs
          Connection
          make-dot
          make-arc
          make-line
          make-path
-         reverse-path
+         reverse-direction
          get-end
          get-start
          match-struct
          connected?)
 
 (define-type Entities (U line arc path dot))
-(define-type Connection (List point point))
-(define-type Header-Value (HashTable point Entities)) ;DXF is of the format "header_0" "value_0" ... "header_n" "value_n"
+(define-type Connection (List node node))
+(define-type Node-Structs (HashTable node (Listof Entities))) ;DXF is of the format "header_0" "value_0" ... "header_n" "value_n"
 
-(struct point 
+(struct node 
   ([x : Real]
    [y : Real])
   #:transparent)
@@ -38,22 +38,22 @@
   #:mutable #:transparent)
 
 (struct dot entity
-  ([p : point])
+  ([p : node])
   #:transparent)
 
 (struct line entity 
-  ([p1 : point]
-   [p2 : point])
+  ([p1 : node]
+   [p2 : node])
   #:transparent)
 
 (struct arc entity 
-  ([center : point]
+  ([center : node]
    [radius : Real]
    [start : Real]
    [end : Real]
-   [p1 : point]
-   [p2 : point]
-   [p3 : point]) 
+   [p1 : node]
+   [p2 : node]
+   [p3 : node]) 
   #:transparent)
      
 (struct path entity
@@ -62,11 +62,11 @@
 
 (: make-dot (-> String Real Real dot))
 (define (make-dot layer x y)
-  (dot #f #f #f layer (point x y)))
+  (dot #f #f #f layer (node x y)))
 
 (: make-line (-> String Real Real Real Real line))
 (define (make-line layer x1 y1 x2 y2)
-  (line #f #f #f layer (point x1 y1) (point x2 y2)))
+  (line #f #f #f layer (node x1 y1) (node x2 y2)))
 
 (: make-arc (-> String Real Real Real Real Real arc))
 (define (make-arc layer center-x center-y radius start end)
@@ -77,26 +77,26 @@
         [y2 : Real                (fourth arc-pts)]
         [x3 : Real                (fifth arc-pts)]
         [y3 : Real                (sixth arc-pts)])
-    (arc #f #f #f layer (point center-x center-y) radius start end (point x1 y1) (point x2 y2) (point x3 y3))))
+    (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3))))
 
 (: make-path (-> String (Listof (U line arc)) path))
 (define (make-path layer lst)
   (path #f #f #f layer lst))
 
-(: reverse-path (-> Entities Entities))
-(define (reverse-path a-struct)
+(: reverse-direction (-> Entities Entities))
+(define (reverse-direction a-struct)
   (let ([layer : String (entity-layer a-struct)])
-    ((match-struct (dot (make-dot layer (point-x p) (point-y p)))
-                   (line (make-line layer (point-x p2) (point-y p2) (point-x p1) (point-y p1)))
-                   (arc (make-arc layer (point-x center) (point-y center) radius end start))
+    ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
+                   (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
+                   (arc (make-arc layer (node-x center) (node-y center) radius end start))
                    (path (lambda (x) (make-path layer (reverse x)))))
      a-struct)))
 
-(: round-off-point (-> point point))
+(: round-off-point (-> node node))
 (define (round-off-point p)
-  (point (round-off (point-x p)) (round-off (point-y p))))
+  (node (round-3 (node-x p)) (round-3 (node-y p))))
 
-(: get-start (-> Entities point))
+(: get-start (-> Entities node))
 (define (get-start a-struct)
   (round-off-point ((match-struct (dot p)
                                   (line p1)
@@ -104,7 +104,7 @@
                                   (path (lambda (x) (get-start (first x)))))
                     a-struct)))
 
-(: get-end (-> Entities point))
+(: get-end (-> Entities node))
 (define (get-end a-struct)
   (round-off-point ((match-struct (dot p)
                                   (line p2)
@@ -114,10 +114,10 @@
 
 (: connected? (-> Connection Connection Boolean))
 (define (connected? node1 node2)
-  (: point-equal? (-> point point Boolean))
+  (: point-equal? (-> node node Boolean))
   (define (point-equal? n1 n2)
-    (and (= (point-x n1) (point-x n2))
-         (= (point-y n1) (point-y n2))))
+    (and (= (node-x n1) (node-x n2))
+         (= (node-y n1) (node-y n2))))
   (let ([start1 (car node1)]
         [end1 (cadr node1)]
         [start2 (car node2)]

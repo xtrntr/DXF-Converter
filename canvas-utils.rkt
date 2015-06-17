@@ -1,8 +1,7 @@
 #lang racket
 
 (require "structs.rkt"
-         "utils.rkt"
-         "macros.rkt")
+         "utils.rkt")
 
 (provide point-in-rect?
          get-arc-points
@@ -16,19 +15,19 @@
     (flatten (for/list ([i struct-lst])
                (match i
                  [(struct* line  ([p1 p1]
-                                  [p2 p2]))              (list (point-x p1) (point-x p2))]
+                                  [p2 p2]))              (list (node-x p1) (node-x p2))]
                  [(struct* arc   ([center center]
-                                  [radius radius]))      (list (+ (point-x center) radius) (- (point-x center) radius))]
-                 [(struct* dot   ([p p]))                (list (point-x p))]
+                                  [radius radius]))      (list (+ (node-x center) radius) (- (node-x center) radius))]
+                 [(struct* dot   ([p p]))                (list (node-x p))]
                  [(struct* path  ([entities entities]))  (get-bounding-x entities)]))))
   (define (get-bounding-y struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i
                  [(struct* line  ([p1 p1]
-                                  [p2 p2]))              (list (point-y p1) (point-y p2))]
+                                  [p2 p2]))              (list (node-y p1) (node-y p2))]
                  [(struct* arc   ([center center]
-                                  [radius radius]))      (list (+ (point-y center) radius) (- (point-y center) radius))]
-                 [(struct* dot   ([p p]))                (list (point-y p))]
+                                  [radius radius]))      (list (+ (node-y center) radius) (- (node-y center) radius))]
+                 [(struct* dot   ([p p]))                (list (node-y p))]
                  [(struct* path  ([entities entities]))  (get-bounding-y entities)]))))
   (let* ((top (biggest (get-bounding-y struct-lst)))
          (bottom (smallest (get-bounding-y struct-lst)))
@@ -52,10 +51,10 @@
 ;; 8   0   4      --->      1000   0000   0100
 ;; 10  2   6                1010   0010   0110
 (define (line-intersect? line-struct xs ys xb yb)
-  (let ((lx1 (point-x (line-p1 line-struct)))
-        (ly1 (point-y (line-p1 line-struct)))
-        (lx2 (point-x (line-p2 line-struct)))
-        (ly2 (point-y( line-p2 line-struct))))
+  (let ((lx1 (node-x (line-p1 line-struct)))
+        (ly1 (node-y (line-p1 line-struct)))
+        (lx2 (node-x (line-p2 line-struct)))
+        (ly2 (node-y( line-p2 line-struct))))
     (define (compute-outcode x y)
       (let ((inside 0))
         (cond ((< x xs) 
@@ -152,8 +151,8 @@
 ;; 2.3.6) if the line formed with the intersecting point falls on the right side of the "dividing line" together with the line formed with the mid-point line, then there is an intersection.
 (define (arc-intersect? arc-struct xs ys xb yb)
   (let* ((radius (arc-radius arc-struct))
-         (circle-x (point-x (arc-center arc-struct)))
-         (circle-y (point-y (arc-center arc-struct)))
+         (circle-x (node-x (arc-center arc-struct)))
+         (circle-y (node-y (arc-center arc-struct)))
          (start (arc-start arc-struct))
          (end (arc-end arc-struct))
          (angle-difference (if (> end start) (- end start) (+ (- 360 start) end)))

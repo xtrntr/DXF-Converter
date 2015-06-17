@@ -2,7 +2,7 @@
 
 ;this module must be stand alone i.e. purely numerical functions
 
-(provide round-off
+(provide round-3
          round-to-int
          to-display
          make-whitespaces
@@ -24,15 +24,15 @@
 
 (: to-display (-> Real String))
 (define (to-display x)
-  (format "~a" (number->string (round-off x))))
+  (format "~a" (number->string (round-3 x))))
 
 (: string->real (-> String Real))
 (define (string->real x)
   (cast (string->number x) Real))
 
 ;3 decimal place
-(: round-off (-> Real Real))
-(define (round-off z)
+(: round-3 (-> Real Real))
+(define (round-3 z)
   (let* ([power (expt 10 3)]
          [result (/ (round (* power z)) power)])
     (if (= result -0.0)

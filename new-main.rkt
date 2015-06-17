@@ -88,16 +88,16 @@
          [alignment (list 'left 'top)]))
   
   (define (scale-x coord)
-    (* drawing-scale (- (point-x coord) left)))
+    (* drawing-scale (- (node-x coord) left)))
   
   (define (scale-y coord)
-    (* drawing-scale (- (point-y coord) bottom)))
+    (* drawing-scale (- (node-y coord) bottom)))
   
   (define (unscale-x coord)
-    (+ left (/ (point-x coord) drawing-scale)))
+    (+ left (/ (node-x coord) drawing-scale)))
   
   (define (unscale-y coord)
-    (+ bottom (/ (point-y coord) drawing-scale)))
+    (+ bottom (/ (node-y coord) drawing-scale)))
   
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
@@ -118,8 +118,10 @@
   (define struct-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
   (define search-list (rescale struct-list drawing-scale))
+  (define entity-ht (make-ht search-list))
+  (display entity-ht)
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
-                            (remove-duplicates (map entity-layer struct-list))))
+                          (remove-duplicates (map entity-layer struct-list))))
  
   (define main-panel
     (new horizontal-panel%
@@ -151,10 +153,10 @@
         (send a-list-box clear)
         (send a-list-box set 
               (structs-to-strings displayed-list)
-              (map to-display (map point-x (map get-start displayed-list)))
-              (map to-display (map point-y (map get-start displayed-list)))
-              (map to-display (map point-x (map get-end displayed-list)))
-              (map to-display (map point-y (map get-end displayed-list))))))
+              (map to-display (map node-x (map get-start displayed-list)))
+              (map to-display (map node-y (map get-start displayed-list)))
+              (map to-display (map node-x (map get-end displayed-list)))
+              (map to-display (map node-y (map get-end displayed-list))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -163,6 +165,7 @@
        [min-width canvas-width]
        
        [search-list search-list]
+       [entity-ht entity-ht]
        
        [x-offset 0]
        [y-offset canvas-height]
@@ -202,7 +205,6 @@
                                                   (map-toggle-visibility (cdr lst))))
                              (else (begin (toggle-visibility (car lst))
                                           (map-toggle-visibility (cdr lst))))))
-                     
                      (send a-canvas update-canvas)
                      (map-toggle-visibility (filter entity-same-layer? search-list))
                      (send a-canvas draw-objects search-list)
