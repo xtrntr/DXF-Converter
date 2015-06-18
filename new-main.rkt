@@ -119,7 +119,6 @@
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
   (define search-list (rescale struct-list drawing-scale))
   (define entity-ht (make-ht search-list))
-  (display entity-ht)
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer struct-list))))
  

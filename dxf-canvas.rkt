@@ -49,8 +49,9 @@
      [select-box '()]
      
      [reorder? #f] ;display clickpoints of selected entities
-     [highlighted-point '()] ;clickpoint near cursor
-     [node-lst '()]) ;clickpoints)
+     [highlighted-node '()] ;clickpoint near cursor
+     [path-lst '()]  ;list of connections
+     [node-lst '()]) ;list of clickable nodes
     
     ;; DRAWING COLORS
     (define no-brush (new brush% [style 'transparent]))
@@ -140,7 +141,7 @@
           (for/list ([i lst])
             (cond ((point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y) 
                    (draw-start/end-nodes (node-x i) (node-y i) #t)
-                   (set! highlighted-point i))
+                   (set! highlighted-node i))
                   (else (draw-start/end-nodes (node-x i) (node-y i) #f)))))))
     
     ;pass intersect? the start and end point of select box and the struct-list
@@ -174,8 +175,8 @@
       (send this refresh-now))
     
     (define (update-node-lst)
-      (define connection-lst (sort (get-nodes (get-selected search-list))))
-      (set! node-lst (flatten (map get-start/end-nodes connection-lst))))
+      (set! path-lst (sort (get-connections (get-selected search-list))))
+      (set! node-lst (flatten (map get-start/end-nodes path-lst))))
     
     ;; POPUP MENU
     (define popup
@@ -183,23 +184,47 @@
            [title "ugh"]))
     
     ;; POPUP MENU items
-    (define clockwise-item
+    (define open-nodir
+      (new menu-item%
+           [label "Form an open path."]
+           [parent popup]
+           [callback (lambda (b e)
+                       (define connection-lst (find-connection highlighted-node path-lst))
+                       ;create a new path..
+                       (define new-path (form-open-path highlighted-node connection-lst search-list))
+                       ;remove the old entities that have been appended into a path
+                       (set! search-list (remove* (path-entities new-path) search-list))
+                       ;then add the new patch
+                       (set! search-list (append (list new-path) search-list))
+                       (update-spreadsheet search-list))]))
+      
+    (define closed-clockwise
       (new menu-item%
            [label "Form a path that moves clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define new-path (form-path highlighted-point end-ht #t))
+                       (define connection-lst (find-connection highlighted-node path-lst))
+                       ;create a new path..
+                       (define new-path (form-closed-path highlighted-node connection-lst search-list #t))
+                       ;remove the old entities that have been appended into a path
                        (set! search-list (remove* (path-entities new-path) search-list))
-                       (set! search-list (append (list new-path) search-list)))]))
+                       ;then add the new patch
+                       (set! search-list (append (list new-path) search-list))
+                       (update-spreadsheet search-list))]))
     
-    (define anticlockwise-item
+    (define closed-anticlockwise
       (new menu-item%
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define new-path (form-path highlighted-point end-ht #f))
+                       (define connection-lst (find-connection highlighted-node path-lst))
+                       ;create a new path..
+                       (define new-path (form-closed-path highlighted-node connection-lst search-list #f))
+                       ;remove the old entities that have been appended into a path
                        (set! search-list (remove* (path-entities new-path) search-list))
-                       (set! search-list (append (list new-path) search-list)))]))
+                       ;then add the new patch
+                       (set! search-list (append (list new-path) search-list))
+                       (update-spreadsheet search-list))]))
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -248,7 +273,7 @@
       (define start-selecting? (and click-left hold-ctrl))
       (define is-selecting? (and dragging hold-ctrl))
       (define end-selecting? (and release-left hold-ctrl))
-      (define show-popup? (and (node? highlighted-point) click-right))
+      (define show-popup? (and (node? highlighted-node) click-right))
       
       (send this refresh-now)
       
@@ -276,7 +301,6 @@
          (set! init-cursor-x cursor-x)
          (set! init-cursor-y cursor-y))
         (show-popup?
-         (set! highlighted-point (void))
          (send this popup-menu popup cursor-x cursor-y))
         (is-selecting?
          (change-cursor selecting)

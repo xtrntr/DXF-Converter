@@ -19,7 +19,7 @@
          get-end
          get-start
          match-struct
-         connected?)
+         connection-linked?)
 
 (define-type Entities (U line arc path dot))
 (define-type Connection (List node node))
@@ -111,17 +111,17 @@
                                   (arc p3)
                                   (path (lambda (x) (get-end (last x)))))
                     a-struct)))
-
-(: connected? (-> Connection Connection Boolean))
-(define (connected? node1 node2)
+      
+(: connection-linked? (-> Connection Connection Boolean))
+(define (connection-linked? c1 c2)
   (: point-equal? (-> node node Boolean))
   (define (point-equal? n1 n2)
     (and (= (node-x n1) (node-x n2))
          (= (node-y n1) (node-y n2))))
-  (let ([start1 (car node1)]
-        [end1 (cadr node1)]
-        [start2 (car node2)]
-        [end2 (cadr node2)])
+  (let ([start1 (car c1)]
+        [end1 (cadr c1)]
+        [start2 (car c2)]
+        [end2 (cadr c2)])
     (or (point-equal? start1 end2)
         (point-equal? start1 start2)
         (point-equal? end1 end2)

@@ -2,16 +2,19 @@
 
 (require "structs.rkt"
          "read-dxf.rkt"
-         "geometric-functions.rkt"
+         "canvas-utils.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
          "lst-utils.rkt"
+         "utils.rkt"
+         "ils-pattern-generator.rkt"
          mrlib/path-dialog
          mrlib/hierlist
          racket/gui/base
-         framework)
+         framework
+         profile)
 
-(application:current-app-name "DXF converter") 
+(application:current-app-name "DXF converter")
 
 (define menu-super-frame%
   (frame:standard-menus-mixin
@@ -85,16 +88,16 @@
          [alignment (list 'left 'top)]))
   
   (define (scale-x coord)
-    (* drawing-scale (- (point-x coord) left)))
+    (* drawing-scale (- (node-x coord) left)))
   
   (define (scale-y coord)
-    (* drawing-scale (- (point-y coord) bottom)))
+    (* drawing-scale (- (node-y coord) bottom)))
   
   (define (unscale-x coord)
-    (+ left (/ (point-x coord) drawing-scale)))
+    (+ left (/ (node-x coord) drawing-scale)))
   
   (define (unscale-y coord)
-    (+ bottom (/ (point-y coord) drawing-scale)))
+    (+ bottom (/ (node-y coord) drawing-scale)))
   
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
@@ -110,13 +113,15 @@
                  [(line highlighted selected visible layer p1 p2)                           (make-line layer (unscale-x p1) (unscale-y p1) (unscale-x p2) (unscale-y p2))]
                  [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (unscale-x center) (unscale-y center) (/ radius scale) start end)]
                  [(dot highlighted selected visible layer p)                                (make-dot layer (unscale-x p) (unscale-y p))]
-                 [(path highlighted selected visible layer path-list)                       (make-path layer (rescale downscale scale))]))))
+                 [(path highlighted selected visible layer path-list)                       (make-path layer (downscale path-list scale))]))))
   
   (define struct-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
   (define search-list (rescale struct-list drawing-scale))
+  (define entity-ht (make-ht search-list))
+  (display entity-ht)
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
-                            (remove-duplicates (map entity-layer struct-list))))
+                          (remove-duplicates (map entity-layer struct-list))))
  
   (define main-panel
     (new horizontal-panel%
@@ -148,10 +153,10 @@
         (send a-list-box clear)
         (send a-list-box set 
               (structs-to-strings displayed-list)
-              (map to-display (map point-x (map get-start displayed-list)))
-              (map to-display (map point-y (map get-start displayed-list)))
-              (map to-display (map point-x (map get-end displayed-list)))
-              (map to-display (map point-y (map get-end displayed-list))))))
+              (map to-display (map node-x (map get-start displayed-list)))
+              (map to-display (map node-y (map get-start displayed-list)))
+              (map to-display (map node-x (map get-end displayed-list)))
+              (map to-display (map node-y (map get-end displayed-list))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -160,11 +165,11 @@
        [min-width canvas-width]
        
        [search-list search-list]
+       [entity-ht entity-ht]
+       
        [x-offset 0]
        [y-offset canvas-height]
        [drawing-scale drawing-scale]
-       [x-scale 1]
-       [y-scale -1]
        
        ;scaling and unscaling methods. placed outside because they depend on left/bottom that are calculated when opening a struct-list for the first time.
        [scale-x scale-x]
@@ -172,9 +177,7 @@
        [scale-y scale-y]
        [unscale-y unscale-y]
        
-       [update-spreadsheet update-spreadsheet]
-       [display-select-box #f]
-       [select-box '()]))
+       [update-spreadsheet update-spreadsheet]))
   
   (define layer-panel
     (new horizontal-panel%
@@ -202,7 +205,6 @@
                                                   (map-toggle-visibility (cdr lst))))
                              (else (begin (toggle-visibility (car lst))
                                           (map-toggle-visibility (cdr lst))))))
-                     
                      (send a-canvas update-canvas)
                      (map-toggle-visibility (filter entity-same-layer? search-list))
                      (send a-canvas draw-objects search-list)
@@ -224,10 +226,12 @@
          [alignment '(center top)]))
   
   (new button%
-       [label "For testing"]
+       [label "Reorder paths"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (reorder (separate-unlinked-elements search-list))))])
+                   (set-field! reorder? a-canvas #t)
+                   (send a-canvas update-canvas)
+                   )])
   
   (new button%
        [label "Refocus"]
@@ -247,7 +251,7 @@
        [label "Generate for IDS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-relevant-list search-list))
+                   (define stripped (get-selected search-list))
                    (display "1"))])
                    ;binary for osx, text for windows
                    ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
@@ -256,9 +260,8 @@
        [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-relevant-list search-list))
-                   (display "1"))])
+                   (define stripped (get-selected search-list))
                    ;binary for osx, text for windows
-                   ;(generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+                   (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (send a-frame show #t))
