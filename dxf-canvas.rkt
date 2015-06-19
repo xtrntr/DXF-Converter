@@ -175,7 +175,7 @@
       (send this refresh-now))
     
     (define (update-node-lst)
-      (set! path-lst (sort (get-connections (get-selected search-list))))
+      (set! path-lst (sort (get-connection-lst (get-selected search-list))))
       (set! node-lst (flatten (map get-start/end-nodes path-lst))))
     
     ;; POPUP MENU

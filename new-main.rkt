@@ -152,10 +152,10 @@
         (send a-list-box clear)
         (send a-list-box set 
               (structs-to-strings displayed-list)
-              (map to-display (map node-x (map get-start displayed-list)))
-              (map to-display (map node-y (map get-start displayed-list)))
-              (map to-display (map node-x (map get-end displayed-list)))
-              (map to-display (map node-y (map get-end displayed-list))))))
+              (map to-display (map node-x (map get-start-node displayed-list)))
+              (map to-display (map node-y (map get-start-node displayed-list)))
+              (map to-display (map node-x (map get-end-node displayed-list)))
+              (map to-display (map node-y (map get-end-node displayed-list))))))
   
   (define a-canvas
     (new dxf-canvas%
