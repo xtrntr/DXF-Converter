@@ -13,25 +13,8 @@
          highlight-lst
          unselect-all
          delete-selected
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-         find-connections
          get-connections
          get-nodes
-=======
-         find-connection
->>>>>>> origin/master
-=======
-         find-connection
->>>>>>> origin/master
-=======
-         find-connection
->>>>>>> origin/master
-=======
-         find-connection
->>>>>>> origin/master
          sort
          get-start/end-nodes
          form-open-path
@@ -123,24 +106,9 @@
            (let ([comparison (car lst)])
              (cond ((connection-linked? node comparison) #t)
                    (else (is-connected? node (cdr lst))))))))
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  ;compares each element of "to" with the entirety of "from"
+  ;for each element in "to", loop through the entirety of "from".
   (: find-connection (-> (Listof Connection) (Listof Connection) Connection))
   (define (find-connection from to)
-=======
-=======
->>>>>>> origin/master
-=======
->>>>>>> origin/master
-=======
->>>>>>> origin/master
-  ;for each element in "to", loop through the entirety of "from".
-  (: find-node (-> (Listof Connection) (Listof Connection) Connection))
-  (define (find-node from to)
->>>>>>> origin/master
     (cond ((empty? to) (error "Expected a valid connection, given " from to))
           (else 
            (let loop : Connection
@@ -171,8 +139,8 @@
                     (loop '() nodes (cons current-path result)))))))))
 
 ;given a chosen node, find the path(listof connection) within the path-lst(listof (listof connection))
-(: find-connections (-> node (Listof (Listof Connection)) (Listof Connection)))
-(define (find-connections n lst)
+(: get-connections (-> node (Listof (Listof Connection)) (Listof Connection)))
+(define (get-connections n lst)
   (let main : (Listof Connection)
     [(connection-lst : (Listof (Listof Connection)) lst)]
     (if (ormap (lambda ([x : Connection])

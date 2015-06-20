@@ -19,11 +19,11 @@
 (define menu-super-frame%
   (frame:standard-menus-mixin
    frame:basic%))
-      
+
 (define menu-frame%
   (class menu-super-frame%
     (inherit get-menu-bar set-icon)
-
+    
     ;file menu
     (define/override (file-menu:create-new?) #f)
     (define/override (file-menu:create-open?) #f)
@@ -121,7 +121,7 @@
   (define entity-ht (make-ht search-list))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer struct-list))))
- 
+  
   (define main-panel
     (new horizontal-panel%
          [parent a-frame]))
@@ -152,56 +152,31 @@
         (send a-list-box clear)
         (send a-list-box set 
               (structs-to-strings displayed-list)
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
               (map to-display (map unscale-x (map node-x (map get-start displayed-list))))
               (map to-display (map unscale-y (map node-y (map get-start displayed-list))))
               (map to-display (map unscale-x (map node-x (map get-end displayed-list))))
               (map to-display (map unscale-y (map node-y (map get-end displayed-list)))))))
-=======
-=======
->>>>>>> origin/master
-=======
->>>>>>> origin/master
-=======
->>>>>>> origin/master
-              (map to-display (map node-x (map get-start-node displayed-list)))
-              (map to-display (map node-y (map get-start-node displayed-list)))
-              (map to-display (map node-x (map get-end-node displayed-list)))
-              (map to-display (map node-y (map get-end-node displayed-list))))))
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> origin/master
-=======
->>>>>>> origin/master
-=======
->>>>>>> origin/master
-=======
->>>>>>> origin/master
   
   (define a-canvas
     (new dxf-canvas%
-       [parent drawing-panel]
-       [min-height canvas-height]
-       [min-width canvas-width]
-       
-       [search-list search-list]
-       [entity-ht entity-ht]
-       
-       [x-offset 0]
-       [y-offset canvas-height]
-       [drawing-scale drawing-scale]
-       
-       ;scaling and unscaling methods. placed outside because they depend on left/bottom that are calculated when opening a struct-list for the first time.
-       [scale-x scale-x]
-       [unscale-x unscale-x]
-       [scale-y scale-y]
-       [unscale-y unscale-y]
-       
-       [update-spreadsheet update-spreadsheet]))
+         [parent drawing-panel]
+         [min-height canvas-height]
+         [min-width canvas-width]
+         
+         [search-list search-list]
+         [entity-ht entity-ht]
+         
+         [x-offset 0]
+         [y-offset canvas-height]
+         [drawing-scale drawing-scale]
+         
+         ;scaling and unscaling methods. placed outside because they depend on left/bottom that are calculated when opening a struct-list for the first time.
+         [scale-x scale-x]
+         [unscale-x unscale-x]
+         [scale-y scale-y]
+         [unscale-y unscale-y]
+         
+         [update-spreadsheet update-spreadsheet]))
   
   (define layer-panel
     (new horizontal-panel%
@@ -268,8 +243,8 @@
                    (send a-canvas update-canvas))])
   
   (define create (new path-dialog%
-                    [put? #t]
-                    [filters (list (list "Text Files" "*.txt"))]))
+                      [put? #t]
+                      [filters (list (list "Text Files" "*.txt"))]))
   
   (new button%
        [label "Generate for IDS"]
@@ -277,8 +252,8 @@
        [callback (lambda (b e) 
                    (define stripped (get-selected search-list))
                    (display "1"))])
-                   ;binary for osx, text for windows
-                   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+  ;binary for osx, text for windows
+  ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (new button%
        [label "Generate for ILS"]
