@@ -88,23 +88,23 @@
          [alignment (list 'left 'top)]))
   
   (define (scale-x coord)
-    (* drawing-scale (- (node-x coord) left)))
+    (* drawing-scale (- coord left)))
   
   (define (scale-y coord)
-    (* drawing-scale (- (node-y coord) bottom)))
+    (* drawing-scale (- coord bottom)))
   
   (define (unscale-x coord)
-    (+ left (/ (node-x coord) drawing-scale)))
+    (+ left (/ coord drawing-scale)))
   
   (define (unscale-y coord)
-    (+ bottom (/ (node-y coord) drawing-scale)))
+    (+ bottom (/ coord drawing-scale)))
   
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)                           (make-line layer (scale-x p1) (scale-y p1) (scale-x p2) (scale-y p2))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (scale-x center) (scale-y center) (* scale radius) start end)]
-                 [(dot highlighted selected visible layer p)                                (make-dot layer (scale-x p) (scale-y p))]
+                 [(line highlighted selected visible layer p1 p2)                           (make-line layer (scale-x (node-x p1)) (scale-y (node-y p1)) (scale-x (node-x p2)) (scale-y (node-y p2)))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (scale-x (node-x center)) (scale-y (node-y center)) (* scale radius) start end)]
+                 [(dot highlighted selected visible layer p)                                (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
                  [(path highlighted selected visible layer path-list)                       (make-path layer (rescale path-list scale))]))))
   
   (define (downscale struct-lst scale)
@@ -152,10 +152,35 @@
         (send a-list-box clear)
         (send a-list-box set 
               (structs-to-strings displayed-list)
-              (map to-display (map node-x (map get-start displayed-list)))
-              (map to-display (map node-y (map get-start displayed-list)))
-              (map to-display (map node-x (map get-end displayed-list)))
-              (map to-display (map node-y (map get-end displayed-list))))))
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+              (map to-display (map unscale-x (map node-x (map get-start displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-start displayed-list))))
+              (map to-display (map unscale-x (map node-x (map get-end displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-end displayed-list)))))))
+=======
+=======
+>>>>>>> origin/master
+=======
+>>>>>>> origin/master
+=======
+>>>>>>> origin/master
+              (map to-display (map node-x (map get-start-node displayed-list)))
+              (map to-display (map node-y (map get-start-node displayed-list)))
+              (map to-display (map node-x (map get-end-node displayed-list)))
+              (map to-display (map node-y (map get-end-node displayed-list))))))
+<<<<<<< HEAD
+<<<<<<< HEAD
+<<<<<<< HEAD
+>>>>>>> origin/master
+=======
+>>>>>>> origin/master
+=======
+>>>>>>> origin/master
+=======
+>>>>>>> origin/master
   
   (define a-canvas
     (new dxf-canvas%

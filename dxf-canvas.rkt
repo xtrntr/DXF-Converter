@@ -175,7 +175,7 @@
       (send this refresh-now))
     
     (define (update-node-lst)
-      (set! path-lst (sort (get-connections (get-selected search-list))))
+      (set! path-lst (sort (get-connection-lst (get-selected search-list))))
       (set! node-lst (flatten (map get-start/end-nodes path-lst))))
     
     ;; POPUP MENU
@@ -189,7 +189,7 @@
            [label "Form an open path."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (find-connection highlighted-node path-lst))
+                       (define connection-lst (find-connections highlighted-node path-lst))
                        ;create a new path..
                        (define new-path (form-open-path highlighted-node connection-lst search-list))
                        ;remove the old entities that have been appended into a path
@@ -203,7 +203,7 @@
            [label "Form a path that moves clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (find-connection highlighted-node path-lst))
+                       (define connection-lst (find-connections highlighted-node path-lst))
                        ;create a new path..
                        (define new-path (form-closed-path highlighted-node connection-lst search-list #t))
                        ;remove the old entities that have been appended into a path
@@ -217,7 +217,7 @@
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (find-connection highlighted-node path-lst))
+                       (define connection-lst (find-connections highlighted-node path-lst))
                        ;create a new path..
                        (define new-path (form-closed-path highlighted-node connection-lst search-list #f))
                        ;remove the old entities that have been appended into a path
@@ -270,9 +270,9 @@
       (define start-panning? click-left)
       (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
       (define end-panning? release-left)
-      (define start-selecting? (and click-left hold-ctrl))
-      (define is-selecting? (and dragging hold-ctrl))
-      (define end-selecting? (and release-left hold-ctrl))
+      (define start-selecting? (and click-left caps-on))
+      (define is-selecting? (and dragging caps-on))
+      (define end-selecting? (and release-left caps-on))
       (define show-popup? (and (node? highlighted-node) click-right))
       
       (send this refresh-now)
