@@ -6,7 +6,19 @@
 (require/typed (only-in racket/base hash-empty?)
                [hash-empty? (-> Node-Structs Boolean)])
 
-(provide (all-defined-out))
+(provide structs-to-strings
+         get-selected
+         get-visible
+         select-highlighted
+         highlight-lst
+         unselect-all
+         delete-selected
+         get-connections
+         get-nodes
+         sort
+         get-start/end-nodes
+         form-open-path
+         form-closed-path)
 
 (: structs-to-strings (-> (Listof Entities) (Listof String)))
 (define (structs-to-strings struct-lst)
@@ -85,9 +97,9 @@
 ;for now: 6/16/15, this is only applicable to non path entities
 ;sort a list of nodes into a list of lists containing connected nodes
 ;sort returns a list of connection, that is ordered logically i.e. (list (conn (0 0) (1 1)) (conn (1 1) (2 2)) (conn (2 2) (3 3)))
-(: sort (-> Connected-Entities (Listof Connected-Entities)))
+(: sort (-> (Listof Connection) (Listof (Listof Connection))))
 (define (sort lst)
-  (: is-connected? (-> Connection Connected-Entities Boolean))
+  (: is-connected? (-> Connection (Listof Connection) Boolean))
   (define (is-connected? node lst)
     (cond ((empty? lst) #f)
           (else
@@ -95,21 +107,21 @@
              (cond ((connection-linked? node comparison) #t)
                    (else (is-connected? node (cdr lst))))))))
   ;for each element in "to", loop through the entirety of "from".
-  (: find-connection (-> Connected-Entities Connected-Entities Connection))
+  (: find-connection (-> (Listof Connection) (Listof Connection) Connection))
   (define (find-connection from to)
     (cond ((empty? to) (error "Expected a valid connection, given " from to))
           (else 
            (let loop : Connection
-             ([node-lst : Connected-Entities to])
+             ([node-lst : (Listof Connection) to])
              (cond [(empty? node-lst) (find-connection (cdr from) to)]
                    [else (let ([node1 (car from)]
                                [node2 (car node-lst)])
                            (cond [(connection-linked? node1 node2) node2]
                                  [else (loop (cdr node-lst))]))])))))
-  (let loop : (Listof Connected-Entities)
-    ([current-path : Connected-Entities '()]
-     [nodes : Connected-Entities lst]
-     [result : (Listof Connected-Entities) '()]) 
+  (let loop : (Listof (Listof Connection))
+    ([current-path : (Listof Connection) '()]
+     [nodes : (Listof Connection) lst]
+     [result : (Listof (Listof Connection)) '()]) 
     (cond ((empty? nodes) 
            (if (empty? current-path)
                result
@@ -126,117 +138,78 @@
                    (else
                     (loop '() nodes (cons current-path result)))))))))
 
-;given a chosen node, find the path:Connected-Entities within the path-lst:(listof Connected-Entities)
-(: get-connections (-> node (Listof Connected-Entities) Connected-Entities))
+;given a chosen node, find the path(listof connection) within the path-lst(listof (listof connection))
+(: get-connections (-> node (Listof (Listof Connection)) (Listof Connection)))
 (define (get-connections n lst)
-  (let main : Connected-Entities
-    [(connection-lst : (Listof Connected-Entities) lst)]
+  (let main : (Listof Connection)
+    [(connection-lst : (Listof (Listof Connection)) lst)]
     (if (ormap (lambda ([x : Connection])
                  (or (equal? (car x) n) (equal? (cadr x) n))) (car lst))
         (car lst)
         (main (cdr lst)))))
 
 ;given a chosen starting node and its path, return the reordered list of nodes from start and end
-(: reorder-open-connection (-> node Connected-Entities (Listof node)))
-(define (reorder-open-connection start-n conn-lst)
-   ;for finding the connection that contains 1st node only
-  (: find-connection (-> node Connected-Entities Connection))
-  (define (find-connection n lst)
-    (cast (findf (lambda ([x : Connection]) (or (equal? (first x) n) 
-                                                (equal? (second x) n))) lst) Connection))
-  ;finding connection and returning it in order
-  (: find-reordered-connection (-> node Connected-Entities Connection))
-  (define (find-reordered-connection n lst)
-    (cond ((empty? lst) (error "Expected a matching connection, but got this instead: " lst))
-          ((equal? (first (car lst)) n) (car lst))
-          ((equal? (second (car lst)) n) (reverse (car lst)))
-          (else (find-reordered-connection n (cdr lst)))))
-  ;given a starting node and the connection, return the ordered connection
-  (: get-reordered-connection (-> node Connection Connection))
-  (define (get-reordered-connection n conn)
-    (if (equal? (first conn) n)
-        conn
-        (reverse conn)))
-  (define current-conn (get-reordered-connection start-n (find-connection start-n conn-lst)))
+(: reorder-open-connection (-> node (Listof Connection) (Listof node)))
+(define (reorder-open-connection n lst)
+  (define conn-start (;2) then reverse it if the connection holds the node as the end part.
+                      (lambda ([x : Connection]) 
+                        (if (equal? (second x) n)
+                            (reverse x)
+                            x))
+                      ;1) find the connection that contains 1st node
+                      (cast (findf (lambda ([x : Connection]) (or (equal? (first x) n) 
+                                                                  (equal? (second x) n))) lst) Connection)))
+  (define-values (tail start) (break (lambda ([x : Connection]) (or (equal? x conn-start)
+                                                                    (equal? (reverse x) conn-start))) lst))
   (let loop : (Listof node)
-    ([current-node : node start-n]
-     [current-connection : Connection current-conn]
-     [lst : Connected-Entities (remove (find-connection start-n conn-lst) conn-lst)]
+    ([lst : (Listof Connection) (append start tail)]
      [acc : (Listof node) '()])
-    (cond ((empty? lst) (remove-duplicates (append acc current-connection)))
-          (else
-           (let* ((next-conn (get-conn-end current-connection))
-                  (reorder-conn (find-reordered-connection (get-conn-end current-connection) lst))
-                  (new-lst (remove (reverse reorder-conn) (remove reorder-conn lst))))
-             (loop next-conn 
-                   reorder-conn 
-                   new-lst
-                   (append acc (get-reordered-connection current-node current-connection))))))))
+    (cond ((empty? lst) (remove-duplicates acc))
+          (else (loop (cdr lst) (append acc (car lst)))))))
 
-;given the reordered list of nodes from start to end, return the equivalent in a list of entities
-(: reorder-nodes (-> (Listof node) (Listof Entities) (Listof Entities)))
-(define (reorder-nodes node-lst entity-lst)
-  ;find the entity that contains 1st node
-  (: find-entity (-> node node (Listof Entities) Entities))
-  (define (find-entity start-n end-n lst)
-    (cast (findf (lambda ([x : Entities]) (or (and (equal? (get-entity-start x) start-n) 
-                                                   (equal? (get-entity-end x) end-n))
-                                              (and (equal? (get-entity-start x) end-n) 
-                                                   (equal? (get-entity-end x) start-n)))) lst) Entities))
-  ;given a starting entity and an entity, return the ordered entity
-  (: get-reordered-entity (-> node Entities Entities))
-  (define (get-reordered-entity n entity)
-    (if (equal? (get-entity-start entity) n)
-        entity
-        (reverse-direction entity)))
-  (define start-node (car node-lst))
-  (define current-entity (get-reordered-entity start-node (find-entity start-node (second node-lst) entity-lst)))
-  (let loop : (Listof Entities)
-    ([current-start-node : node start-node]
-     [lst : (Listof Entities) (remove current-entity entity-lst)]
-     [node-lst : (Listof node) node-lst]
-     [acc : (Listof Entities) '()])
-    (cond ((= (length node-lst) 1) acc)
-          (else
-           (loop (second node-lst)
-                 (remove (get-reordered-entity current-start-node (find-entity current-start-node (second node-lst) entity-lst)) lst)
-                 (cdr node-lst)
-                 (append acc (list (get-reordered-entity current-start-node (find-entity current-start-node (second node-lst) lst)))))))))
-
-(: reorder-closed-connection (-> Connection Connected-Entities (Listof node)))
+(: reorder-closed-connection (-> Connection (Listof Connection) (Listof node)))
 (define (reorder-closed-connection conn-start lst)
   (define-values (tail start) (break (lambda ([x : Connection]) (equal? x conn-start)) lst))
   (let flatten : (Listof node)
-    ([lst : Connected-Entities (append start tail)]
+    ([lst : (Listof Connection) (append start tail)]
      [acc : (Listof node) '()])
     (cond ((empty? lst) (remove-duplicates acc))
           (else (flatten (cdr lst) (append acc (car lst)))))))
+  
+;return the struct whose starting point matches the given node. if this is not possible, then return the reversed struct whose ending point matches the given node.
+(: get-starting-struct (-> node (Listof Entities) Entities))
+(define (get-starting-struct n entity-lst)
+  (let loop : Entities
+    ([lst : (Listof Entities) entity-lst])
+    (cond ((empty? lst) (error "Expected a valid entity, given " node entity-lst))
+          ((equal? (get-start-node (car lst)) n) (car lst))
+          ((equal? (get-end-node (car lst)) n) (reverse-direction (car lst)))
+          (else
+           (loop (cdr lst))))))
+
+;given the reordered list of nodes from start to end, return the equivalent in a list of entities
+(: reorder-nodes (-> (Listof node) Node-Structs (Listof Entities)))
+(define (reorder-nodes lst ht)
+  (let loop : (Listof Entities)
+    ([acc : (Listof Entities) '()]
+     [node-lst : (Listof node) lst])
+    (cond ((empty? node-lst) acc)
+          (else
+           (loop (append (list (get-starting-struct (car node-lst) (hash-ref ht (car node-lst)))) acc) (cdr node-lst))))))
 
 ;take a starting/ending node and the list of connection and returns the path formed 
-(: form-open-path (-> node Connected-Entities (Listof Entities) path))
+(: form-open-path (-> node (Listof Connection) (Listof Entities) path))
 (define (form-open-path n connection-lst entity-lst)
-  (let* ([ht (make-ht entity-lst)]
-         [first-entity (hash-ref ht n)] ;a node may have more than 1 entity connected to it
+  (let* ([ht (make-ht entity-lst)] 
+         [connected-entities (hash-ref ht n)] ;a node may have more than 1 entity connected to it
          [ordered-connection (reorder-open-connection n connection-lst)]
-         [ordered-entities (reorder-nodes ordered-connection entity-lst)]
-         [layer (entity-layer (first first-entity))])
-    (cond ((not (= (length first-entity) 1))
-           (error "Only one entity eremovxpected, but got this instead:  " first-entity))
+         [ordered-entities (reorder-nodes ordered-connection ht)]
+         [layer (entity-layer (first connected-entities))])
+    (cond ((not (= (length connected-entities) 1))
+           (error "Only one entity expected, but got this instead:  " connected-entities))
           (else
            (make-path layer (cast ordered-entities (Listof (U arc line))))))))
 
-;for open paths, remove all entities except for the open node
-(: remove-by-nodes (-> (Listof Entities) (Listof node) (Listof Entities)))
-(define (remove-by-nodes entity-lst node-lst)
-  (let loop : (Listof Entities)
-    [(acc : (Listof Entities) '())
-     (lst : (Listof Entities) entity-lst)]
-    (cond ((empty? lst) acc)
-          ((ormap (lambda ([x : node]) (or (equal? (get-entity-start (car lst)) x) 
-                                               (equal? (get-entity-end (car lst)) x))) node-lst)
-           (loop acc (cdr lst)))
-          (else (loop (append acc (list (car lst))) (cdr lst))))))
-     
 ;given 3 nodes a b c, find if a->b->c is in a clockwise or anticlockwise direction
 (: clockwise-turn? (-> node node node Boolean))
 (define (clockwise-turn? a b c)
@@ -248,7 +221,7 @@
          (cy (node-y c)))
     (not (positive? (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay)))))))
 
-(: form-closed-path (-> node Connected-Entities (Listof Entities) Boolean path))
+(: form-closed-path (-> node (Listof Connection) (Listof Entities) Boolean path))
 (define (form-closed-path n1 connection-lst entity-lst clockwise?)
   (let* ([ht (make-ht entity-lst)] 
          [connected-entities (hash-ref ht n1)] ;get the 2 entities connected to it
@@ -265,7 +238,7 @@
          [layer (entity-layer (first connected-entities))]
          [conn-start (list n1 n2)]
          [ordered-connection (reorder-closed-connection conn-start connection-lst)]
-         [ordered-entities (reorder-nodes ordered-connection entity-lst)])
+         [ordered-entities (reorder-nodes ordered-connection ht)])
     (cond ((not (= (length connected-entities) 2))
            (error "Only two entities expected, but got this many entities instead:  " (length connected-entities)))
           (clockwise?

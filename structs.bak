@@ -37,8 +37,7 @@
    [end : Real]
    [p1 : node]
    [p2 : node]
-   [p3 : node]
-   [ccw : Boolean]) 
+   [p3 : node]) 
   #:transparent)
      
 (struct path entity
@@ -54,8 +53,8 @@
 (define (make-line layer x1 y1 x2 y2)
   (line #f #f #f layer (node x1 y1) (node x2 y2)))
 
-(: make-arc (-> String Real Real Real Real Real Boolean arc))
-(define (make-arc layer center-x center-y radius start end ccw?)
+(: make-arc (-> String Real Real Real Real Real arc))
+(define (make-arc layer center-x center-y radius start end)
   (let* ([arc-pts : (Listof Real) (get-arc-points center-x center-y radius start end)]
         [x1 : Real                (first arc-pts)]
         [y1 : Real                (second arc-pts)]
@@ -63,53 +62,40 @@
         [y2 : Real                (fourth arc-pts)]
         [x3 : Real                (fifth arc-pts)]
         [y3 : Real                (sixth arc-pts)])
-    (if ccw?
-        (arc #f #f #f layer (node center-x center-y) radius start end (node x3 y3) (node x2 y2) (node x1 y1) #t)
-        (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))))
+    (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3))))
 
 (: make-path (-> String (Listof (U line arc)) path))
 (define (make-path layer lst)
   (path #f #f #f layer lst))
 
-(: make-visible-path (-> String (Listof (U line arc)) path))
-(define (make-visible-path layer lst)
-  (path #f #t #t layer lst))
-
 (: reverse-direction (-> Entities Entities))
 (define (reverse-direction a-struct)
-  (let* ([layer : String (entity-layer a-struct)]
-         [highlighted? : Boolean (entity-highlighted a-struct)]
-         [selected? : Boolean (entity-selected a-struct)]
-         [visible? : Boolean (entity-visible a-struct)]
-         [reversed-struct : Entities ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
-                                                    (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
-                                                    (arc (make-arc layer (node-x center) (node-y center) radius start end #t))
-                                                    (path (lambda (x) (make-path layer (reverse x)))))
-                                      a-struct)])
-    (when highlighted? (set-entity-highlighted! reversed-struct #t))
-    (when selected? (set-entity-selected! reversed-struct #t))
-    (when visible? (set-entity-visible! reversed-struct #t))
-    reversed-struct))
+  (let ([layer : String (entity-layer a-struct)])
+    ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
+                   (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
+                   (arc (make-arc layer (node-x center) (node-y center) radius end start))
+                   (path (lambda (x) (make-path layer (reverse x)))))
+     a-struct)))
 
 ;; NODE OPERATIONS
 (: round-off-node (-> node node))
 (define (round-off-node p)
   (node (round-3 (node-x p)) (round-3 (node-y p))))
 
-(: get-entity-start (-> Entities node))
-(define (get-entity-start a-struct)
+(: get-start-node (-> Entities node))
+(define (get-start-node a-struct)
   (round-off-node ((match-struct (dot p)
                                   (line p1)
                                   (arc p1)
-                                  (path (lambda (x) (get-entity-start (first x)))))
+                                  (path (lambda (x) (get-start-node (first x)))))
                     a-struct)))
 
-(: get-entity-end (-> Entities node))
-(define (get-entity-end a-struct)
+(: get-end-node (-> Entities node))
+(define (get-end-node a-struct)
   (round-off-node ((match-struct (dot p)
                                   (line p2)
                                   (arc p3)
-                                  (path (lambda (x) (get-entity-end (last x)))))
+                                  (path (lambda (x) (get-end-node (last x)))))
                     a-struct)))
 
 (: get-nodes (-> (Listof Entities) (Listof node)))
@@ -136,14 +122,6 @@
         (node-equal? end1 end2)
         (node-equal? end1 start2))))
 
-(: get-conn-end (-> Connection node))
-(define (get-conn-end conn)
-  (cadr conn))
-
-(: get-conn-start (-> Connection node))
-(define (get-conn-start conn)
-  (car conn))
-
 ;; HASH TABLE OPERATIONS
 ;the hashtable's KEY:VALUE is NODE:(LISTOF ENTITIES)
 (: make-ht (-> (Listof Entities) Node-Structs))
@@ -160,15 +138,15 @@
      (cond ((empty? lst) ht)
            (else
             (let* ([entity (car lst)]
-                   [n1 (get-entity-start entity)]
-                   [n2 (get-entity-end entity)])
+                   [n1 (get-start-node entity)]
+                   [n2 (get-end-node entity)])
               (loop (ht-add (ht-add ht n1 entity) n2 entity) (cdr lst)))))))
 
 
 ;; ENTITY / CONNECTION / NODE OPERATIONS
 (: get-connection (-> Entities Connection))
 (define (get-connection a-struct)
-  (list (get-entity-start a-struct) (get-entity-end a-struct)))
+  (list (get-start-node a-struct) (get-end-node a-struct)))
 
 (: get-connection-lst (-> (Listof Entities) Connected-Entities))
 (define (get-connection-lst lst)
@@ -232,7 +210,7 @@
                       [tmp2 (syntax->datum #'c)])
        #'(lambda (a-struct)
            (match a-struct
-             [(dot highlighted selected visible layer p)                                    tmp0]
-             [(line highlighted selected visible layer p1 p2)                               tmp1]
-             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) tmp2]
-             [(path highlighted selected visible layer entities)                            (d entities)])))])))
+             [(dot highlighted selected visible layer p)                                tmp0]
+             [(line highlighted selected visible layer p1 p2)                           tmp1]
+             [(arc highlighted selected visible layer center radius start end p1 p2 p3) tmp2]
+             [(path highlighted selected visible layer entities)                        (d entities)])))])))
