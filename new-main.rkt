@@ -118,7 +118,6 @@
   (define struct-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
   (define search-list (rescale struct-list drawing-scale))
-  (define entity-ht (make-ht search-list))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer struct-list))))
   
@@ -165,7 +164,6 @@
          [min-width canvas-width]
          
          [search-list search-list]
-         [entity-ht entity-ht]
          
          [x-offset 0]
          [y-offset canvas-height]
@@ -229,6 +227,7 @@
        [label "Reorder paths"]
        [parent button-panel-1]
        [callback (lambda (b e)
+                   (display (map length (sort-entities (get-selected (get-field search-list a-canvas)))))
                    (set-field! reorder? a-canvas #t)
                    (send a-canvas update-canvas)
                    )])

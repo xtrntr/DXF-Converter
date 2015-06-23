@@ -96,7 +96,7 @@
          [radius : Real         (extract-val ht "40")]
          [start : Real          (extract-val ht "50")]
          [end : Real            (extract-val ht "51")])
-    (make-arc layer center-x center-y radius start end)))
+    (make-arc layer center-x center-y radius start end #f)))
 
 (: dxf-circle (-> (Listof String) arc))
 (define (dxf-circle lst)
@@ -105,7 +105,7 @@
          [center-x : Real       (extract-val ht "10")]
          [center-y : Real       (extract-val ht "20")]
          [radius : Real         (extract-val ht "40")])
-    (make-arc layer center-x center-y radius 0 360)))
+    (make-arc layer center-x center-y radius 0 360 #f)))
 
 (: dxf-path (-> (Listof String) path))
 (define (dxf-path lst)
@@ -242,8 +242,8 @@
                       (+ start (radians->degrees arc-angle-rad))))))
     ;DXF is CW
     (if is-cw?
-        (make-arc layer center-x center-y radius end start)
-        (make-arc layer center-x center-y radius start end))))
+        (make-arc layer center-x center-y radius end start #f)
+        (make-arc layer center-x center-y radius start end #f))))
 
 (: create-structs (-> (Listof (Listof String)) (Listof Entities)))
 (define (create-structs entity-list)

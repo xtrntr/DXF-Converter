@@ -245,7 +245,7 @@
         (make-arc layer center-x center-y radius end start #f)
         (make-arc layer center-x center-y radius start end #f))))
 
-(: create-structs (-> (Listof (Listof String)) (Listof Entities)))
+(: create-structs (-> (Listof (Listof String)) Entities))
 (define (create-structs entity-list)
   (map (lambda ([x : (Listof String)])
          (match x
@@ -257,7 +257,7 @@
            [_ (error "This is not expected, given: " x)]))
        entity-list))
 
-(: file->struct-list (-> Path-String (Listof Entities)))
+(: file->struct-list (-> Path-String Entities))
 (define (file->struct-list path-string)
   (let* ((file-list (reader (open-input-file path-string)))
          (section-list (extract-section file-list sections))

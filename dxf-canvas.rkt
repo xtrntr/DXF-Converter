@@ -17,7 +17,6 @@
     (init-field 
      ;variables
      search-list
-     entity-ht
      x-offset
      y-offset
      drawing-scale
@@ -161,20 +160,19 @@
                          (set-entity-highlighted! i #t)
                          (set-entity-highlighted! i #f)))
                     ((dot? i)
-                     (if (point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y) 
+                     (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y) 
                          (set-entity-highlighted! i #t)
                          (set-entity-highlighted! i #f)))
                     ((path? i)
                      (intersect? x1 y1 x2 y2 (path-entities i))))))))
     
+    (define (update-node-lst)
+      (+ 1 1))
+    
     (define/public (update-canvas)
       (define drawer (get-dc))
       (send drawer set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (send this refresh-now))
-    
-    (define (update-node-lst)
-      (set! path-lst (sort (get-connection-lst (get-selected search-list))))
-      (set! node-lst (flatten (map get-start/end-nodes path-lst))))
     
     ;; POPUP MENU
     (define popup
@@ -187,53 +185,21 @@
            [label "Form an open path."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (get-connections highlighted-node path-lst))
-                       (define temp-node-lst (remove-duplicates (flatten connection-lst)))
-                       (define last-node (car (remove highlighted-node node-lst)))
-                       ;create a new path..
-                       (define new-path (form-open-path highlighted-node connection-lst search-list))
-                       (set-entity-visible! new-path #t)
-                       (set-entity-selected! new-path #t)
-                       ;remove the old entities that have been appended into a path
-                       (set! search-list (remove-by-nodes search-list (remove last-node temp-node-lst)))
-                       ;then add the new patch
-                       (set! search-list (append (list new-path) search-list))
-                       (update-spreadsheet search-list)
-                       (set! highlighted-node #f))]))
-      
+                       (display "boo"))]))
+    
     (define closed-clockwise
       (new menu-item%
            [label "Form a path that moves clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (get-connections highlighted-node path-lst))
-                       ;create a new path..
-                       (define new-path (form-closed-path highlighted-node connection-lst search-list #t))
-                       (set-entity-visible! new-path #t)
-                       (set-entity-selected! new-path #t)
-                       ;remove the old entities that have been appended into a path
-                       (set! search-list (remove* (path-entities new-path) search-list))
-                       ;then add the new patch
-                       (set! search-list (append (list new-path) search-list))
-                       (update-spreadsheet search-list)
-                       (set! highlighted-node #f))]))
+                       (display "boo"))]))
     
     (define closed-anticlockwise
       (new menu-item%
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (get-connections highlighted-node path-lst))
-                       ;create a new path..
-                       (define new-path (form-closed-path highlighted-node connection-lst search-list #f))
-                       (set-entity-visible! new-path #t)
-                       (set-entity-selected! new-path #t)
-                       ;remove the old entities that have been appended into a path
-                       (set! search-list (remove* (path-entities new-path) search-list))
-                       ;then add the new patch
-                       (set! search-list (append (list new-path) search-list))
-                       (update-spreadsheet search-list)
-                       (set! highlighted-node #f))]))
+                       (display "boo"))]))
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -333,9 +299,7 @@
       (define drawer (get-dc))
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
-      
       (cursor-nearby? (- scaled-cursor-x 3) (- scaled-cursor-y 3) (+ scaled-cursor-x 3) (+ scaled-cursor-y 3) node-lst)
-      
       (draw-objects search-list)
       (change-pen black-pen))
     
