@@ -12,6 +12,10 @@ Third line determines whether to draw a small arc between two lines
 Fourth line is *** Right-Needle ***
 Fifth line onwards is the pattern file
 
+Data types for parameters:
+Float for dispense time, travel delay and retract delay
+Integer for coordinates
+
 Pattern format for:
 Dot: x, y, z, xdeviation, number of repeat, ydeviation, retract height, retract speed, dispense time, retract delay, move height
 LineStart: x, y, z, travel delay
@@ -36,7 +40,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 ;135.224 represented as 135224
 (: ils-num (-> Real Real))
 (define (ils-num x)
-  (* 1000 (round-3 x)))
+  (round-to-int (* 1000 (round-3 x))))
 
 (: insert-newline (-> Void))
 (define (insert-newline)
@@ -68,7 +72,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-dot (-> Real Real Void))
 (define (ils-dot x y) ;what is between y-deviation and ret-height?
-  (printf (format "dot(x=~a, y=~a, z=~a; ~a, ~a; ~a, ~a; z=~a; sp=~a; ~a; ~a; z=~a)" (ils-num x) (ils-num y) 0 x-deviation num-repeat y-deviation 0 ret-height ret-speed disp-dur ret-delay clear-height))
+  (printf (format "dot(x=~a, y=~a, z=~a; ~a, ~a; ~a, ~a; z=~a; sp=~a; ~a; ~a; z=~a)" (ils-num x) (ils-num y) 0 x-deviation num-repeat y-deviation 0 ret-height ret-speed (exact->inexact disp-dur) (exact->inexact ret-delay) clear-height))
   (insert-newline))
 
 (: ils-line (-> Real Real Real Real Void))
@@ -84,12 +88,12 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-line-start (-> Real Real Void))
 (define (ils-line-start x y)
-  (printf (format "lineStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 trav-delay))
+  (printf (format "lineStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
   (insert-newline))
 
 (: ils-line-end (-> Real Real Void))
 (define (ils-line-end x y) ;travel speed, dispense on/off, retract delay, retract height, retract speed, move height
-  (printf (format "lineEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; ~a; sp=~a; ~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff ret-delay ret-height ret-speed clear-height))
+  (printf (format "lineEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; ~a; sp=~a; ~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff (exact->inexact ret-delay) ret-height ret-speed clear-height))
   (insert-newline))
 
 (: ils-line-point (-> Real Real Void))
@@ -99,12 +103,12 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-link-arc-restart (-> Real Real Void))
 (define (ils-link-arc-restart x y) 
-  (printf (format "linksArcRestart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 trav-delay))
+  (printf (format "linksArcRestart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
   (insert-newline))
 
 (: ils-arc-start (-> Real Real Void))
 (define (ils-arc-start x y) 
-  (printf (format "arcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 trav-delay))
+  (printf (format "arcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
   (insert-newline))
 
 (: ils-arc-point (-> Real Real Void))
@@ -114,19 +118,19 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-link-arc-start (-> Real Real Void))
 (define (ils-link-arc-start x y) 
-  (printf (format "linksArcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 trav-delay))
+  (printf (format "linksArcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
   (insert-newline))
 
 (: ils-arc-end (-> Real Real Void))
 (define (ils-arc-end x y) ;travel speed, dispense on/off, retract delay, retract height, retract speed, move height
-  (printf (format "arcEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; z=~a; sp=~a; z=~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff ret-delay ret-height ret-speed clear-height))
+  (printf (format "arcEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; z=~a; sp=~a; z=~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff (exact->inexact ret-delay) ret-height ret-speed clear-height))
   (insert-newline))
 
 (: ils-link-arc-end (-> Real Real Void))
 (define (ils-link-arc-end x y) ;travel speed, dispense on/off, retract delay, retract height, retract speed, move height
-  (printf (format "linksArcEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; z=~a; sp=~a; z=~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff ret-delay ret-height ret-speed clear-height))
+  (printf (format "linksArcEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; z=~a; sp=~a; z=~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff (exact->inexact ret-delay) ret-height ret-speed clear-height))
   (insert-newline))
-
+  
 ;identify first
 (: ils-path (-> (Listof (U line arc)) Void))
 (define (ils-path path-list)

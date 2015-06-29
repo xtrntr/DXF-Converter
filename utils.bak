@@ -37,9 +37,19 @@
         0.0
         result)))
 
-(: round-to-int (-> Real Exact-Rational))
-(define (round-to-int z)
+;return integer
+(: round-0 (-> Real Integer))
+(define (round-0 z)
   (inexact->exact (round-1 z)))
+
+(: round-to-int (-> Real Integer))
+(define (round-to-int x)
+  (let* ((1dp (round-1 x))
+         (str (number->string 1dp))
+         (len (string-length str))
+         (str-int (substring str 0 (- len 2)))
+         (result (cast (string->number str-int) Integer)))
+    result))
 
 (: make-whitespaces (-> Real String))
 (define (make-whitespaces x)

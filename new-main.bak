@@ -102,23 +102,22 @@
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)                           (make-line layer (scale-x (node-x p1)) (scale-y (node-y p1)) (scale-x (node-x p2)) (scale-y (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (scale-x (node-x center)) (scale-y (node-y center)) (* scale radius) start end)]
-                 [(dot highlighted selected visible layer p)                                (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
-                 [(path highlighted selected visible layer path-list)                       (make-path layer (rescale path-list scale))]))))
+                 [(line highlighted selected visible layer p1 p2)                               (make-line layer (scale-x (node-x p1)) (scale-y (node-y p1)) (scale-x (node-x p2)) (scale-y (node-y p2)))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (make-arc layer (scale-x (node-x center)) (scale-y (node-y center)) (* scale radius) start end ccw)]
+                 [(dot highlighted selected visible layer p)                                    (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
+                 [(path highlighted selected visible layer path-list)                           (make-path layer (rescale path-list scale))]))))
   
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)                           (make-line layer (unscale-x p1) (unscale-y p1) (unscale-x p2) (unscale-y p2))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3) (make-arc layer (unscale-x center) (unscale-y center) (/ radius scale) start end)]
-                 [(dot highlighted selected visible layer p)                                (make-dot layer (unscale-x p) (unscale-y p))]
-                 [(path highlighted selected visible layer path-list)                       (make-path layer (downscale path-list scale))]))))
+                 [(line highlighted selected visible layer p1 p2)                               (make-line layer (unscale-x p1) (unscale-y p1) (unscale-x p2) (unscale-y p2))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (make-arc layer (unscale-x center) (unscale-y center) (/ radius scale) start end ccw)]
+                 [(dot highlighted selected visible layer p)                                    (make-dot layer (unscale-x p) (unscale-y p))]
+                 [(path highlighted selected visible layer path-list)                           (make-path layer (downscale path-list scale))]))))
   
   (define struct-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale struct-list editor-width editor-height))
   (define search-list (rescale struct-list drawing-scale))
-  (define entity-ht (make-ht search-list))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer struct-list))))
   
@@ -152,11 +151,12 @@
         (send a-list-box clear)
         (send a-list-box set 
               (structs-to-strings displayed-list)
-              (map to-display (map unscale-x (map node-x (map get-start displayed-list))))
-              (map to-display (map unscale-y (map node-y (map get-start displayed-list))))
-              (map to-display (map unscale-x (map node-x (map get-end displayed-list))))
-              (map to-display (map unscale-y (map node-y (map get-end displayed-list)))))))
-  
+              ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
+              (map to-display (map node-x (map get-entity-start displayed-list)))
+              (map to-display (map node-y (map get-entity-start displayed-list)))
+              (map to-display (map node-x (map get-entity-end displayed-list)))
+              (map to-display (map node-y (map get-entity-end displayed-list))))))
+ 
   (define a-canvas
     (new dxf-canvas%
          [parent drawing-panel]
@@ -164,7 +164,6 @@
          [min-width canvas-width]
          
          [search-list search-list]
-         [entity-ht entity-ht]
          
          [x-offset 0]
          [y-offset canvas-height]
@@ -228,6 +227,7 @@
        [label "Reorder paths"]
        [parent button-panel-1]
        [callback (lambda (b e)
+                   (display (map length (sort-entities (get-selected (get-field search-list a-canvas)))))
                    (set-field! reorder? a-canvas #t)
                    (send a-canvas update-canvas)
                    )])
@@ -240,7 +240,8 @@
                    (set-field! y-offset a-canvas (- editor-height 150))
                    (set-field! x-scale  a-canvas 1)
                    (set-field! y-scale  a-canvas -1)
-                   (send a-canvas update-canvas))])
+                   (send a-canvas update-canvas)
+                   )])
   
   (define create (new path-dialog%
                       [put? #t]

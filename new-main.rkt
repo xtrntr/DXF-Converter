@@ -110,9 +110,9 @@
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)                               (make-line layer (unscale-x p1) (unscale-y p1) (unscale-x p2) (unscale-y p2))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (make-arc layer (unscale-x center) (unscale-y center) (/ radius scale) start end ccw)]
-                 [(dot highlighted selected visible layer p)                                    (make-dot layer (unscale-x p) (unscale-y p))]
+                 [(line highlighted selected visible layer p1 p2)                               (make-line layer (unscale-x (node-x p1)) (unscale-y (node-y p1)) (unscale-x (node-x p2)) (unscale-y (node-y p2)))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (make-arc layer (unscale-x (node-x center)) (unscale-y (node-y center)) (/ radius scale) start end ccw)]
+                 [(dot highlighted selected visible layer p)                                    (make-dot layer (unscale-x (node-x p)) (unscale-y (node-y p)))]
                  [(path highlighted selected visible layer path-list)                           (make-path layer (downscale path-list scale))]))))
   
   (define struct-list (file->struct-list input-port))
@@ -227,7 +227,6 @@
        [label "Reorder paths"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display (map length (sort-entities (get-selected (get-field search-list a-canvas)))))
                    (set-field! reorder? a-canvas #t)
                    (send a-canvas update-canvas)
                    )])

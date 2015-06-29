@@ -17,7 +17,6 @@
     (init-field 
      ;variables
      search-list
-     entity-ht
      x-offset
      y-offset
      drawing-scale
@@ -76,8 +75,7 @@
       (lambda (stx)
         (syntax-case stx ()
           [(_ pen-type)
-           #'(begin ;(define drawer (get-dc))
-                    (send (get-dc) set-pen pen-type))])))
+           #'(begin (send (get-dc) set-pen pen-type))])))
     
     (define-syntax change-cursor
       (lambda (stx)
@@ -92,11 +90,10 @@
            (let* ([method-name/str (symbol->string (syntax->datum #'entity))]
                   [method-name/syn (string->symbol (string-append "draw-" method-name/str))])
              (with-syntax ([name (datum->syntax stx method-name/syn)])
-               #'(begin (define drawer (get-dc))
-                        (if highlight?
+               #'(begin (if highlight?
                             (change-pen pen1)
                             (change-pen pen2))
-                        (send drawer name args ...))))])))
+                        (send (get-dc) name args ...))))])))
     
     ;; DRAWING functions
     (define (draw-dot x y highlight?)
@@ -122,10 +119,10 @@
       (define (apply-procedure x)
         (when (entity-visible x)
           (match x
-            [(line highlighted selected visible layer p1 p2)                           (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) (or selected highlighted))]
-            [(arc highlighted selected visible layer center radius start end p1 p2 p3) (draw-arc (node-x center) (node-y center) radius start end (or selected highlighted))]
-            [(dot highlighted selected visible layer p)                                (draw-dot (node-x p) (node-y p) (or selected highlighted))]
-            [(path highlighted selected visible layer path-list)                       (draw-objects path-list)])))
+            [(line highlighted selected visible layer p1 p2)                               (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) (or selected highlighted))]
+            [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (draw-arc (node-x center) (node-y center) radius start end (or selected highlighted))]
+            [(dot highlighted selected visible layer p)                                    (draw-dot (node-x p) (node-y p) (or selected highlighted))]
+            [(path highlighted selected visible layer path-list)                           (draw-objects path-list)])))
       (map apply-procedure lst))
     
     (define (draw-select-box lst)
@@ -163,20 +160,19 @@
                          (set-entity-highlighted! i #t)
                          (set-entity-highlighted! i #f)))
                     ((dot? i)
-                     (if (point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y) 
+                     (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y) 
                          (set-entity-highlighted! i #t)
                          (set-entity-highlighted! i #f)))
                     ((path? i)
                      (intersect? x1 y1 x2 y2 (path-entities i))))))))
     
+    (define (update-node-lst)
+      (+ 1 1))
+    
     (define/public (update-canvas)
       (define drawer (get-dc))
       (send drawer set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (send this refresh-now))
-    
-    (define (update-node-lst)
-      (set! path-lst (sort (get-connection-lst (get-selected search-list))))
-      (set! node-lst (flatten (map get-start/end-nodes path-lst))))
     
     ;; POPUP MENU
     (define popup
@@ -189,42 +185,21 @@
            [label "Form an open path."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (find-connections highlighted-node path-lst))
-                       ;create a new path..
-                       (define new-path (form-open-path highlighted-node connection-lst search-list))
-                       ;remove the old entities that have been appended into a path
-                       (set! search-list (remove* (path-entities new-path) search-list))
-                       ;then add the new patch
-                       (set! search-list (append (list new-path) search-list))
-                       (update-spreadsheet search-list))]))
-      
+                       (display "boo"))]))
+    
     (define closed-clockwise
       (new menu-item%
            [label "Form a path that moves clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (find-connections highlighted-node path-lst))
-                       ;create a new path..
-                       (define new-path (form-closed-path highlighted-node connection-lst search-list #t))
-                       ;remove the old entities that have been appended into a path
-                       (set! search-list (remove* (path-entities new-path) search-list))
-                       ;then add the new patch
-                       (set! search-list (append (list new-path) search-list))
-                       (update-spreadsheet search-list))]))
+                       (display "boo"))]))
     
     (define closed-anticlockwise
       (new menu-item%
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (define connection-lst (find-connections highlighted-node path-lst))
-                       ;create a new path..
-                       (define new-path (form-closed-path highlighted-node connection-lst search-list #f))
-                       ;remove the old entities that have been appended into a path
-                       (set! search-list (remove* (path-entities new-path) search-list))
-                       ;then add the new patch
-                       (set! search-list (append (list new-path) search-list))
-                       (update-spreadsheet search-list))]))
+                       (display "boo"))]))
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -270,9 +245,9 @@
       (define start-panning? click-left)
       (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
       (define end-panning? release-left)
-      (define start-selecting? (and click-left caps-on))
-      (define is-selecting? (and dragging caps-on))
-      (define end-selecting? (and release-left caps-on))
+      (define start-selecting? (and click-left hold-ctrl))
+      (define is-selecting? (and dragging hold-ctrl))
+      (define end-selecting? (and release-left hold-ctrl))
       (define show-popup? (and (node? highlighted-node) click-right))
       
       (send this refresh-now)
@@ -299,7 +274,8 @@
          (set! display-select-box #t))
         (start-panning?
          (set! init-cursor-x cursor-x)
-         (set! init-cursor-y cursor-y))
+         (set! init-cursor-y cursor-y)
+         (set! highlighted-node #f))
         (show-popup?
          (send this popup-menu popup cursor-x cursor-y))
         (is-selecting?
@@ -323,9 +299,7 @@
       (define drawer (get-dc))
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
-      
       (cursor-nearby? (- scaled-cursor-x 3) (- scaled-cursor-y 3) (+ scaled-cursor-x 3) (+ scaled-cursor-y 3) node-lst)
-      
       (draw-objects search-list)
       (change-pen black-pen))
     

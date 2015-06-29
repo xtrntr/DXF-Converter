@@ -167,7 +167,10 @@
                      (intersect? x1 y1 x2 y2 (path-entities i))))))))
     
     (define (update-node-lst)
-      (+ 1 1))
+      (if (empty? (get-selected search-list))
+          (set! node-lst '())
+          (begin (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
+                   (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))))))
     
     (define/public (update-canvas)
       (define drawer (get-dc))
@@ -177,7 +180,8 @@
     ;; POPUP MENU
     (define popup
       (new popup-menu%
-           [title "ugh"]))
+           [popdown-callback (lambda (p e)
+                               (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
     
     ;; POPUP MENU items
     (define open-nodir
@@ -185,21 +189,24 @@
            [label "Form an open path."]
            [parent popup]
            [callback (lambda (b e)
-                       (display "boo"))]))
+                       (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
+                         (display (reorder-open-path highlighted-node (get-belonging-list highlighted-node groups-of-connected-entities)))))]))
     
     (define closed-clockwise
       (new menu-item%
            [label "Form a path that moves clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (display "boo"))]))
+                       (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
+                         (display (get-belonging-list highlighted-node groups-of-connected-entities))))]))
     
     (define closed-anticlockwise
       (new menu-item%
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup]
            [callback (lambda (b e)
-                       (display "boo"))]))
+                       (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
+                         (display (get-belonging-list highlighted-node groups-of-connected-entities))))]))
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -281,7 +288,6 @@
         (is-selecting?
          (change-cursor selecting)
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)
-         (update-node-lst)
          (highlight-lst search-list)
          (set! select-box (list (list init-cursor-x init-cursor-y scaled-cursor-x init-cursor-y #t)
                                 (list scaled-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y #t)
