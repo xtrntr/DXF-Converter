@@ -152,10 +152,10 @@
         (send a-list-box set 
               (structs-to-strings displayed-list)
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
-              (map to-display (map node-x (map get-entity-start displayed-list)))
-              (map to-display (map node-y (map get-entity-start displayed-list)))
-              (map to-display (map node-x (map get-entity-end displayed-list)))
-              (map to-display (map node-y (map get-entity-end displayed-list))))))
+              (map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
+              (map to-display (map unscale-x (map node-x (map get-entity-end displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-entity-end displayed-list)))))))
  
   (define a-canvas
     (new dxf-canvas%
@@ -259,7 +259,8 @@
        [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-selected search-list))
+                   (define stripped (get-selected (get-field search-list a-canvas)))
+                 
                    ;binary for osx, text for windows
                    (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   

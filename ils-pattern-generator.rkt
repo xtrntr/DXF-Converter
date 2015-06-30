@@ -50,6 +50,11 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 (define (spacing)
   (printf "   "))
 
+;7 spaces
+(: arc-point-spacing (-> Void))
+(define (arc-point-spacing)
+  (printf "       "))
+
 (: generate-ils-pattern (-> Entities Output-Port Void))
 (define (generate-ils-pattern struct-list port)
   (current-output-port port)
@@ -113,6 +118,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-arc-point (-> Real Real Void))
 (define (ils-arc-point x y) 
+  (arc-point-spacing)
   (printf (format "arcPoint(x=~a, y=~a, z=~a)" (ils-num x) (ils-num y) 0))
   (insert-newline))
 
@@ -163,7 +169,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
              [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)  (if (arc? prev)
                                                                                                  (ils-link-arc-restart (node-x p1) (node-y p1))
                                                                                                  (ils-link-arc-start (node-x p1) (node-y p1)))
-                                                                                             (spacing)(spacing)
+                                                                                             (arc-point-spacing)
                                                                                              (ils-arc-point (node-x p2) (node-y p2))
                                                                                              (ils-arc-end (node-x p3) (node-y p3))]))
           ((line-line? prev current)
@@ -177,13 +183,13 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
           ((arc-arc? prev current)
            (assert prev arc?) (assert current arc?)
            (ils-link-arc-restart (node-x (arc-p1 current)) (node-y (arc-p1 current)))
-           (spacing)(spacing)
+           (arc-point-spacing)
            (ils-arc-point (node-x (arc-p2 current)) (node-y (arc-p2 current)))
            (iterate (cdr lst) current))
           ((line-arc? prev current)
            (assert prev line?) (assert current arc?)
            (ils-link-arc-start (node-x (arc-p1 current)) (node-y (arc-p1 current)))
-           (spacing)(spacing)
+           (arc-point-spacing)
            (ils-arc-point (node-x (arc-p2 current)) (node-y (arc-p2 current)))
            (iterate (cdr lst) current))))
   (unless (= (length path-list) 1)
@@ -191,5 +197,6 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
       (match start
         [(line highlighted selected visible layer p1 p2)                                (ils-line-start (node-x p1) (node-y p1))]
         [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)  (ils-arc-start (node-x p1) (node-y p1))
+                                                                                        (arc-point-spacing) 
                                                                                         (ils-arc-point (node-x p2) (node-y p2))])
       (iterate (cdr path-list) start))))

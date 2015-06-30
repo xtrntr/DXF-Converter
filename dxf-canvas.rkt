@@ -178,7 +178,13 @@
       (send this refresh-now))
     
     ;; POPUP MENU
-    (define popup
+    (define popup-opened
+      (new popup-menu%
+           [popdown-callback (lambda (p e)
+                               (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
+    
+    
+    (define popup-closed
       (new popup-menu%
            [popdown-callback (lambda (p e)
                                (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
@@ -187,26 +193,38 @@
     (define open-nodir
       (new menu-item%
            [label "Form an open path."]
-           [parent popup]
+           [parent popup-opened]
            [callback (lambda (b e)
-                       (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
-                         (display (reorder-open-path highlighted-node (get-belonging-list highlighted-node groups-of-connected-entities)))))]))
+                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))]
+                              [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
+                              [new-path (reorder-open-path highlighted-node list-of-entities-to-reorder)])
+                         (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
+                         (update-node-lst)
+                         (update-spreadsheet search-list)))]))
     
     (define closed-clockwise
       (new menu-item%
            [label "Form a path that moves clockwise from this point."]
-           [parent popup]
+           [parent popup-closed]
            [callback (lambda (b e)
-                       (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
-                         (display (get-belonging-list highlighted-node groups-of-connected-entities))))]))
+                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))]
+                              [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
+                              [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #f)])
+                         (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
+                         (update-node-lst)
+                         (update-spreadsheet search-list)))]))
     
     (define closed-anticlockwise
       (new menu-item%
            [label "Form a path that moves anti-clockwise from this point."]
-           [parent popup]
+           [parent popup-closed]
            [callback (lambda (b e)
-                       (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
-                         (display (get-belonging-list highlighted-node groups-of-connected-entities))))]))
+                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))]
+                              [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
+                              [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #t)])
+                         (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
+                         (update-node-lst)
+                         (update-spreadsheet search-list)))]))
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -284,7 +302,9 @@
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-         (send this popup-menu popup cursor-x cursor-y))
+         (if (closed-path-entity-list? (get-belonging-list highlighted-node (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))))
+             (send this popup-menu popup-closed cursor-x cursor-y)
+             (send this popup-menu popup-opened cursor-x cursor-y)))
         (is-selecting?
          (change-cursor selecting)
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)
