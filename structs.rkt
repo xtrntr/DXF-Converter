@@ -1,5 +1,12 @@
 #lang typed/racket
 
+#| 
+
+This module is where we define the structs, their constructors, custom types that build on combined structs and simple operations on entities/nodes.
+Try to keep the more compelx and specific functions in lst-utils.
+
+|#
+
 (require "utils.rkt")
 
 (provide (all-defined-out))
@@ -43,7 +50,7 @@
   ([entities : (Listof (U line arc))])
   #:transparent)
 
-;; STRUCT OPERATIONS
+;; CONSTRUCTORS
 (: make-dot (-> String Real Real dot))
 (define (make-dot layer x y)
   (dot #f #f #f layer (node x y)))
@@ -73,6 +80,7 @@
 (define (make-selected-path layer lst)
   (path #f #t #t layer lst))
 
+;; ENTITY OPERATIONS
 (: reverse-direction (-> Entity Entity))
 (define (reverse-direction a-struct)
   (let* ([layer : String (entity-layer a-struct)]
@@ -89,7 +97,6 @@
     (when visible? (set-entity-visible! reversed-struct #t))
     reversed-struct))
 
-;; ENTITY OPERATIONS
 (: are-entities-connected? (-> Entity Entity Boolean))
 (define (are-entities-connected? x y)
   (or (equal? (get-entity-end x) (get-entity-end y))
@@ -97,7 +104,8 @@
       (equal? (get-entity-start x) (get-entity-end y))
       (equal? (get-entity-start x) (get-entity-start y))))
 
-;separate a group of entities according to whether they are connected or not. this does a node by node check so there may be "islands" that are actually connected"
+;separate a group of entities according to whether they are connected or not. 
+;this does a node by node check so there may be "islands" that are actually connected"
 (: separate-list-of-entities (-> Entities (Listof Entities)))
 (define (separate-list-of-entities entity-lst)
   ;iterate through each value of entity-ls
@@ -133,6 +141,7 @@
                          (cond [(are-entities-connected? x y) #t]
                                [else (loop (cdr entity-lst))]))])))))
 
+;determine if a list of CONNECTED entities is a closed path or not. think of a horseshoe vs a circle.
 (: closed-path-entity-list? (-> Entities Boolean))
 (define (closed-path-entity-list? entity-lst)
   (define node-lst (entities->nodes entity-lst))
@@ -155,6 +164,35 @@
            (master acc '() (append checked (rest unchecked)) (append current-list (first unchecked))))
           (else
            (master acc (cons (first unchecked) checked) (rest unchecked) current-list)))))
+
+;from a path of 2 entities where the connection is (0,0)->(1,0)->(1,1) return (list (0,0) (1,1))
+(: get-path-ends (-> (Listof node) (U (Listof node) Null)))
+(define (get-path-ends lst)
+  (let loop : (U (Listof node) Null)
+    ([dupl : (Listof node) '()]
+     [singles : (Listof node) '()]
+     [lst : (Listof node) lst])
+    (cond ((empty? lst) (remove* dupl singles))
+          (((lambda ([x : (Listof node)]) (member (car lst) x)) singles)
+           (loop (cons (car lst) dupl) (cons (car lst) singles) (cdr lst)))
+          (else
+           (loop dupl (cons (car lst) singles) (cdr lst))))))
+
+;return all the start/end nodes given a list of entities. for an open path, this means the path ends, for a closed path, it can be any node along the path.
+(: get-start/end-nodes (-> Entities (Listof node)))
+(define (get-start/end-nodes entity-lst)
+  (define node-lst (entities->nodes entity-lst))
+  (if (closed-path-entity-list? entity-lst)
+      node-lst
+      (get-path-ends node-lst)))
+
+;return all the nodes of the path given a list of entities
+(: entities->nodes (-> Entities (Listof node)))
+(define (entities->nodes entity-lst)
+  (let ([start-nodes (map get-entity-start entity-lst)]
+        [end-nodes (map get-entity-end entity-lst)])
+    (append start-nodes end-nodes)))
+
  
 ;; NODE OPERATIONS
 (: node-equal? (-> node node Boolean))
@@ -181,147 +219,6 @@
                                  (arc p3)
                                  (path (lambda (x) (get-entity-end (last x)))))
                    a-struct)))
-
-;; MIXED OPERATIONS
-(: get-path-ends (-> (Listof node) (U (Listof node) Null)))
-(define (get-path-ends lst)
-  (let loop : (U (Listof node) Null)
-    ([dupl : (Listof node) '()]
-     [singles : (Listof node) '()]
-     [lst : (Listof node) lst])
-    (cond ((empty? lst) (remove* dupl singles))
-          (((lambda ([x : (Listof node)]) (member (car lst) x)) singles)
-           (loop (cons (car lst) dupl) (cons (car lst) singles) (cdr lst)))
-          (else
-           (loop dupl (cons (car lst) singles) (cdr lst))))))
-
-(: get-start/end-nodes (-> Entities (Listof node)))
-(define (get-start/end-nodes entity-lst)
-  (define node-lst (entities->nodes entity-lst))
-  (if (closed-path-entity-list? entity-lst)
-      node-lst
-      (get-path-ends node-lst)))
-
-(: entities->nodes (-> Entities (Listof node)))
-(define (entities->nodes entity-lst)
-  (let ([start-nodes (map get-entity-start entity-lst)]
-        [end-nodes (map get-entity-end entity-lst)])
-    (append start-nodes end-nodes)))
-
-;given a node, get the entities(listof entity) that the node belongs to.
-(: get-belonging-list (-> node (Listof Entities) Entities))
-(define (get-belonging-list n lst)
-  (let main : Entities
-    [(connection-lst : (Listof Entities) lst)]
-    (if (ormap (lambda ([x : Entity])
-                 (or (equal? (get-entity-start x) n) 
-                     (equal? (get-entity-end x) n))) (car lst))
-        (car lst)
-        (main (cdr lst)))))
-
-(: reorder-entity (-> node Entity Entity))
-(define (reorder-entity start-n x)
-  (if (equal? start-n (get-entity-start x))
-      x
-      (reverse-direction x)))
-
-(: find-entity-from-node (-> node Entities (Values Entity Entities)))
-(define (find-entity-from-node start-n entity-lst)
-  (define norm (find-entity-with-starting-node start-n entity-lst))
-  (if (not norm)
-      (let ([reversed (reverse-direction (cast (find-entity-with-ending-node start-n entity-lst) Entity))])
-        (values (cast reversed Entity) (remove (find-entity-with-ending-node start-n entity-lst) entity-lst)))
-      ;possible bug if reversed is not found in entity-lst because of incorrect copying
-      (values norm (remove norm entity-lst))))
-
-(: reorder-open-path (-> node Entities path))
-(define (reorder-open-path start-n entity-lst)
-  (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
-  (define layer (entity-layer (first entity-lst)))
-  (make-selected-path layer 
-                      (cast (let main : Entities
-                              ([current : Entity first-entity]
-                               [acc : Entities (list first-entity)]
-                               [unchecked : Entities new-lst])
-                              (cond ((empty? unchecked) acc)
-                                    (else
-                                     (let-values ([(next-entity new-lst) 
-                                                   (find-entity-from-node (get-entity-end current) unchecked)])
-                                       (main next-entity (append acc (list next-entity)) new-lst))))) (Listof (U line arc)))))
-
-
-(: find-entity-with-starting-node (-> node Entities (U Entity False)))
-(define (find-entity-with-starting-node start-n lst)
-  (findf (lambda ([x : Entity]) (equal? (get-entity-start x) start-n)) lst))
-
-(: find-entity-with-ending-node (-> node Entities (U Entity False)))
-(define (find-entity-with-ending-node end-n lst)
-  (findf (lambda ([x : Entity]) (equal? (get-entity-end x) end-n)) lst))
-
-(: find-entity-with-ending-and-starting-node (-> node node Entities (U Entity False)))
-(define (find-entity-with-ending-and-starting-node start-n end-n lst)
-  (findf (lambda ([x : Entity]) (and (equal? (get-entity-end x) end-n)
-                                     (equal? (get-entity-start x) start-n))) lst))
-
-(: find-entities-from-node (-> node Entities (Values Entities Entities)))
-(define (find-entities-from-node start-n entity-lst)
-  (let loop : (Values Entities Entities)
-    ([acc : Entities '()]
-     [culled : Entities entity-lst])
-    (cond ((not (or (find-entity-with-ending-node start-n culled)
-                    (find-entity-with-starting-node start-n culled)))
-           (values acc culled))
-          ((find-entity-with-starting-node start-n culled)
-           (loop (append (list (cast (find-entity-with-starting-node start-n culled) Entity)) acc) 
-                 (remove (find-entity-with-starting-node start-n culled) culled)))
-          ((find-entity-with-ending-node start-n culled)
-           (loop (append (list (cast (find-entity-with-ending-node start-n culled) Entity)) acc) 
-                 (remove (find-entity-with-ending-node start-n culled) culled)))
-          (else (error "Unexpected, given: " culled)))))
-
-;given 3 nodes a b c, find if a->b->c is in a clockwise or anticlockwise direction
-(: clockwise-turn? (-> node node node Boolean))
-(define (clockwise-turn? a b c)
-  (let* ((ax (node-x a))
-         (ay (node-y a))
-         (bx (node-x b))
-         (by (node-y b))
-         (cx (node-x c))
-         (cy (node-y c)))
-    (not (positive? (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay)))))))
-
-(: find-entity-from-nodes (-> node node Entities (Values Entity Entities)))
-(define (find-entity-from-nodes start-n end-n entity-lst)
-  (define norm (find-entity-with-ending-and-starting-node start-n end-n entity-lst))
-  (if (not norm)
-      (let ([reversed (reverse-direction (cast (find-entity-with-ending-and-starting-node end-n start-n entity-lst) Entity))])
-        (values (cast reversed Entity) (remove (find-entity-with-ending-and-starting-node end-n start-n entity-lst) entity-lst)))
-      ;possible bug if reversed is not found in entity-lst because of incorrect copying
-      (values norm (remove norm entity-lst))))
-
-(: reorder-closed-path (-> node Entities Boolean path))
-(define (reorder-closed-path start-n entity-lst ccw?)
-  (define-values (possibilities not-used) (find-entities-from-node start-n entity-lst))
-  (let* ([layer (entity-layer (first possibilities))]
-         [nodes (remove start-n (remove-duplicates (entities->nodes possibilities)))] ;list of 2 nodes
-         [a (first nodes)]
-         [b start-n] ;starting node is middle node
-         [c (second nodes)]
-         [a>b>c-clockwise? (clockwise-turn? a b c)]
-         [next-node (cond ((and (not ccw?) a>b>c-clockwise?) c)
-                          ((and (not ccw?) (not a>b>c-clockwise?)) a)
-                          ((and ccw? a>b>c-clockwise?) a)
-                          ((and ccw? (not a>b>c-clockwise?)) c))])
-    (let-values ([(first-entity new-lst) (find-entity-from-nodes start-n next-node entity-lst)])
-      (make-selected-path layer (cast (let main : Entities
-                                        ([current : Entity first-entity]
-                                         [acc : Entities (list first-entity)]
-                                         [unchecked : Entities new-lst])
-                                        (cond ((empty? unchecked) acc)
-                                              (else
-                                               (let-values ([(next-entity new-lst) 
-                                                             (find-entity-from-node (get-entity-end current) unchecked)])
-                                                 (main next-entity (append acc (list next-entity)) new-lst))))) (Listof (U line arc)))))))
   
 (define-syntax match-struct
   (lambda (stx)

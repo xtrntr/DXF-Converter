@@ -1,5 +1,21 @@
 #lang racket/gui
 
+#|
+
+This module is where i store the custom canvas class for displaying DXF elements : ARC, LINE, DOT, CIRCLE, LWPOLYLINE.
+Functions here include:
+custom popup menus
+custom event handling behavior with respect to mouse and key events (see on-event and on-char respectively
+helper functions (scaling, sorting connected entities into a single path, intersection query functions, updating entity list that is displayed from an outside spreadsheet)
+drawing functions
+
+TODO:
+add ctrl-a for select all function
+add undo function
+limit panning and zooming with respect to a specified workspace limit
+
+|#
+
 (require "structs.rkt"
          "canvas-utils.rkt"
          "lst-utils.rkt"
@@ -230,19 +246,22 @@
     (define/override (on-char event)
       (let ((key (send event get-key-code)))
         (special-control-key #t)
-        (case key
-          ['wheel-up    (set! x-scale (+ x-scale 0.1)) 
-                        (set! y-scale (- y-scale 0.1))]
-          ['escape      (unselect-all search-list)
-                        (update-node-lst)
-                        (update-spreadsheet search-list)]
-          ['wheel-down  (when (> (- x-scale 0.1) 0) 
-                          (set! x-scale (- x-scale 0.1))
-                          (set! y-scale (+ y-scale 0.1)))]
-          ['#\backspace (delete-selected search-list)
-                        (update-node-lst)
-                        (update-spreadsheet search-list)]))
-      (update-canvas))
+        (cond [(equal? key 'wheel-up)
+               (set! x-scale (+ x-scale 0.1)) 
+               (set! y-scale (- y-scale 0.1))]
+              [(equal? key 'escape) 
+               (unselect-all search-list)
+               (update-node-lst)
+               (update-spreadsheet search-list)]
+              [(equal? key 'wheel-down) 
+               (when (> (- x-scale 0.1) 0) 
+                 (set! x-scale (- x-scale 0.1))
+                 (set! y-scale (+ y-scale 0.1)))]
+              [(equal? key '#\backspace)
+               (delete-selected search-list)
+               (update-node-lst)
+               (update-spreadsheet search-list)])
+        (update-canvas)))
     
     ;; MOUSE events
     (define/override (on-event event)
@@ -257,23 +276,22 @@
         (send event query))
       (define (is-mouse-event? query)
         (equal? query (send event get-event-type)))
-     
       
-      ;key and mouse combinations
-      (define click-right (is-mouse-event? 'right-down))
-      (define click-left (is-mouse-event? 'left-down))
-      (define release-left (is-mouse-event? 'left-up))
-      (define hold-ctrl (is-key-event? get-control-down))
-      (define caps-on (is-key-event? get-caps-down))
-      (define dragging (send event dragging?)) ;click and hold
-      
-      (define start-panning? click-left)
-      (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
-      (define end-panning? release-left)
-      (define start-selecting? (and click-left hold-ctrl))
-      (define is-selecting? (and dragging hold-ctrl))
-      (define end-selecting? (and release-left hold-ctrl))
-      (define show-popup? (and (node? highlighted-node) click-right))
+    ;key and mouse combinations
+    (define click-right (is-mouse-event? 'right-down))
+    (define click-left (is-mouse-event? 'left-down))
+    (define release-left (is-mouse-event? 'left-up))
+    (define hold-ctrl (is-key-event? get-control-down))
+    (define caps-on (is-key-event? get-caps-down))
+    (define dragging (send event dragging?)) ;click and hold
+    
+    (define start-panning? click-left)
+    (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
+    (define end-panning? release-left)
+    (define start-selecting? (and click-left hold-ctrl))
+    (define is-selecting? (and dragging hold-ctrl))
+    (define end-selecting? (and release-left hold-ctrl))
+    (define show-popup? (and (node? highlighted-node) click-right))
       
       (send this refresh-now)
       
@@ -302,13 +320,15 @@
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-         (if (closed-path-entity-list? (get-belonging-list highlighted-node (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))))
-             (send this popup-menu popup-closed cursor-x cursor-y)
-             (send this popup-menu popup-opened cursor-x cursor-y)))
+         (let ([selected-list (get-belonging-list highlighted-node (sort-list-of-entities (separate-list-of-entities (get-selected search-list))))])
+           (unless (ormap (lambda (x) (path? x)) selected-list)
+             (if (closed-path-entity-list? selected-list)
+                 (send this popup-menu popup-closed cursor-x cursor-y)
+                 (send this popup-menu popup-opened cursor-x cursor-y)))))
         (is-selecting?
          (change-cursor selecting)
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)
-         (highlight-lst search-list)
+         (highlight-paths search-list)
          (set! select-box (list (list init-cursor-x init-cursor-y scaled-cursor-x init-cursor-y #t)
                                 (list scaled-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y #t)
                                 (list scaled-cursor-x scaled-cursor-y init-cursor-x scaled-cursor-y #t) 

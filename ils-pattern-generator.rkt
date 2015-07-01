@@ -1,10 +1,5 @@
 #lang typed/racket
 
-(require "structs.rkt"
-         "utils.rkt")
-
-(provide generate-ils-pattern)
-
 #|
 First line is the parameters
 Second line is "Dispense with right/left dispenser-type"
@@ -24,6 +19,11 @@ ArcStart: x, y, z, travel delay
 ArcPoint: x, y, z
 ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, retract speed, move height
 |#
+
+(require "structs.rkt"
+         "utils.rkt")
+
+(provide generate-ils-pattern)
 
 (define x-deviation 0)
 (define num-repeat 0)
@@ -88,6 +88,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 (: ils-arc (-> Real Real Real Real Real Real Void))
 (define (ils-arc x1 y1 x2 y2 x3 y3)
   (ils-arc-start x1 y1)
+  (arc-point-spacing)
   (ils-arc-point x2 y2)
   (ils-arc-end x3 y3))
 
@@ -98,7 +99,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-line-end (-> Real Real Void))
 (define (ils-line-end x y) ;travel speed, dispense on/off, retract delay, retract height, retract speed, move height
-  (printf (format "lineEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; ~a; sp=~a; ~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff (exact->inexact ret-delay) ret-height ret-speed clear-height))
+  (printf (format "lineEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; z=~a; sp=~a; z=~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff (exact->inexact ret-delay) ret-height ret-speed clear-height))
   (insert-newline))
 
 (: ils-line-point (-> Real Real Void))
@@ -108,23 +109,22 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-link-arc-restart (-> Real Real Void))
 (define (ils-link-arc-restart x y) 
-  (printf (format "linksArcRestart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
+  (printf (format "linksArcRestart(x=~a, y=~a, z=~a; sp=~a; ~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff))
   (insert-newline))
 
 (: ils-arc-start (-> Real Real Void))
 (define (ils-arc-start x y) 
-  (printf (format "arcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
+  (printf (format "arcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) (exact->inexact trav-delay)))
   (insert-newline))
 
 (: ils-arc-point (-> Real Real Void))
 (define (ils-arc-point x y) 
-  (arc-point-spacing)
   (printf (format "arcPoint(x=~a, y=~a, z=~a)" (ils-num x) (ils-num y) 0))
   (insert-newline))
 
 (: ils-link-arc-start (-> Real Real Void))
 (define (ils-link-arc-start x y) 
-  (printf (format "linksArcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
+  (printf (format "linksArcStart(x=~a, y=~a, z=~a; sp=~a; ~a)" (ils-num x) (ils-num y) 0 trav-speed disp-onoff))
   (insert-newline))
 
 (: ils-arc-end (-> Real Real Void))

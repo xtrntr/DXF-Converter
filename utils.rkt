@@ -1,8 +1,18 @@
 #lang typed/racket
 
-;this module must be stand alone i.e. purely numerical functions
+#|
+
+This module must be stand alone i.e. purely numerical functions
+This module contains all helper functions that can operate on numbers, strings, Booleans
+
+|#
 
 (provide (all-defined-out))
+
+
+(: point-in-rect? (-> Real Real Real Real Real Real Boolean))
+(define (point-in-rect? x y xs ys xb yb)
+  (and (> x xs) (< x xb) (> y ys) (< y yb)))
 
 (: capitalize (-> String String))
 (define (capitalize str)

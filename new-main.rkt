@@ -1,5 +1,17 @@
 #lang racket
 
+#|
+
+This is where initialization and everything comes together. This is mainly for holding custom one-time GUI elements, such as the buttons that are initialized in a DXF frame.
+
+TODO:
+make spreadsheet display look nice. space out the coordinates
+
+BUGS:
+If you try to form a path while selecting 2 groups of unconnected entities, the program will hang.
+
+|#
+
 (require "structs.rkt"
          "read-dxf.rkt"
          "canvas-utils.rkt"
@@ -150,7 +162,7 @@
     (if (empty? displayed-list)
         (send a-list-box clear)
         (send a-list-box set 
-              (structs-to-strings displayed-list)
+              (entities-to-strings displayed-list)
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
               (map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
               (map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
@@ -250,7 +262,7 @@
        [label "Generate for IDS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-selected search-list))
+                   (define stripped (get-selected (get-field search-list a-canvas)))
                    (display "1"))])
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
@@ -260,7 +272,6 @@
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-selected (get-field search-list a-canvas)))
-                 
                    ;binary for osx, text for windows
                    (generate-ils-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   

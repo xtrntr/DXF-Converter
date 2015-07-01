@@ -1,5 +1,13 @@
 #lang racket
 
+#| 
+
+The difference between lst-utils and canvas-utils is that lst-utils can be used outside of the canvas. 
+lst-utils is meant for containing list operations that do sorting and searching.
+canvas-utils is meant for containing operations that affect the interactivity/display of canvas i.e. toggling visibility, intersection queries
+
+|#
+
 (require "structs.rkt"
          "utils.rkt")
 
@@ -39,10 +47,6 @@
          (y-scale (/ frame-height height))
          (drawing-scale (smallest (list x-scale y-scale))))
     (values drawing-scale left bottom)))
-
-;; geometric functions
-(define (point-in-rect? x y xs ys xb yb)
-  (and (> x xs) (< x xb) (> y ys) (< y yb)))
 
 ;; divide the complete 2d space into 9 boxes
 ;; cohen-sutherland algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area

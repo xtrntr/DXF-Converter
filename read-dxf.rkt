@@ -1,5 +1,13 @@
 #lang typed/racket
 
+#|
+
+This module is where i parse the DXF file into lines and remove whitespace,
+then read the relevant ENTITIES section where supported DXF elements are ARC, LINE, DOT, CIRCLE, LWPOLYLINE.
+It will loop through the data of this section and create a list of structs that contain the DXF information
+
+|#
+
 (require "structs.rkt"
          "utils.rkt")
 
@@ -98,14 +106,16 @@
          [end : Real            (extract-val ht "51")])
     (make-arc layer center-x center-y radius start end #f)))
 
-(: dxf-circle (-> (Listof String) arc))
+(: dxf-circle (-> (Listof String) path))
 (define (dxf-circle lst)
   (let* ([ht : (HashTable String String)        (make-hash (separate lst))]
          [layer : String        (extract-str ht "8")]
          [center-x : Real       (extract-val ht "10")]
          [center-y : Real       (extract-val ht "20")]
          [radius : Real         (extract-val ht "40")])
-    (make-arc layer center-x center-y radius 0 360 #f)))
+    (make-path layer 
+               (list (make-arc layer center-x center-y radius 0 180 #f)
+                     (make-arc layer center-x center-y radius 180 360 #f)))))
 
 (: dxf-path (-> (Listof String) path))
 (define (dxf-path lst)
