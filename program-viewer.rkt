@@ -84,11 +84,17 @@
          [style '(extended column-headers)]
          [columns spreadsheet-headers]))
   
+  (define (update-spreadsheet a-lst)
+    (define displayed-list (filter entity-selected a-lst))
     (if (empty? displayed-list)
         (send a-list-box clear)
         (send a-list-box set 
               (entities-to-strings displayed-list)
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
+              (map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
+              (map to-display (map unscale-x (map node-x (map get-entity-end displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-entity-end displayed-list)))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -180,6 +186,7 @@
                       [filters (list (list "Text Files" "*.txt"))]))
   
   (new button%
+       [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-selected (get-field search-list a-canvas)))
@@ -188,7 +195,9 @@
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (new button%
+       [label "Generate for GR"]
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-selected (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
+                   (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))]))
