@@ -1,5 +1,11 @@
 #lang racket
 
+#|
+
+TODO: more sophisticated way of refocusing canvas.
+
+|#
+
 (require "structs.rkt"
          "read-dxf.rkt"
          "canvas-utils.rkt"
@@ -169,6 +175,14 @@
                    (set-field! reorder? a-canvas #t)
                    (send a-canvas update-canvas)
                    )])
+
+  (new button%
+       [label "Make mirror image"]
+       [parent button-panel-1]
+       [callback (lambda (b e) 
+                   (make-mirror (get-field search-list a-canvas))
+                   (send a-canvas update-canvas)
+                   )])
   
   (new button%
        [label "Refocus"]
@@ -179,6 +193,7 @@
                    (set-field! x-scale  a-canvas 1)
                    (set-field! y-scale  a-canvas -1)
                    (send a-canvas update-canvas)
+                   (display (get-selected (get-field search-list a-canvas)))
                    )])
   
   (define create (new path-dialog%

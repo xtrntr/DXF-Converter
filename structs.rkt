@@ -8,7 +8,6 @@ Try to keep the more compelx and specific functions in lst-utils.
 |#
 
 (require "utils.rkt")
-
 (provide (all-defined-out))
 
 (define-type Entity (U line arc path dot))
@@ -17,7 +16,7 @@ Try to keep the more compelx and specific functions in lst-utils.
 (struct node 
   ([x : Real]
    [y : Real])
-  #:transparent)
+  #:mutable #:transparent)
 
 (struct entity
   ([highlighted : Boolean]
@@ -61,7 +60,7 @@ Try to keep the more compelx and specific functions in lst-utils.
 
 (: make-arc (-> String Real Real Real Real Real Boolean arc))
 (define (make-arc layer center-x center-y radius start end ccw?)
-  (let* ([arc-pts : (Listof Real) (get-arc-points center-x center-y radius start end)]
+  (let* ([arc-pts : (Listof Real)  (get-arc-points center-x center-y radius start end ccw?)]
          [x1 : Real                (first arc-pts)]
          [y1 : Real                (second arc-pts)]
          [x2 : Real                (third arc-pts)]
@@ -219,7 +218,26 @@ Try to keep the more compelx and specific functions in lst-utils.
                                  (arc p3)
                                  (path (lambda (x) (get-entity-end (last x)))))
                    a-struct)))
-  
+
+(: make-mirror (-> Entities Void))
+(define (make-mirror entity-lst)
+  (let loop : Void
+    ([x : Entities entity-lst])
+    (cond ((empty? x) (void))
+          (else
+           (loop (rest x))
+           (match (car x)
+             [(dot highlighted selected visible layer p)                                     (set-node-y! p (* -1 (node-y p)))]
+             [(line highlighted selected visible layer p1 p2)                                (set-node-y! p1 (* -1 (node-y p1)))
+                                                                                             (set-node-y! p2 (* -1 (node-y p2)))]
+             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)  (set-node-y! p1 (* -1 (node-y p1)))
+                                                                                             (set-node-y! p2 (* -1 (node-y p2)))
+                                                                                             (set-node-y! p3 (* -1 (node-y p3)))
+                                                                                             (set-arc-start! (car x) (get-mirror-angle start))
+                                                                                             (set-arc-end! (car x) (get-mirror-angle end))
+                                                                                             (set-node-y! center (* -1 (node-y center)))]
+             [(path highlighted selected visible layer entities)                             (loop (path-entities (car x)))])))))
+
 (define-syntax match-struct
   (lambda (stx)
     (syntax-case stx ()

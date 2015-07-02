@@ -9,7 +9,6 @@ This module contains all helper functions that can operate on numbers, strings, 
 
 (provide (all-defined-out))
 
-
 (: point-in-rect? (-> Real Real Real Real Real Real Boolean))
 (define (point-in-rect? x y xs ys xb yb)
   (and (> x xs) (< x xb) (> y ys) (< y yb)))
@@ -93,11 +92,36 @@ This module contains all helper functions that can operate on numbers, strings, 
 (define (break pred lst)
   (splitf-at lst (negate pred)))
 
+(: get-opposing-angle (-> Real Real))
+(define (get-opposing-angle x)
+  (cond ((reasonable-equal? x 360) 180)
+        ((reasonable-equal? x 0) 180)
+        ((reasonable-equal? x 90)  270)
+        ((reasonable-equal? x 180) 0)
+        ((reasonable-equal? x 270) 90)
+        ((in-between? x 0 90) (+ x 180))
+        ((in-between? x 90 180) (+ x 180))
+        ((in-between? x 180 270) (- x 180))
+        ((in-between? x 270 360) (- x 180))
+        (error "Expected a number, given " x)))
+
+(: get-mirror-angle (-> Real Real))
+(define (get-mirror-angle x)
+  (cond ((reasonable-equal? x 360) 360)
+        ((reasonable-equal? x 0) 0)
+        ((reasonable-equal? x 90)  270)
+        ((reasonable-equal? x 180) 180)
+        ((reasonable-equal? x 270) 90)
+        ((in-between? x 0 90) (+ x 180))
+        ((in-between? x 90 180) (+ x 180))
+        ((in-between? x 180 270) (- x 180))
+        ((in-between? x 270 360) (- x 180))
+        (error "Expected a number, given " x)))
+
 ;; NOT YET TESTED PROPERLY.
 ;; from the center xy, start and end points, return x1 y1 x2 y2 x3 y3 which is the start, middle and end point of the arc respectively.
-(: get-arc-points (-> Real Real Real Real Real (Listof Real)))
-(define (get-arc-points center-x center-y radius start-angle end-angle)
-  
+(: get-arc-points (-> Real Real Real Real Real Boolean (Listof Real)))
+(define (get-arc-points center-x center-y radius start-angle end-angle ccw?)
   (: determine-quadrant (-> (Option Real) Real))
   (define (determine-quadrant angle)
     (assert angle real?)
@@ -143,7 +167,9 @@ This module contains all helper functions that can operate on numbers, strings, 
           ((= quadrant 3) (- center-y (* radius (sin (degrees->radians angle)))))
           ((= quadrant 4) (- center-y (* radius (cos (degrees->radians angle)))))
           (error "Expected a number, given " quadrant)))
-  (let* ((mid-angle (/ (+ start-angle end-angle) 2))
+  (let* ((mid-angle (if (and ccw? (> start-angle end-angle))
+                        (get-opposing-angle (/ (+ start-angle end-angle) 2))
+                        (/ (+ start-angle end-angle) 2)))
          (first-point-quadrant (determine-quadrant start-angle))
          (second-point-quadrant (determine-quadrant mid-angle))
          (third-point-quadrant (determine-quadrant end-angle))
