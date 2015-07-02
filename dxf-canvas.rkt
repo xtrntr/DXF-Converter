@@ -30,18 +30,20 @@ limit panning and zooming with respect to a specified workspace limit
     ;shorten
     (inherit get-dc)
     
-    (init-field 
-     ;variables
+    (init-field
+     ;;vars
      search-list
+     original-list
      x-offset
      y-offset
-     drawing-scale
-     
-     ;methods
-     unscale-x
-     unscale-y
+
+     ;;fns
+     ;coordinate scaling
      scale-x
+     unscale-x
      scale-y
+     unscale-y
+     
      update-spreadsheet)
     
     (field 
@@ -111,7 +113,7 @@ limit panning and zooming with respect to a specified workspace limit
                             (change-pen pen2))
                         (send (get-dc) name args ...))))])))
     
-    ;; DRAWING functions
+    ;; DRAWING FUNCTIONS
     (define (draw-dot x y highlight?)
       (my-draw (point) (x y) highlight? (red-pen black-pen)))
     

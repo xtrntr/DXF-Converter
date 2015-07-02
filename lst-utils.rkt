@@ -127,7 +127,7 @@
   (define norm (find-entity-with-starting-node start-n entity-lst))
   (if (not norm)
       (let ([reversed (reverse-direction (cast (find-entity-with-ending-node start-n entity-lst) Entity))])
-        (values (cast reversed Entity) (remove (find-entity-with-ending-node start-n entity-lst) entity-lst)))
+        (values (cast reversed Entity) (remove (cast (find-entity-with-ending-node start-n entity-lst) Entity) entity-lst)))
       (values norm (remove norm entity-lst))))
 
 (: find-entities-from-node (-> node Entities (Values Entities Entities)))
@@ -140,10 +140,10 @@
            (values acc culled))
           ((find-entity-with-starting-node start-n culled)
            (loop (append (list (cast (find-entity-with-starting-node start-n culled) Entity)) acc) 
-                 (remove (find-entity-with-starting-node start-n culled) culled)))
+                 (remove (cast (find-entity-with-starting-node start-n culled) Entity) culled)))
           ((find-entity-with-ending-node start-n culled)
            (loop (append (list (cast (find-entity-with-ending-node start-n culled) Entity)) acc) 
-                 (remove (find-entity-with-ending-node start-n culled) culled)))
+                 (remove (cast (find-entity-with-ending-node start-n culled) Entity) culled)))
           (else (error "Unexpected, given: " culled)))))
 
 (: find-entity-from-nodes (-> node node Entities (Values Entity Entities)))
@@ -151,7 +151,7 @@
   (define norm (find-entity-with-ending-and-starting-node start-n end-n entity-lst))
   (if (not norm)
       (let ([reversed (reverse-direction (cast (find-entity-with-ending-and-starting-node end-n start-n entity-lst) Entity))])
-        (values (cast reversed Entity) (remove (find-entity-with-ending-and-starting-node end-n start-n entity-lst) entity-lst)))
+        (values (cast reversed Entity) (remove (cast (find-entity-with-ending-and-starting-node end-n start-n entity-lst) Entity) entity-lst)))
       (values norm (remove norm entity-lst))))
 
 ;given 3 nodes a b c, find if a->b->c is in a clockwise or anticlockwise direction

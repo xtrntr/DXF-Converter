@@ -23,7 +23,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 (require "structs.rkt"
          "utils.rkt")
 
-(provide generate-ils-pattern)
+(provide generate-gr-pattern)
 
 (define x-deviation 0)
 (define num-repeat 0)
@@ -55,8 +55,8 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 (define (arc-point-spacing)
   (printf "       "))
 
-(: generate-ils-pattern (-> Entities Output-Port Void))
-(define (generate-ils-pattern struct-list port)
+(: generate-gr-pattern (-> Entities Output-Port Void))
+(define (generate-gr-pattern struct-list port)
   (current-output-port port)
   (printf "Without acr.")
   (insert-newline)
@@ -114,7 +114,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-arc-start (-> Real Real Void))
 (define (ils-arc-start x y) 
-  (printf (format "arcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) (exact->inexact trav-delay)))
+  (printf (format "arcStart(x=~a, y=~a, z=~a; ~a)" (ils-num x) (ils-num y) 0 (exact->inexact trav-delay)))
   (insert-newline))
 
 (: ils-arc-point (-> Real Real Void))
