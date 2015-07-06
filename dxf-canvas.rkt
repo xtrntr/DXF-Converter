@@ -184,7 +184,7 @@ limit panning and zooming with respect to a specified workspace limit
                     ((path? i)
                      (intersect? x1 y1 x2 y2 (path-entities i))))))))
     
-    (define (update-node-lst)
+    (define/public (update-node-lst)
       (if (empty? (get-selected search-list))
           (set! node-lst '())
           (begin (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
@@ -194,6 +194,9 @@ limit panning and zooming with respect to a specified workspace limit
       (define drawer (get-dc))
       (send drawer set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (send this refresh-now))
+
+    (define/public (refresh-spreadsheet)
+      (update-spreadsheet search-list))
     
     ;; POPUP MENU
     (define popup-opened
@@ -264,7 +267,7 @@ limit panning and zooming with respect to a specified workspace limit
                (update-node-lst)
                (update-spreadsheet search-list)])
         (update-canvas)))
-    
+
     ;; MOUSE events
     (define/override (on-event event)
       (define drawer (get-dc))

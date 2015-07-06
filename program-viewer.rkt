@@ -181,7 +181,9 @@ TODO: more sophisticated way of refocusing canvas.
        [parent button-panel-1]
        [callback (lambda (b e) 
                    (make-mirror (get-field search-list a-canvas))
+                   (send a-canvas update-node-lst)
                    (send a-canvas update-canvas)
+                   (send a-canvas refresh-spreadsheet)
                    )])
   
   (new button%
@@ -192,8 +194,8 @@ TODO: more sophisticated way of refocusing canvas.
                    (set-field! y-offset a-canvas (- editor-height 150))
                    (set-field! x-scale  a-canvas 1)
                    (set-field! y-scale  a-canvas -1)
+                   (send a-canvas update-node-lst)
                    (send a-canvas update-canvas)
-                   (display (get-selected (get-field search-list a-canvas)))
                    )])
   
   (define create (new path-dialog%
@@ -215,4 +217,6 @@ TODO: more sophisticated way of refocusing canvas.
        [callback (lambda (b e) 
                    (define stripped (get-selected (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
-                   (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))]))
+                   (make-mirror stripped)
+                   (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
+                   (make-mirror stripped))]))

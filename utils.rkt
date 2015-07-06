@@ -107,16 +107,7 @@ This module contains all helper functions that can operate on numbers, strings, 
 
 (: get-mirror-angle (-> Real Real))
 (define (get-mirror-angle x)
-  (cond ((reasonable-equal? x 360) 360)
-        ((reasonable-equal? x 0) 0)
-        ((reasonable-equal? x 90)  270)
-        ((reasonable-equal? x 180) 180)
-        ((reasonable-equal? x 270) 90)
-        ((in-between? x 0 90) (+ x 180))
-        ((in-between? x 90 180) (+ x 180))
-        ((in-between? x 180 270) (- x 180))
-        ((in-between? x 270 360) (- x 180))
-        (error "Expected a number, given " x)))
+  (- 360 x))
 
 ;; NOT YET TESTED PROPERLY.
 ;; from the center xy, start and end points, return x1 y1 x2 y2 x3 y3 which is the start, middle and end point of the arc respectively.

@@ -233,8 +233,9 @@ Try to keep the more compelx and specific functions in lst-utils.
              [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)  (set-node-y! p1 (* -1 (node-y p1)))
                                                                                              (set-node-y! p2 (* -1 (node-y p2)))
                                                                                              (set-node-y! p3 (* -1 (node-y p3)))
-                                                                                             (set-arc-start! (car x) (get-mirror-angle start))
-                                                                                             (set-arc-end! (car x) (get-mirror-angle end))
+                                                                                             (set-arc-start! (car x) (get-mirror-angle end))
+                                                                                             (set-arc-end! (car x) (get-mirror-angle start))
+                                                                                             (set-arc-ccw! (car x) (not ccw))
                                                                                              (set-node-y! center (* -1 (node-y center)))]
              [(path highlighted selected visible layer entities)                             (loop (path-entities (car x)))])))))
 
