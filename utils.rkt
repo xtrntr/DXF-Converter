@@ -82,6 +82,10 @@ This module contains all helper functions that can operate on numbers, strings, 
 (define (reasonable-equal? x y)
   (<= (abs (- x y)) 0.0009))
 
+(: =2dp? (-> Real Real Boolean))
+(define (=2dp? x y)
+  (<= (abs (- x y)) 0.009))
+
 ;; accurate up to 14 decimal places
 (: in-between? (-> Real Real Real Boolean))
 (define (in-between? test-num num-1 num-2)

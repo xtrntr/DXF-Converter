@@ -65,7 +65,7 @@ TODO: more sophisticated way of refocusing canvas.
   (define search-list (rescale original-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
-  
+
   (define main-panel
     (new horizontal-panel%
          [parent area-container]))

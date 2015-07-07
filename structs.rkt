@@ -98,10 +98,10 @@ Try to keep the more compelx and specific functions in lst-utils.
 
 (: are-entities-connected? (-> Entity Entity Boolean))
 (define (are-entities-connected? x y)
-  (or (equal? (get-entity-end x) (get-entity-end y))
-      (equal? (get-entity-end x) (get-entity-start y))
-      (equal? (get-entity-start x) (get-entity-end y))
-      (equal? (get-entity-start x) (get-entity-start y))))
+  (or (node-equal? (get-entity-end x) (get-entity-end y))
+      (node-equal? (get-entity-end x) (get-entity-start y))
+      (node-equal? (get-entity-start x) (get-entity-end y))
+      (node-equal? (get-entity-start x) (get-entity-start y))))
 
 ;separate a group of entities according to whether they are connected or not. 
 ;this does a node by node check so there may be "islands" that are actually connected"
@@ -140,12 +140,6 @@ Try to keep the more compelx and specific functions in lst-utils.
                          (cond [(are-entities-connected? x y) #t]
                                [else (loop (cdr entity-lst))]))])))))
 
-;determine if a list of CONNECTED entities is a closed path or not. think of a horseshoe vs a circle.
-(: closed-path-entity-list? (-> Entities Boolean))
-(define (closed-path-entity-list? entity-lst)
-  (define node-lst (entities->nodes entity-lst))
-  (empty? (get-path-ends node-lst)))
-
 ;check a list of entities(listof entity) if they are connected, if yes then join them together.
 (: sort-list-of-entities (-> (Listof Entities) (Listof Entities)))
 (define (sort-list-of-entities entity-lst)
@@ -164,18 +158,24 @@ Try to keep the more compelx and specific functions in lst-utils.
           (else
            (master acc (cons (first unchecked) checked) (rest unchecked) current-list)))))
 
-;from a path of 2 entities where the connection is (0,0)->(1,0)->(1,1) return (list (0,0) (1,1))
+;i.e. from a path of 2 entities where the connection is (0,0)->(1,0)->(1,1) return (list (0,0) (1,1))
 (: get-path-ends (-> (Listof node) (U (Listof node) Null)))
 (define (get-path-ends lst)
   (let loop : (U (Listof node) Null)
     ([dupl : (Listof node) '()]
      [singles : (Listof node) '()]
      [lst : (Listof node) lst])
-    (cond ((empty? lst) (remove* dupl singles))
-          (((lambda ([x : (Listof node)]) (member (car lst) x)) singles)
+    (cond ((empty? lst) (remove* dupl singles node-equal?))
+          ((ormap (lambda ([x : node]) (node-equal? (car lst) x)) singles)
            (loop (cons (car lst) dupl) (cons (car lst) singles) (cdr lst)))
           (else
            (loop dupl (cons (car lst) singles) (cdr lst))))))
+
+;determine if a list of CONNECTED entities is a closed path or not. think of a horseshoe vs a circle.
+(: closed-path-entity-list? (-> Entities Boolean))
+(define (closed-path-entity-list? entity-lst)
+  (define node-lst (entities->nodes entity-lst))
+  (empty? (get-path-ends node-lst)))
 
 ;return all the start/end nodes given a list of entities. for an open path, this means the path ends, for a closed path, it can be any node along the path.
 (: get-start/end-nodes (-> Entities (Listof node)))
@@ -196,8 +196,8 @@ Try to keep the more compelx and specific functions in lst-utils.
 ;; NODE OPERATIONS
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
-  (and (= (node-x n1) (node-x n2))
-       (= (node-y n1) (node-y n2))))
+  (and (> 0.5 (abs (- (node-x n1) (node-x n2))))
+       (> 0.5 (abs (- (node-y n1) (node-y n2))))))
 
 (: round-off-node (-> node node))
 (define (round-off-node p)

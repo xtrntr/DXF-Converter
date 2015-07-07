@@ -58,7 +58,6 @@ If you try to form a path while selecting 2 groups of unconnected entities, the 
                        (define input-port-or-not (send open run))
                        (when input-port-or-not
                          (open-file input-port-or-not this)))]))
-    
     (super-new)))
 
 (define editor-width  1000)

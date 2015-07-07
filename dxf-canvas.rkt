@@ -188,7 +188,8 @@ limit panning and zooming with respect to a specified workspace limit
       (if (empty? (get-selected search-list))
           (set! node-lst '())
           (begin (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
-                   (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))))))
+                   (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))
+                   (display node-lst)))))
     
     (define/public (update-canvas)
       (define drawer (get-dc))
@@ -293,9 +294,9 @@ limit panning and zooming with respect to a specified workspace limit
     (define start-panning? click-left)
     (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
     (define end-panning? release-left)
-    (define start-selecting? (and click-left hold-ctrl))
-    (define is-selecting? (and dragging hold-ctrl))
-    (define end-selecting? (and release-left hold-ctrl))
+    (define start-selecting? (and click-left caps-on))
+    (define is-selecting? (and dragging caps-on))
+    (define end-selecting? (and release-left caps-on))
     (define show-popup? (and (node? highlighted-node) click-right))
       
       (send this refresh-now)

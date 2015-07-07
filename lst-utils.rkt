@@ -92,17 +92,17 @@
     [(connection-lst : (Listof Entities) lst)]
     (unless (path? (car lst))
       (if (ormap (lambda ([x : Entity])
-                   (or (equal? (get-entity-start x) n) 
-                       (equal? (get-entity-end x) n))) (car lst))
+                   (or (node-equal? (get-entity-start x) n) 
+                       (node-equal? (get-entity-end x) n))) (car lst))
           (car lst)
           (main (cdr lst))))))
 
 ;given a start node and an entity, reorder the entity if necessary
 (: reorder-entity (-> node Entity Entity))
 (define (reorder-entity start-n x)
-  (cond [(equal? start-n (get-entity-start x))
+  (cond [(node-equal? start-n (get-entity-start x))
          x]
-        [(equal? start-n (get-entity-end x))
+        [(node-equal? start-n (get-entity-end x))
          (reverse-direction x)]
         [else (error "Expected the node to be start or end of the entity, but was given: " start-n x)]))
 
@@ -110,16 +110,16 @@
 ;;names are self explanatory, and they use 1/2 node(s) to determine the matching entity
 (: find-entity-with-starting-node (-> node Entities (U Entity False)))
 (define (find-entity-with-starting-node start-n lst)
-  (findf (lambda ([x : Entity]) (equal? (get-entity-start x) start-n)) lst))
+  (findf (lambda ([x : Entity]) (node-equal? (get-entity-start x) start-n)) lst))
 
 (: find-entity-with-ending-node (-> node Entities (U Entity False)))
 (define (find-entity-with-ending-node end-n lst)
-  (findf (lambda ([x : Entity]) (equal? (get-entity-end x) end-n)) lst))
+  (findf (lambda ([x : Entity]) (node-equal? (get-entity-end x) end-n)) lst))
 
 (: find-entity-with-ending-and-starting-node (-> node node Entities (U Entity False)))
 (define (find-entity-with-ending-and-starting-node start-n end-n lst)
-  (findf (lambda ([x : Entity]) (and (equal? (get-entity-end x) end-n)
-                                     (equal? (get-entity-start x) start-n))) lst))
+  (findf (lambda ([x : Entity]) (and (node-equal? (get-entity-end x) end-n)
+                                     (node-equal? (get-entity-start x) start-n))) lst))
 
 ;they also return the entity list with the found entity removed, because sometimes the entity is in the wrong direction
 (: find-entity-from-node (-> node Entities (Values Entity Entities)))
