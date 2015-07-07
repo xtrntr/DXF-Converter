@@ -90,12 +90,12 @@
 (define (get-belonging-list n lst)
   (let main : Entities
     [(connection-lst : (Listof Entities) lst)]
-    (unless (path? (car lst))
+    (unless (path? (car connection-lst))
       (if (ormap (lambda ([x : Entity])
                    (or (node-equal? (get-entity-start x) n) 
-                       (node-equal? (get-entity-end x) n))) (car lst))
-          (car lst)
-          (main (cdr lst))))))
+                       (node-equal? (get-entity-end x) n))) (car connection-lst))
+          (car connection-lst)
+          (main (cdr connection-lst))))))
 
 ;given a start node and an entity, reorder the entity if necessary
 (: reorder-entity (-> node Entity Entity))

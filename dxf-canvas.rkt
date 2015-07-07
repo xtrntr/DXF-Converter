@@ -188,8 +188,7 @@ limit panning and zooming with respect to a specified workspace limit
       (if (empty? (get-selected search-list))
           (set! node-lst '())
           (begin (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
-                   (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))
-                   (display node-lst)))))
+                   (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))))))
     
     (define/public (update-canvas)
       (define drawer (get-dc))
