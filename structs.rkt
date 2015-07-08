@@ -3,7 +3,7 @@
 #| 
 
 This module is where we define the structs, their constructors, custom types that build on combined structs and simple operations on entities/nodes.
-Try to keep the more compelx and specific functions in lst-utils.
+Try to keep the more complex and specific functions in lst-utils.
 
 |#
 

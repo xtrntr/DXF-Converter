@@ -6,9 +6,20 @@ This is where initialization and everything comes together. This is mainly for h
 
 TODO:
 make spreadsheet display look nice. space out the coordinates
+refocus button should work better
+resizing panels when resizing the window
 
-BUGS:
-If you try to form a path while selecting 2 groups of unconnected entities, the program will hang.
+TYPED MODULES:
+structs
+utils
+canvas-utils
+lst-utils
+generate-gr
+read-dxf
+
+UNTYPED MODULES:
+program-viewer
+dxf-canvas
 
 |#
 
@@ -74,4 +85,3 @@ If you try to form a path while selecting 2 groups of unconnected entities, the 
 (define open (new path-dialog%
                   [existing? #t]
                   [filters (list (list "DXF Files" "*.dxf") (list "Text Files" "*.txt"))]))
-
