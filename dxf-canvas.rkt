@@ -293,9 +293,9 @@ limit panning and zooming with respect to a specified workspace limit
     (define start-panning? click-left)
     (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
     (define end-panning? release-left)
-    (define start-selecting? (and click-left caps-on))
-    (define is-selecting? (and dragging caps-on))
-    (define end-selecting? (and release-left caps-on))
+    (define start-selecting? (and click-left hold-ctrl))
+    (define is-selecting? (and dragging hold-ctrl))
+    (define end-selecting? (and release-left hold-ctrl))
     (define show-popup? (and (node? highlighted-node) click-right))
       
       (send this refresh-now)
