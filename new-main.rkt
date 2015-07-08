@@ -15,8 +15,7 @@ If you try to form a path while selecting 2 groups of unconnected entities, the 
 (require "program-viewer.rkt"
          racket/gui/base
          mrlib/path-dialog
-         framework
-         profile)
+         framework)
 
 (application:current-app-name "DXF converter")
 
@@ -75,3 +74,4 @@ If you try to form a path while selecting 2 groups of unconnected entities, the 
 (define open (new path-dialog%
                   [existing? #t]
                   [filters (list (list "DXF Files" "*.dxf") (list "Text Files" "*.txt"))]))
+

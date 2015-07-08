@@ -5,82 +5,6 @@
 
 (provide (all-defined-out))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; move these to canvas-utils ASAP
-(: get-selected (-> Entities Entities)) 
-(define (get-selected lst)
-  (filter (lambda ([i : Entity]) (and (entity-visible i) (entity-selected i))) lst))
-
-(: get-visible (-> Entities Entities)) 
-(define (get-visible lst)
-  (filter (lambda ([i : Entity]) (entity-visible i)) lst))
-
-;;HELPER functions for destructively setting entity values for display purposes.
-(: select-highlighted (-> Entities Void))
-(define (select-highlighted lst)
-  (: select (-> Entity Void))
-  (define (select x)
-    (set-entity-selected! x #t)
-    (set-entity-highlighted! x #f))
-  (unless (empty? lst)
-    (let ((current (first lst)))
-      (cond ((path? current)
-             (select-highlighted (path-entities current))
-             (unless (empty? (filter entity-selected (path-entities current)))
-               (select current))
-             (select-highlighted (cdr lst)))
-            (else (when (entity-highlighted current) 
-                    (select current))
-                  (select-highlighted (cdr lst)))))
-    (void)))
-
-(: highlight-paths (-> Entities Void))
-(define (highlight-paths lst)
-  (: any-entity-highlighted? (-> Entities Boolean))
-  (define (any-entity-highlighted? lst)
-    (cond ((empty? lst) #f)
-          ((entity-highlighted (car lst)) #t)
-          (else (any-entity-highlighted? (cdr lst)))))
-  (let loop : Void
-    ([x : (Listof path) (filter path? lst)])
-    (cond ((empty? x) (void))
-          (else (when (any-entity-highlighted? (path-entities (car x)))
-                              (map (lambda ([i : Entity]) (set-entity-highlighted! i #t)) (path-entities (car x))))
-                (loop (cdr x))))))
-
-(: unselect-all (-> Entities Void))
-(define (unselect-all lst)
-  (unless (empty? lst)
-    (let ((current (first lst)))
-      (cond ((path? current)
-             (set-entity-selected! current #f)
-             (unselect-all (path-entities current))
-             (unselect-all (cdr lst)))
-            (else (set-entity-selected! current #f)
-                  (unselect-all (cdr lst))))))
-  (void))
-
-(: delete-selected (-> Entities Void))
-(define (delete-selected lst)
-  (: delete (-> Entity Void))
-  (define (delete x)
-    (set-entity-selected! x #f)
-    (set-entity-visible! x #f))
-  (unless (empty? lst)
-    (let ((current (first lst)))
-      (cond ((and (path? current) (entity-selected current))
-             (delete current)
-             (delete-selected (path-entities current))
-             (delete-selected (cdr lst)))
-            ((entity-selected current)
-             (delete current)
-             (delete-selected (cdr lst)))
-            (else (delete-selected (cdr lst)))))
-    (void)))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (: entities-to-strings (-> Entities (Listof String)))
 (define (entities-to-strings struct-lst)
   (map (lambda ([x : Entity]) (capitalize (symbol->string (cast (object-name x) Symbol)))) struct-lst))
@@ -89,13 +13,15 @@
 (: get-belonging-list (-> node (Listof Entities) Entities))
 (define (get-belonging-list n lst)
   (let main : Entities
-    [(connection-lst : (Listof Entities) lst)]
-    (unless (path? (car connection-lst))
-      (if (ormap (lambda ([x : Entity])
-                   (or (node-equal? (get-entity-start x) n) 
-                       (node-equal? (get-entity-end x) n))) (car connection-lst))
-          (car connection-lst)
-          (main (cdr connection-lst))))))
+    ([connection-lst : (Listof Entities) lst])
+    (if (empty? connection-lst)
+        (error "Node should be inside entity-lst: " n lst)
+        (unless (path? (car connection-lst))
+          (if (ormap (lambda ([x : Entity])
+                       (or (node-equal? (get-entity-start x) n) 
+                           (node-equal? (get-entity-end x) n))) (car connection-lst))
+              (car connection-lst)
+              (main (cdr connection-lst)))))))
 
 ;given a start node and an entity, reorder the entity if necessary
 (: reorder-entity (-> node Entity Entity))
@@ -139,10 +65,10 @@
                     (find-entity-with-starting-node start-n culled)))
            (values acc culled))
           ((find-entity-with-starting-node start-n culled)
-           (loop (append (list (cast (find-entity-with-starting-node start-n culled) Entity)) acc) 
+           (loop (cons (cast (find-entity-with-starting-node start-n culled) Entity) acc) 
                  (remove (cast (find-entity-with-starting-node start-n culled) Entity) culled)))
           ((find-entity-with-ending-node start-n culled)
-           (loop (append (list (cast (find-entity-with-ending-node start-n culled) Entity)) acc) 
+           (loop (cons (cast (find-entity-with-ending-node start-n culled) Entity) acc) 
                  (remove (cast (find-entity-with-ending-node start-n culled) Entity) culled)))
           (else (error "Unexpected, given: " culled)))))
 
@@ -163,7 +89,7 @@
          (by (node-y b))
          (cx (node-x c))
          (cy (node-y c)))
-    (not (positive? (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay)))))))
+    (not (positive? (cast (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay))) Float)))))
 
 ;build a path,
 ;given the starting node and the list of entities to build the path
@@ -176,11 +102,11 @@
                               ([current : Entity first-entity]
                                [acc : Entities (list first-entity)]
                                [unchecked : Entities new-lst])
-                              (cond ((empty? unchecked) acc)
+                              (cond ((empty? unchecked) (reverse acc))
                                     (else
                                      (let-values ([(next-entity new-lst) 
                                                    (find-entity-from-node (get-entity-end current) unchecked)])
-                                       (main next-entity (append acc (list next-entity)) new-lst))))) (Listof (U line arc)))))
+                                       (main next-entity (cons next-entity acc) new-lst))))) (Listof (U line arc)))))
 
 ;build a path,
 ;given a starting node, the list of entities to build the path and the direction CW/CCW of the path from the starting node
@@ -202,8 +128,8 @@
                                         ([current : Entity first-entity]
                                          [acc : Entities (list first-entity)]
                                          [unchecked : Entities new-lst])
-                                        (cond ((empty? unchecked) acc)
+                                        (cond ((empty? unchecked) (reverse acc))
                                               (else
                                                (let-values ([(next-entity new-lst) 
                                                              (find-entity-from-node (get-entity-end current) unchecked)])
-                                                 (main next-entity (append acc (list next-entity)) new-lst))))) (Listof (U line arc)))))))
+                                                 (main next-entity (cons next-entity acc) new-lst))))) (Listof (U line arc)))))))
