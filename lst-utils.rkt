@@ -7,11 +7,11 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; move these to canvas-utils ASAP
-(: get-selected (-> Entities Entities)) 
+(: get-selected (-> Entities Entities))
 (define (get-selected lst)
   (filter (lambda ([i : Entity]) (and (entity-visible i) (entity-selected i))) lst))
 
-(: get-visible (-> Entities Entities)) 
+(: get-visible (-> Entities Entities))
 (define (get-visible lst)
   (filter (lambda ([i : Entity]) (entity-visible i)) lst))
 
@@ -29,7 +29,7 @@
              (unless (empty? (filter entity-selected (path-entities current)))
                (select current))
              (select-highlighted (cdr lst)))
-            (else (when (entity-highlighted current) 
+            (else (when (entity-highlighted current)
                     (select current))
                   (select-highlighted (cdr lst)))))
     (void)))
