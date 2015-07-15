@@ -6,17 +6,27 @@ This is where initialization and everything comes together. This is mainly for h
 
 TODO:
 make spreadsheet display look nice. space out the coordinates
+refocus button should work better
+resizing panels when resizing the window
 
-BUGS:
-If you try to form a path while selecting 2 groups of unconnected entities, the program will hang.
+TYPED MODULES:
+structs
+utils
+canvas-utils
+lst-utils
+generate-gr
+read-dxf
+
+UNTYPED MODULES:
+program-viewer
+dxf-canvas
 
 |#
 
 (require "program-viewer.rkt"
          racket/gui/base
          mrlib/path-dialog
-         framework
-         profile)
+         framework)
 
 (application:current-app-name "DXF converter")
 
@@ -60,14 +70,14 @@ If you try to form a path while selecting 2 groups of unconnected entities, the 
                          (open-file input-port-or-not this)))]))
     (super-new)))
 
-(define editor-width  1000)
-(define editor-height 630)
+(define frame-width  1000)
+(define frame-height 630)
 
 (define top-frame 
   (new menu-frame%
        [label "Main"]
-       [width editor-width]
-       [height editor-height]
+       [width frame-width]
+       [height frame-height]
        [alignment (list 'left 'top)]))
 
 (send top-frame show #t)
