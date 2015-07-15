@@ -23,6 +23,7 @@ limit panning and zooming with respect to a specified workspace limit
          racket/draw)
 
 (provide dxf-canvas%)
+
         
 (define dxf-canvas%
   (class canvas%
@@ -185,9 +186,9 @@ limit panning and zooming with respect to a specified workspace limit
                      (intersect? x1 y1 x2 y2 (path-entities i))))))))
     
     (define/public (update-node-lst)
-      (if (empty? (get-selected search-list))
+      (if (empty? (get-selected-entities search-list))
           (set! node-lst '())
-          (begin (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))])
+          (begin (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))])
                    (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))))))
     
     (define/public (update-canvas)
@@ -216,7 +217,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form an open path."]
            [parent popup-opened]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))]
+                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [new-path (reorder-open-path highlighted-node list-of-entities-to-reorder)])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
@@ -228,7 +229,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form a path that moves clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))]
+                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #f)])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
@@ -240,7 +241,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected search-list)))]
+                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #t)])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
@@ -293,9 +294,9 @@ limit panning and zooming with respect to a specified workspace limit
     (define start-panning? click-left)
     (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
     (define end-panning? release-left)
-    (define start-selecting? (and click-left hold-ctrl))
-    (define is-selecting? (and dragging hold-ctrl))
-    (define end-selecting? (and release-left hold-ctrl))
+    (define start-selecting? (and click-left caps-on))
+    (define is-selecting? (and dragging caps-on))
+    (define end-selecting? (and release-left caps-on))
     (define show-popup? (and (node? highlighted-node) click-right))
       
       (send this refresh-now)
@@ -325,7 +326,7 @@ limit panning and zooming with respect to a specified workspace limit
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-         (let ([selected-list (get-belonging-list highlighted-node (sort-list-of-entities (separate-list-of-entities (get-selected search-list))))])
+         (let ([selected-list (get-belonging-list highlighted-node (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list))))])
            (unless (ormap (lambda (x) (path? x)) selected-list)
              (if (closed-path-entity-list? selected-list)
                  (send this popup-menu popup-closed cursor-x cursor-y)

@@ -13,12 +13,12 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 
 (provide (all-defined-out))
 
-(: get-selected (-> Entities Entities)) 
-(define (get-selected lst)
+(: get-selected-entities (-> Entities Entities)) 
+(define (get-selected-entities lst)
   (filter (lambda ([i : Entity]) (and (entity-visible i) (entity-selected i))) lst))
 
-(: get-visible (-> Entities Entities)) 
-(define (get-visible lst)
+(: get-visible-entities (-> Entities Entities)) 
+(define (get-visible-entities lst)
   (filter (lambda ([i : Entity]) (entity-visible i)) lst))
 
 ;;HELPER functions for destructively setting entity values for display purposes.
@@ -47,12 +47,9 @@ canvas-utils is meant for containing operations that affect the interactivity/di
     (cond ((empty? lst) #f)
           ((entity-highlighted (car lst)) #t)
           (else (any-entity-highlighted? (cdr lst)))))
-  (let loop : Void
-    ([x : (Listof path) (filter path? lst)])
-    (cond ((empty? x) (void))
-          (else (when (any-entity-highlighted? (path-entities (car x)))
-                              (map (lambda ([i : Entity]) (set-entity-highlighted! i #t)) (path-entities (car x))))
-                (loop (cdr x))))))
+  (for ([p : path (filter path? lst)] 
+        #:when (any-entity-highlighted? (path-entities p))) 
+    (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #t))))
 
 (: unselect-all (-> Entities Void))
 (define (unselect-all lst)

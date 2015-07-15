@@ -206,7 +206,7 @@ TODO: more sophisticated way of refocusing canvas.
        [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-selected (get-field search-list a-canvas)))
+                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    (display "1"))])
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
@@ -215,7 +215,7 @@ TODO: more sophisticated way of refocusing canvas.
        [label "Generate for GR"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-selected (get-field search-list a-canvas)))
+                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
                    (make-mirror stripped)
                    (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))

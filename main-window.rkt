@@ -70,14 +70,14 @@ dxf-canvas
                          (open-file input-port-or-not this)))]))
     (super-new)))
 
-(define editor-width  1000)
-(define editor-height 630)
+(define frame-width  1000)
+(define frame-height 630)
 
 (define top-frame 
   (new menu-frame%
        [label "Main"]
-       [width editor-width]
-       [height editor-height]
+       [width frame-width]
+       [height frame-height]
        [alignment (list 'left 'top)]))
 
 (send top-frame show #t)

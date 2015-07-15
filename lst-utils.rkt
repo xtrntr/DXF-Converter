@@ -83,13 +83,11 @@
 ;given 3 nodes a b c, find if a->b->c is in a clockwise or anticlockwise direction
 (: clockwise-turn? (-> node node node Boolean))
 (define (clockwise-turn? a b c)
-  (let* ((ax (node-x a))
-         (ay (node-y a))
-         (bx (node-x b))
-         (by (node-y b))
-         (cx (node-x c))
-         (cy (node-y c)))
-    (not (positive? (cast (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay))) Float)))))
+  (match* (a b c) 
+    [((node ax ay)
+      (node bx by)
+      (node cx cy)) 
+     (not (positive? (cast (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay))) Float)))]))
 
 ;build a path,
 ;given the starting node and the list of entities to build the path
