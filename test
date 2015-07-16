@@ -1,0 +1,6 @@
+Without acr.
+lineStart(x=-50000, y=-50000, z=0; 0.0)
+   linksLinePoint(x=50000, y=-50000, z=0; sp=0; 0)
+   linksLinePoint(x=50000, y=50000, z=0; sp=0; 0)
+   linksLinePoint(x=-50000, y=50000, z=0; sp=0; 0)
+lineEnd(x=-50000, y=-50000, z=0; sp=0; 0; 0.0; z=0; sp=0; z=0)

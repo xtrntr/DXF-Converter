@@ -1,0 +1,310 @@
+#lang typed/racket
+
+#| 
+
+The difference between lst-utils and canvas-utils is that lst-utils can be used outside of the canvas. 
+lst-utils is meant for containing list operations that do sorting and searching.
+canvas-utils is meant for containing operations that affect the interactivity/display of canvas i.e. toggling visibility, intersection queries
+
+|#
+
+(require "structs.rkt"
+         "utils.rkt")
+
+(provide (all-defined-out))
+
+(: get-selected-entities (-> Entities Entities)) 
+(define (get-selected-entities lst)
+  (filter (lambda ([i : Entity]) (and (entity-visible i) (entity-selected i))) lst))
+
+(: get-visible-entities (-> Entities Entities)) 
+(define (get-visible-entities lst)
+  (filter (lambda ([i : Entity]) (entity-visible i)) lst))
+
+;;HELPER functions for destructively setting entity values for display purposes.
+(: select-highlighted (-> Entities Void))
+(define (select-highlighted lst)
+  (: select (-> Entity Void))
+  (define (select x)
+    (set-entity-selected! x #t)
+    (set-entity-highlighted! x #f))
+  (unless (empty? lst)
+    (let ((current (first lst)))
+      (cond ((path? current)
+             (select-highlighted (path-entities current))
+             (unless (empty? (filter entity-selected (path-entities current)))
+               (select current))
+             (select-highlighted (cdr lst)))
+            (else (when (entity-highlighted current) 
+                    (select current))
+                  (select-highlighted (cdr lst)))))
+    (void)))
+
+(: highlight-paths (-> Entities Void))
+(define (highlight-paths lst)
+  (: any-entity-highlighted? (-> Entities Boolean))
+  (define (any-entity-highlighted? lst)
+    (cond ((empty? lst) #f)
+          ((entity-highlighted (car lst)) #t)
+          (else (any-entity-highlighted? (cdr lst)))))
+  (for ([p : path (filter path? lst)] 
+        #:when (any-entity-highlighted? (path-entities p))) 
+    (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #t))))
+
+(: unselect-all (-> Entities Void))
+(define (unselect-all lst)
+  (unless (empty? lst)
+    (let ((current (first lst)))
+      (cond ((path? current)
+             (set-entity-selected! current #f)
+             (unselect-all (path-entities current))
+             (unselect-all (cdr lst)))
+            (else (set-entity-selected! current #f)
+                  (unselect-all (cdr lst))))))
+  (void))
+
+(: delete-selected (-> Entities Void))
+(define (delete-selected lst)
+  (: delete (-> Entity Void))
+  (define (delete x)
+    (set-entity-selected! x #f)
+    (set-entity-visible! x #f))
+  (unless (empty? lst)
+    (let ((current (first lst)))
+      (cond ((and (path? current) (entity-selected current))
+             (delete current)
+             (delete-selected (path-entities current))
+             (delete-selected (cdr lst)))
+            ((entity-selected current)
+             (delete current)
+             (delete-selected (cdr lst)))
+            (else (delete-selected (cdr lst)))))
+    (void)))
+
+;scaling for display - only done once
+(: get-display-scale (-> Entities Real Real (Values Real Real Real)))
+(define (get-display-scale struct-lst frame-width frame-height)
+  (: get-bounding-x (-> Entities (Listof Real)))
+  (define (get-bounding-x struct-lst)
+    (let loop : (Listof Real)
+      [(acc : (Listof Real) '())
+       (lst : Entities struct-lst)]
+      (cond ((empty? lst) acc)
+            (else
+             (match (car lst)
+               [(struct* line  ([p1 p1]
+                                [p2 p2]))              (loop (cons (node-x p1) (cons (node-x p2) acc)) (cdr lst))]
+               [(struct* arc   ([center center]
+                                [radius radius]))      (loop (cons (+ (node-x center) radius) (cons (- (node-x center) radius) acc)) (cdr lst))]
+               [(struct* dot   ([p p]))                (loop (cons (node-x p) acc) (cdr lst))]
+               [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
+  (: get-bounding-y (-> Entities (Listof Real)))
+  (define (get-bounding-y struct-lst)
+    (let loop : (Listof Real)
+      [(acc : (Listof Real) '())
+       (lst : Entities struct-lst)]
+      (cond ((empty? lst) acc)
+            (else
+             (match (car lst)
+               [(struct* line  ([p1 p1]
+                                [p2 p2]))              (loop (cons (node-y p1) (cons (node-y p2) acc)) (cdr lst))]
+               [(struct* arc   ([center center]
+                                [radius radius]))      (loop (cons (+ (node-y center) radius) (cons (- (node-y center) radius) acc)) (cdr lst))]
+               [(struct* dot   ([p p]))                (loop (cons (node-y p) acc) (cdr lst))]
+               [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
+  (let* ((top (biggest (get-bounding-y struct-lst)))
+         (bottom (smallest (get-bounding-y struct-lst)))
+         (left (smallest (get-bounding-x struct-lst)))
+         (right (biggest (get-bounding-x struct-lst)))
+         (height (abs (- top bottom)))
+         (width (abs (- right left)))
+         (x-scale (/ frame-width width))
+         (y-scale (/ frame-height height))
+         (drawing-scale (smallest (list x-scale y-scale))))
+    (values drawing-scale left bottom)))
+
+;; divide the complete 2d space into 9 boxes
+;; cohen-sutherland algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
+;; region numbers are bit->decimal
+;; 9   1   5                1001   0001   0101
+;; 8   0   4      --->      1000   0000   0100
+;; 10  2   6                1010   0010   0110
+(: line-intersect? (-> line Real Real Real Real Boolean))
+(define (line-intersect? line-struct xs ys xb yb)
+  (let ((lx1 (node-x (line-p1 line-struct)))
+        (ly1 (node-y (line-p1 line-struct)))
+        (lx2 (node-x (line-p2 line-struct)))
+        (ly2 (node-y( line-p2 line-struct))))
+    (: compute-outcode (-> Real Real Integer))
+    (define (compute-outcode x y)
+      (let ([inside : Integer 0])
+        (cond ((< x xs) 
+               (set! inside (bitwise-ior inside 1)))
+              ((> x xb) 
+               (set! inside (bitwise-ior inside 2))))
+        (cond ((< y ys) 
+               (set! inside (bitwise-ior inside 4)))
+              ((> y yb) 
+               (set! inside (bitwise-ior inside 8))))
+        inside))
+    ;return #t if intersect
+    (: trivial-accept? (-> Integer Integer Boolean))
+    (define (trivial-accept? region1 region2)
+      (or (not (bitwise-ior region1 region2)) 
+          (= region1 0) 
+          (= region2 0)
+          (and (= region1 1) (= region2 2))
+          (and (= region1 2) (= region2 1))
+          (and (= region1 4) (= region2 8))
+          (and (= region1 8) (= region2 4))))
+    ;return #t if does not intersect
+    (: trivial-reject? (-> Integer Integer Boolean))
+    (define (trivial-reject? region1 region2)  
+      (not (= (bitwise-and region1 region2) 0)))
+    ;clip until no more ambiguous cases
+    (: clip-until (-> Integer Integer Integer Boolean))
+    (define (clip-until region1 region2 tries)
+      (cond ((= tries 0) #f)
+            ((trivial-reject? region1 region2) #f)
+            ((trivial-accept? region1 region2) #t)
+            (else (begin (do-clip region1 region2)
+                         (clip-until region1 region2 (- tries 1))))))
+    (: do-clip (-> Integer Integer Void))
+    (define (do-clip region1 region2)
+      (: not0 (-> Integer Boolean))
+      (define (not0 num)
+        (if (= num 0) #f #t))
+      (let* ([slope : Real (/ (- ly2 ly1) (- lx2 lx1))]
+             [y-intercept : Real (- ly2 (* slope lx2))])
+        ;apply the formula y = y1 + slope * (x - x1), x = x1 + (y - y1) / slope
+        (cond ((not0 (bitwise-and 8 region2))
+               (set! lx2 (/ (- yb y-intercept) slope))
+               (set! ly2 yb))
+              ((not0 (bitwise-and 4 region2))
+               (set! lx2 (/ (- ys y-intercept) slope))
+               (set! ly2 ys))
+              ((not0 (bitwise-and 2 region2))
+               (set! lx2 xb)
+               (set! ly2 (+ (* slope xb) y-intercept)))
+              ((not0 (bitwise-and 1 region2)) 
+               (set! lx2 xs)
+               (set! ly2 (+ (* slope xs) y-intercept))))
+        (set! region2 (compute-outcode lx2 ly2))))
+    (let* ((region1 (compute-outcode lx1 ly1))
+           (region2 (compute-outcode lx2 ly2)))
+      (clip-until region1 region2 4))))
+
+;; these 3 functions calculate the x and y coordinates for arc points
+(: arc-point-x (-> Real Real Real Real))
+(define (arc-point-x circle-x degree radius)
+  (let ((adjusted (localize-degree degree)))
+    (cond ((or (= degree 90) (= degree 270)) circle-x)
+          ((= degree 180) (- circle-x radius))
+          ((or (= degree 360) (= degree 0)) (+ circle-x radius)) 
+          ((in-between? degree 0 90)    (+ circle-x (* radius (cos (degrees->radians adjusted)))))
+          ((in-between? degree 90 180)  (- circle-x (* radius (sin (degrees->radians adjusted)))))
+          ((in-between? degree 180 270) (- circle-x (* radius (cos (degrees->radians adjusted)))))
+          ((in-between? degree 270 360) (+ circle-x (* radius (sin (degrees->radians adjusted)))))
+          (else (error "Expected a valid degree, got: " degree)))))
+(: arc-point-y (-> Real Real Real Real))
+(define (arc-point-y circle-y degree radius)
+  (let ((adjusted (localize-degree degree)))
+    (cond ((or (= degree 0) (= degree 360) (= degree 180)) circle-y)
+          ((= degree 90) (+ circle-y radius))
+          ((= degree 270) (- circle-y radius))
+          ((in-between? degree 0 90)    (+ circle-y (* radius (sin (degrees->radians adjusted)))))
+          ((in-between? degree 90 180)  (+ circle-y (* radius (cos (degrees->radians adjusted)))))
+          ((in-between? degree 180 270) (- circle-y (* radius (sin (degrees->radians adjusted)))))
+          ((in-between? degree 270 360) (- circle-y (* radius (cos (degrees->radians adjusted)))))
+          (else (error "Expected a valid degree, got: " degree)))))
+(: localize-degree (-> Real Real))
+(define (localize-degree degree)
+  (cond ((in-between? degree 0 90) degree)
+        ((in-between? degree 90 180) (- degree 90))
+        ((in-between? degree 180 270) (- degree 180))
+        ((in-between? degree 270 360) (- degree 270))
+        (error "Expected a valid degree, got: " degree)))
+
+;; 1) check for the trivial case - the arc point is inside the select box
+;; 2) imagine the 4 lines of the select box as an infinite line, do they intersect the circle of the arc?
+;; 2.1) if they do, are they in the select box's actual length/width?
+;; 2.2) if they are, does it intersect the arc?
+;; 2.3.1) arc intersection is checked by comparing the points where the lines intersect the circle.
+;; 2.3.2) imagine a line from arc point 1 to arc point 2 as a "dividing line", to differentiate points intersecting the circle on the "right" or "wrong" side of the arc
+;; 2.3.3) calculate the mid-point of the arc to determine the "right" side of the arc.
+;; 2.3.4) imagine a line that goes through the mid-point of the arc and is parallel to the "dividing line" (hence they have the same slope). 
+;; 2.3.5) is the y-intercept bigger or smaller than the y-intercept of the dividing line? use that as a barometer for any point intersecting the circle.
+;; 2.3.6) if the line formed with the intersecting point falls on the right side of the "dividing line" together with the line formed with the mid-point line, then there is an intersection.
+(: arc-intersect? (-> arc Real Real Real Real Boolean))
+(define (arc-intersect? arc-struct xs ys xb yb)
+  (let* ((radius (arc-radius arc-struct))
+         (circle-x (node-x (arc-center arc-struct)))
+         (circle-y (node-y (arc-center arc-struct)))
+         (start (arc-start arc-struct))
+         (end (arc-end arc-struct))
+         (angle-difference (if (> end start) (- end start) (+ (- 360 start) end)))
+         (half-angle (if (> end start) (/ (+ start end) 2) (if (< 360 (+ 180 (/ (+ start end) 2))) (- (+ 180 (/ (+ start end) 2)) 360) (+ 180 (/ (+ start end) 2)))))
+         (radius (arc-radius arc-struct))
+         (arc-x1 (arc-point-x circle-x start radius))
+         (arc-y1 (arc-point-y circle-y start radius))
+         (arc-x2 (arc-point-x circle-x end radius))
+         (arc-y2 (arc-point-y circle-y end radius))
+         ;we calculate the middle arc-point to determine which is the right side
+         (half-x (arc-point-x circle-x half-angle radius))
+         (half-y (arc-point-y circle-y half-angle radius)))
+    (: right-side-y? (-> Real Real Boolean))
+    (define (right-side-y? x y)
+      (let* ((dividing-line-slope       (/ (- arc-y2 arc-y1) (- arc-x2 arc-x1)))
+             (dividing-line-yintercept  (- arc-y1 (* dividing-line-slope arc-x1)))
+             (right-yintercept          (- half-y (* dividing-line-slope half-x)))
+             (right-value-test          (> right-yintercept dividing-line-yintercept))
+             (point-yintercept          (- y (* dividing-line-slope x))) 
+             (point-test                (> point-yintercept dividing-line-yintercept)))
+        (eq? right-value-test point-test)))
+    (: line-intersect-arc? (-> Real Real Real Real Boolean))
+    (define (line-intersect-arc? x1 y1 x2 y2)
+      ;return the point where line intersects arc. intersection of a y line with a circle, 2 possible x values
+      (: yline-intersect-circle? (-> Real (U Boolean (Listof (List Real Real)))))
+      (define (yline-intersect-circle? y)
+        (let ((result1 (+ circle-x (sqrt (- (sqr radius) (sqr (- y circle-y))))))
+              (result2 (- circle-x (sqrt (- (sqr radius) (sqr (- y circle-y)))))))
+          (if (and (real? result1) (real? result2))
+              (cond ((and (in-between? result1 xs xb) (in-between? result2 xs xb)) 
+                     (list (list result1 y) (list result2 y)))
+                    ((in-between? result1 xs xb)
+                     (list (list result1 y)))
+                    ((in-between? result2 xs xb) 
+                     (list (list result2 y)))
+                    (else #f))
+              #f)))
+      ;return the point where line intersects arc. intersection of a x line with a circle, 2 possible y values
+      (: xline-intersect-circle? (-> Real (U Boolean (Listof (List Real Real)))))
+      (define (xline-intersect-circle? x)
+        (let ((result1 (+ circle-y (sqrt (- (sqr radius) (sqr (- x circle-x))))))
+              (result2 (- circle-y (sqrt (- (sqr radius) (sqr (- x circle-x)))))))
+          (if (and (real? result1) (real? result2))
+              (cond ((and (in-between? result1 ys yb) (in-between? result2 ys yb)) 
+                     (list (list x result1) (list x result2)))
+                    ((in-between? result1 ys yb) 
+                     (list (list x result1)))
+                    ((in-between? result2 ys yb) 
+                     (list (list x result2)))
+                    (else #f))
+              #f)))
+      (if (= x1 x2)
+          ((lambda ([x : (U Boolean (Listof (List Real Real)))]) (if (not x)
+                                                                     #f
+                                                                     (ormap (lambda ([a : (List Real Real)])
+                                                                              (apply right-side-y? a)) (cast x (Listof (List Real Real))))))
+           (xline-intersect-circle? x1))    ;is a x line, find y values
+          ((lambda ([x : (U Boolean (Listof (List Real Real)))]) (if (not x)
+                                                                     #f
+                                                                     (ormap (lambda ([a : (List Real Real)])
+                                                                              (apply right-side-y? a)) (cast x (Listof (List Real Real))))))
+           (yline-intersect-circle? y1))))  ;is a y line, find x values
+    (cond ((or (point-in-rect? arc-x1 arc-y1 xs ys xb yb) (point-in-rect? arc-x2 arc-y2 xs ys xb yb)) #t)
+          ((or (line-intersect-arc? xs ys xs yb) 
+               (line-intersect-arc? xs yb xb yb)
+               (line-intersect-arc? xb yb xb ys)
+               (line-intersect-arc? xb ys xs ys)) #t)
+          (else #f))))
