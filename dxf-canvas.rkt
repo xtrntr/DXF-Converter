@@ -303,9 +303,9 @@ limit panning and zooming with respect to a specified workspace limit
       (send this refresh-now)
       
       (cond
-        (click-detected?
-         (display "hai")
-         (intersect? (- init-cursor-x 0.5) (- init-cursor-y 0.5) (+ init-cursor-x 0.5) (+ init-cursor-y 0.5) search-list))
+        ;(click-detected?
+        ; (display "hai")
+        ; (intersect? (- init-cursor-x 0.5) (- init-cursor-y 0.5) (+ init-cursor-x 0.5) (+ init-cursor-y 0.5) search-list))
         (end-selecting?
          (change-cursor normal)
          (set! display-select-box #f)
@@ -341,7 +341,7 @@ limit panning and zooming with respect to a specified workspace limit
          (highlight-paths search-list)
          (set! select-box (list (list init-cursor-x init-cursor-y scaled-cursor-x init-cursor-y #t)
                                 (list scaled-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y #t)
-                                (list scaled-cursor-x scaled-cursor-y init-cursor-x scaled-cursor-y #t) 
+                                (list scaled-cursor-x scaled-cursor-y init-cursor-x scaled-cursor-y #t)
                                 (list init-cursor-x scaled-cursor-y init-cursor-x init-cursor-y #t)))
          (update-canvas))
         (is-panning?
