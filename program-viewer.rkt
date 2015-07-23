@@ -65,7 +65,6 @@ be able to "drag"
   
   (define original-list (file->struct-list input-port))
   (define-values (drawing-scale left bottom) (get-display-scale original-list editor-width editor-height))
-  (display (list drawing-scale left bottom))
   (define search-list (rescale original-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))

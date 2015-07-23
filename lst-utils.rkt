@@ -16,7 +16,7 @@
     [(connection-lst : (Listof Entities) lst)]
     (unless (path? (car connection-lst))
       (if (ormap (lambda ([x : Entity])
-                   (or (node-equal? (get-entity-start x) n) 
+                   (or (node-equal? (get-entity-start x) n)
                        (node-equal? (get-entity-end x) n))) (car connection-lst))
           (car connection-lst)
           (main (cdr connection-lst))))))
