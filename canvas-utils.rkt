@@ -84,38 +84,10 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 ;scaling for display - only done once
 (: get-display-scale (-> Entities Real Real (Values Real Real Real)))
 (define (get-display-scale struct-lst frame-width frame-height)
-  (: get-bounding-x (-> Entities (Listof Real)))
-  (define (get-bounding-x struct-lst)
-    (let loop : (Listof Real)
-      [(acc : (Listof Real) '())
-       (lst : Entities struct-lst)]
-      (cond ((empty? lst) acc)
-            (else
-             (match (car lst)
-               [(struct* line  ([p1 p1]
-                                [p2 p2]))              (loop (cons (node-x p1) (cons (node-x p2) acc)) (cdr lst))]
-               [(struct* arc   ([center center]
-                                [radius radius]))      (loop (cons (+ (node-x center) radius) (cons (- (node-x center) radius) acc)) (cdr lst))]
-               [(struct* dot   ([p p]))                (loop (cons (node-x p) acc) (cdr lst))]
-               [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
-  (: get-bounding-y (-> Entities (Listof Real)))
-  (define (get-bounding-y struct-lst)
-    (let loop : (Listof Real)
-      [(acc : (Listof Real) '())
-       (lst : Entities struct-lst)]
-      (cond ((empty? lst) acc)
-            (else
-             (match (car lst)
-               [(struct* line  ([p1 p1]
-                                [p2 p2]))              (loop (cons (node-y p1) (cons (node-y p2) acc)) (cdr lst))]
-               [(struct* arc   ([center center]
-                                [radius radius]))      (loop (cons (+ (node-y center) radius) (cons (- (node-y center) radius) acc)) (cdr lst))]
-               [(struct* dot   ([p p]))                (loop (cons (node-y p) acc) (cdr lst))]
-               [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
-  (let* ((top (biggest (get-bounding-y struct-lst)))
-         (bottom (smallest (get-bounding-y struct-lst)))
-         (left (smallest (get-bounding-x struct-lst)))
-         (right (biggest (get-bounding-x struct-lst)))
+  (let* ((top (biggest (get-y-vals struct-lst)))
+         (bottom (smallest (get-y-vals struct-lst)))
+         (left (smallest (get-x-vals struct-lst)))
+         (right (biggest (get-x-vals struct-lst)))
          (height (abs (- top bottom)))
          (width (abs (- right left)))
          (x-scale (/ frame-width width))

@@ -2,7 +2,10 @@
 
 #|
 
-TODO: more sophisticated way of refocusing canvas.
+TODO:
+more sophisticated way of refocusing canvas.
+when you select/unselect item(s) in the spreadsheet display, highlight/unhighlight relevant entities in canvas but it should not work the other way round.
+be able to "drag" 
 
 |#
 

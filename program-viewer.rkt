@@ -16,7 +16,7 @@ be able to "drag"
          "dxf-canvas.rkt"
          "lst-utils.rkt"
          "utils.rkt"
-         "ils-pattern-generator.rkt"
+         "gr-pattern-generator.rkt"
          mrlib/path-dialog
          racket/gui/base)
 
