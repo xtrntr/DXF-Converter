@@ -87,8 +87,8 @@ be able to "drag"
     (new list-box%
          [label #f]
          [parent spreadsheet-panel]
-         [min-height spreadsheet-height]
-         [min-width spreadsheet-width]
+         ;[min-height spreadsheet-height]
+         ;[min-width spreadsheet-width]
          [choices '()]
          [style '(extended column-headers)]
          [columns spreadsheet-headers]))
@@ -128,8 +128,9 @@ be able to "drag"
   (define layer-panel
     (new horizontal-panel%
          [parent drawing-panel]
-         [style '(border)]
-         [min-height button-height]
+         [style '(border)]	 
+         [stretchable-height #f]
+         ;[min-height button-height]
          [alignment '(center top)]))
   
   (for/list ([i layer-list])
@@ -160,15 +161,17 @@ be able to "drag"
   (define button-panel-1
     (new horizontal-panel%
          [parent spreadsheet-panel]
-         [style '(border)]
-         [min-height button-height]
+         [style '(border)]	 
+         [stretchable-height #f]
+         ;[min-height button-height]
          [alignment '(center top)]))
   
   (define button-panel-2
     (new horizontal-panel%
          [parent spreadsheet-panel]
-         [style '(border)]
-         [min-height button-height]
+         [style '(border)]	 	 
+         [stretchable-height #f]
+         ;[min-height button-height]
          [alignment '(center top)]))
   
   (new button%
