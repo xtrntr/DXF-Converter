@@ -95,12 +95,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
          (drawing-scale (smallest (list x-scale y-scale))))
     drawing-scale))
 
-;; divide the complete 2d space into 9 boxes
-;; cohen-sutherland algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
-;; region numbers are bit->decimal
-;; 9   1   5                1001   0001   0101
-;; 8   0   4      --->      1000   0000   0100
-;; 10  2   6                1010   0010   0110
+#|
 (: line-intersect? (-> line Real Real Real Real Boolean))
 (define (line-intersect? line-struct xs ys xb yb)
   (let ((lx1 (node-x (line-p1 line-struct)))
@@ -162,6 +157,78 @@ canvas-utils is meant for containing operations that affect the interactivity/di
                (set! lx2 xs)
                (set! ly2 (+ (* slope xs) y-intercept))))
         (set! region2 (compute-outcode lx2 ly2))))
+    (let* ((region1 (compute-outcode lx1 ly1))
+           (region2 (compute-outcode lx2 ly2)))
+      (clip-until region1 region2 4))))
+|#
+
+;; divide the complete 2d space into 9 boxes
+;; algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
+;; region numbers are bit->decimal
+;; 9   1   5                1001   0001   0101
+;; 8   0   4      --->      1000   0000   0100
+;; 10  2   6                1010   0010   0110
+(: line-intersect? (-> line Real Real Real Real Boolean))
+(define (line-intersect? line-struct xs ys xb yb)
+  (let ((lx1 (node-x (line-p1 line-struct)))
+        (ly1 (node-y (line-p1 line-struct)))
+        (lx2 (node-x (line-p2 line-struct)))
+        (ly2 (node-y( line-p2 line-struct))))
+    (: compute-outcode (-> Real Real Integer))
+    (define (compute-outcode x y)
+      (let ((inside 0))
+        (cond [(< x xs) (set! inside (bitwise-ior inside 1))]
+              [(> x xb) (set! inside (bitwise-ior inside 2))])
+        (cond [(< y ys) (set! inside (bitwise-ior inside 4))]
+              [(> y yb) (set! inside (bitwise-ior inside 8))])
+        inside))
+    ;return #t if intersect
+    (: trivial-accept? (-> Integer Integer Boolean))
+    (define (trivial-accept? region1 region2)
+      (or (not (bitwise-ior region1 region2)) 
+          (= region1 0) 
+          (= region2 0)
+          (and (= region1 1) (= region2 2))
+          (and (= region1 2) (= region2 1))
+          (and (= region1 4) (= region2 8))
+          (and (= region1 8) (= region2 4))))
+    ;return #t if does not intersect
+    (: trivial-reject? (-> Integer Integer Boolean))
+    (define (trivial-reject? region1 region2)  
+      (not (= (bitwise-and region1 region2) 0)))
+    ;clip until no more ambiguous cases
+    (: clip-until (-> Integer Integer Integer Boolean))
+    (define (clip-until region1 region2 tries)
+      (cond [(= tries 0) #f]
+            [(trivial-reject? region1 region2) #f]
+            [(trivial-accept? region1 region2) #t]
+            [else (apply clip-until (cast (append (do-clip region1 region2) (list (- tries 1)))
+                                          (List Integer Integer Integer)))]))
+    (: not0 (-> Real Boolean))
+    (define (not0 num) (not (= num 0)))
+    (: do-clip (-> Integer Integer (List Integer Integer)))
+    (define (do-clip region1 region2)
+      (let* ([new-x : Real 0]
+             [new-y : Real 0]
+             [slope : Real (/ (- ly2 ly1) (- lx2 lx1))]
+             [y-intercept : Real (- ly2 (* slope lx2))])
+        ;apply the formula y = y1 + slope * (x - x1), x = x1 + (y - y1) / slope
+        (cond ((not0 (bitwise-and 8 region2))
+               (set! new-x (/ (- yb y-intercept) slope))
+               (set! new-y yb))
+              ((not0 (bitwise-and 4 region2))
+               (set! new-x (/ (- ys y-intercept) slope))
+               (set! new-y ys))
+              ((not0 (bitwise-and 2 region2))
+               (set! new-x xb)
+               (set! new-y (+ (* slope xb) y-intercept)))
+              ((not0 (bitwise-and 1 region2)) 
+               (set! new-x xs)
+               (set! new-y (+ (* slope xs) y-intercept))))
+        (set! lx2 new-x)
+        (set! ly2 new-y)
+        (set! region2 (compute-outcode lx2 ly2)))
+      (list region1 region2))
     (let* ((region1 (compute-outcode lx1 ly1))
            (region2 (compute-outcode lx2 ly2)))
       (clip-until region1 region2 4))))

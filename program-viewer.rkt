@@ -102,10 +102,14 @@ be able to "drag"
         (send a-list-box set 
               (entities-to-strings displayed-list)
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
-              (map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
-              (map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
-              (map to-display (map unscale-x (map node-x (map get-entity-end displayed-list))))
-              (map to-display (map unscale-y (map node-y (map get-entity-end displayed-list)))))))
+              ;(map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
+              ;(map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
+              ;(map to-display (map unscale-x (map node-x (map get-entity-end displayed-list))))
+              ;(map to-display (map unscale-y (map node-y (map get-entity-end displayed-list))))
+              (map to-display (map node-x (map get-entity-start displayed-list)))
+              (map to-display (map node-y (map get-entity-start displayed-list)))
+              (map to-display (map node-x (map get-entity-end displayed-list)))
+              (map to-display (map node-y (map get-entity-end displayed-list))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -168,7 +172,6 @@ be able to "drag"
          [parent spreadsheet-panel]
          [style '(border)]	 
          [stretchable-height #f]
-         ;[min-height button-height]
          [alignment '(center top)]))
   
   (define button-panel-2
@@ -176,7 +179,6 @@ be able to "drag"
          [parent spreadsheet-panel]
          [style '(border)]	 	 
          [stretchable-height #f]
-         ;[min-height button-height]
          [alignment '(center top)]))
   
   (new button%
@@ -185,8 +187,6 @@ be able to "drag"
        [callback (lambda (b e)
                    (set-field! reorder? a-canvas #t)
                    (send a-canvas update-canvas)
-                   (display (format "x-off: ~a" (get-field x-offset a-canvas))) (newline)
-                   (display (format "y-off: ~a" (get-field y-offset a-canvas))) (newline)
                    )])
 
   (new button%

@@ -197,8 +197,6 @@ limit panning and zooming with respect to a specified workspace limit
       (define drawing-scale (get-display-scale search-list (send this get-width) (send this get-height)))
       (set! x-offset left)
       (set! y-offset bottom)
-      (display (format "left: ~a" left)) (newline)
-      (display (format "bottom: ~a" bottom)) (newline)
       (set! x-scale  drawing-scale)
       (set! y-scale  drawing-scale)
       (update-node-lst)
@@ -237,10 +235,6 @@ limit panning and zooming with respect to a specified workspace limit
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #f)])
-                         (display (format "Original list: ~a" (length search-list))) (newline)(newline)
-                         (display (format "To delete: ~a" (length list-of-entities-to-reorder))) (newline)(newline)
-                         (display (format "To add: ~a" (length (path-entities new-path)))) (newline)
-                         (display (format "New list: ~a" (length  (append (list new-path) (remove* list-of-entities-to-reorder search-list))))) (newline)(newline)
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))

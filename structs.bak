@@ -103,6 +103,36 @@ Try to keep the more complex and specific functions in lst-utils.
       (node-equal? (get-entity-start x) (get-entity-end y))
       (node-equal? (get-entity-start x) (get-entity-start y))))
 
+(: get-x-vals (-> Entities (Listof Real)))
+(define (get-x-vals struct-lst)
+  (let loop : (Listof Real)
+    [(acc : (Listof Real) '())
+     (lst : Entities struct-lst)]
+    (cond ((empty? lst) acc)
+          (else
+           (match (car lst)
+             [(struct* line  ([p1 p1]
+                              [p2 p2]))              (loop (cons (node-x p1) (cons (node-x p2) acc)) (cdr lst))]
+             [(struct* arc   ([center center]
+                              [radius radius]))      (loop (cons (+ (node-x center) radius) (cons (- (node-x center) radius) acc)) (cdr lst))]
+             [(struct* dot   ([p p]))                (loop (cons (node-x p) acc) (cdr lst))]
+             [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
+
+(: get-y-vals (-> Entities (Listof Real)))
+(define (get-y-vals struct-lst)
+  (let loop : (Listof Real)
+    [(acc : (Listof Real) '())
+     (lst : Entities struct-lst)]
+    (cond ((empty? lst) acc)
+          (else
+           (match (car lst)
+             [(struct* line  ([p1 p1]
+                              [p2 p2]))              (loop (cons (node-y p1) (cons (node-y p2) acc)) (cdr lst))]
+             [(struct* arc   ([center center]
+                              [radius radius]))      (loop (cons (+ (node-y center) radius) (cons (- (node-y center) radius) acc)) (cdr lst))]
+             [(struct* dot   ([p p]))                (loop (cons (node-y p) acc) (cdr lst))]
+             [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
+
 ;separate a group of entities according to whether they are connected or not. 
 ;this does a node by node check so there may be "islands" that are actually connected"
 (: separate-list-of-entities (-> Entities (Listof Entities)))
