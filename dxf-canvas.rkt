@@ -83,23 +83,17 @@ limit panning and zooming with respect to a specified workspace limit
     (define selecting (make-object cursor% 'cross))
     
     ;; MOUSE SCALING
-    ;scale mouse coordinates to display coordinates
+    ;scale mouse coordinates to pixel coordinates
     (define (mouse2display-x x)
       (/ (- x x-offset) x-scale))
     (define (mouse2display-y y) 
       (/ (- y y-offset) y-scale))
     
-    (define-syntax change-pen
-      (lambda (stx)
-        (syntax-case stx ()
-          [(_ pen-type)
-           #'(begin (send (get-dc) set-pen pen-type))])))
+    (define (change-pen pen-type)
+        (send (get-dc) set-pen pen-type))
     
-    (define-syntax change-cursor
-      (lambda (stx)
-        (syntax-case stx ()
-          [(_ cursor-type)
-           #'(send this set-cursor cursor-type)])))
+    (define (change-cursor cursor-type)
+        (send this set-cursor cursor-type))
     
     (define-syntax my-draw
       (lambda (stx)
@@ -230,6 +224,10 @@ limit panning and zooming with respect to a specified workspace limit
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #f)])
+                         (display (format "Original list: ~a" (length search-list))) (newline)(newline)
+                         (display (format "To delete: ~a" (length list-of-entities-to-reorder))) (newline)(newline)
+                         (display (format "To add: ~a" (length (path-entities new-path)))) (newline)
+                         (display (format "New list: ~a" (length  (append (list new-path) (remove* list-of-entities-to-reorder search-list))))) (newline)(newline)
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))

@@ -153,8 +153,9 @@ be able to "drag"
                              (else (begin (toggle-visibility (car lst))
                                           (map-toggle-visibility (cdr lst))))))
                      (send a-canvas update-canvas)
-                     (map-toggle-visibility (filter entity-same-layer? search-list))
+                     (map-toggle-visibility (filter entity-same-layer? (get-field search-list a-canvas)))
                      (send a-canvas draw-objects search-list)
+                     (send a-canvas update-node-lst)
                      (send a-canvas on-paint)
                      (send a-canvas refresh-now)))))
   
@@ -195,7 +196,7 @@ be able to "drag"
   (new button%
        [label "Refocus"]
        [parent button-panel-1]
-       [callback (lambda (b e) 
+       [callback (lambda (b e)
                    (set-field! x-offset a-canvas 0)
                    (set-field! y-offset a-canvas (- editor-height 150))
                    (set-field! x-scale  a-canvas 1)
