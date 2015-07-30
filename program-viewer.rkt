@@ -64,7 +64,9 @@ be able to "drag"
                  [(path highlighted selected visible layer path-list)                           (make-path layer (downscale path-list scale))]))))
   
   (define original-list (file->struct-list input-port))
-  (define-values (drawing-scale left bottom) (get-display-scale original-list editor-width editor-height))
+  (define left (smallest (get-x-vals original-list)))
+  (define bottom (smallest (get-y-vals original-list)))
+  (define drawing-scale (get-display-scale original-list editor-width editor-height))
   (define search-list (rescale original-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
@@ -157,7 +159,9 @@ be able to "drag"
                      (send a-canvas draw-objects search-list)
                      (send a-canvas update-node-lst)
                      (send a-canvas on-paint)
-                     (send a-canvas refresh-now)))))
+                     (send a-canvas refresh-now)
+                     (when make-visible? (send a-canvas refocus))
+                       ))))
   
   (define button-panel-1
     (new horizontal-panel%
@@ -181,6 +185,8 @@ be able to "drag"
        [callback (lambda (b e)
                    (set-field! reorder? a-canvas #t)
                    (send a-canvas update-canvas)
+                   (display (format "x-off: ~a" (get-field x-offset a-canvas))) (newline)
+                   (display (format "y-off: ~a" (get-field y-offset a-canvas))) (newline)
                    )])
 
   (new button%
@@ -191,18 +197,14 @@ be able to "drag"
                    (send a-canvas update-node-lst)
                    (send a-canvas update-canvas)
                    (send a-canvas refresh-spreadsheet)
+                   (send a-canvas refocus)
                    )])
   
   (new button%
        [label "Refocus"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (set-field! x-offset a-canvas 0)
-                   (set-field! y-offset a-canvas (- editor-height 150))
-                   (set-field! x-scale  a-canvas 1)
-                   (set-field! y-scale  a-canvas -1)
-                   (send a-canvas update-node-lst)
-                   (send a-canvas update-canvas)
+                   (send a-canvas refocus)
                    )])
   
   (define create (new path-dialog%
@@ -224,6 +226,4 @@ be able to "drag"
        [callback (lambda (b e) 
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
-                   (make-mirror stripped)
-                   (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
-                   (make-mirror stripped))]))
+                   (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))]))

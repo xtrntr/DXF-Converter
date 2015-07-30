@@ -51,7 +51,7 @@ limit panning and zooming with respect to a specified workspace limit
      [rotation 0]
      [transformation-matrix (vector 1 0 0 1 0 0)]
      [x-scale 1]
-     [y-scale -1]
+     [y-scale 1]
      
      ;interaction variables
      [init-cursor-x 0]
@@ -190,6 +190,19 @@ limit panning and zooming with respect to a specified workspace limit
     
     (define/public (refresh-spreadsheet)
       (update-spreadsheet search-list))
+
+    (define/public (refocus)
+      (define left (+ 0 (smallest (get-x-vals (get-visible-entities search-list)))))
+      (define bottom (+ 0 (* -1 (smallest (get-y-vals (get-visible-entities search-list))))))
+      (define drawing-scale (get-display-scale search-list (send this get-width) (send this get-height)))
+      (set! x-offset left)
+      (set! y-offset bottom)
+      (display (format "left: ~a" left)) (newline)
+      (display (format "bottom: ~a" bottom)) (newline)
+      (set! x-scale  drawing-scale)
+      (set! y-scale  drawing-scale)
+      (update-node-lst)
+      (update-canvas))
     
     ;; POPUP MENU
     (define popup-opened
@@ -250,7 +263,7 @@ limit panning and zooming with respect to a specified workspace limit
         (special-control-key #t)
         (cond [(equal? key 'wheel-up)
                (set! x-scale (+ x-scale 0.1)) 
-               (set! y-scale (- y-scale 0.1))]
+               (set! y-scale (+ y-scale 0.1))]
               [(equal? key 'escape) 
                (unselect-all search-list)
                (update-node-lst)
@@ -258,7 +271,7 @@ limit panning and zooming with respect to a specified workspace limit
               [(equal? key 'wheel-down) 
                (when (> (- x-scale 0.1) 0) 
                  (set! x-scale (- x-scale 0.1))
-                 (set! y-scale (+ y-scale 0.1)))]
+                 (set! y-scale (- y-scale 0.1)))]
               [(equal? key '#\backspace)
                (delete-selected search-list)
                (update-node-lst)

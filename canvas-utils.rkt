@@ -82,7 +82,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
     (void)))
 
 ;scaling for display - only done once
-(: get-display-scale (-> Entities Real Real (Values Real Real Real)))
+(: get-display-scale (-> Entities Real Real Real))
 (define (get-display-scale struct-lst frame-width frame-height)
   (let* ((top (biggest (get-y-vals struct-lst)))
          (bottom (smallest (get-y-vals struct-lst)))
@@ -93,7 +93,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
          (x-scale (/ frame-width width))
          (y-scale (/ frame-height height))
          (drawing-scale (smallest (list x-scale y-scale))))
-    (values drawing-scale left bottom)))
+    drawing-scale))
 
 ;; divide the complete 2d space into 9 boxes
 ;; cohen-sutherland algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
