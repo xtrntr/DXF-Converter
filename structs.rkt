@@ -60,16 +60,11 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: make-arc (-> String Real Real Real Real Real Boolean arc))
 (define (make-arc layer center-x center-y radius start end ccw?)
-  (let* ([arc-pts : (Listof Real)  (get-arc-points center-x center-y radius start end ccw?)]
-         [x1 : Real                (first arc-pts)]
-         [y1 : Real                (second arc-pts)]
-         [x2 : Real                (third arc-pts)]
-         [y2 : Real                (fourth arc-pts)]
-         [x3 : Real                (fifth arc-pts)]
-         [y3 : Real                (sixth arc-pts)])
-    (if ccw?
-        (arc #f #f #f layer (node center-x center-y) radius start end (node x3 y3) (node x2 y2) (node x1 y1) #t)
-        (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))))
+  (match (get-arc-points center-x center-y radius start end ccw?)
+    [(list x1 y1 x2 y2 x3 y3)
+     (if ccw?
+         (arc #f #f #f layer (node center-x center-y) radius start end (node x3 y3) (node x2 y2) (node x1 y1) #t)
+         (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))]))
 
 (: make-path (-> String (Listof (U line arc)) path))
 (define (make-path layer lst)
