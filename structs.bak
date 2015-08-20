@@ -60,16 +60,11 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: make-arc (-> String Real Real Real Real Real Boolean arc))
 (define (make-arc layer center-x center-y radius start end ccw?)
-  (let* ([arc-pts : (Listof Real)  (get-arc-points center-x center-y radius start end ccw?)]
-         [x1 : Real                (first arc-pts)]
-         [y1 : Real                (second arc-pts)]
-         [x2 : Real                (third arc-pts)]
-         [y2 : Real                (fourth arc-pts)]
-         [x3 : Real                (fifth arc-pts)]
-         [y3 : Real                (sixth arc-pts)])
-    (if ccw?
-        (arc #f #f #f layer (node center-x center-y) radius start end (node x3 y3) (node x2 y2) (node x1 y1) #t)
-        (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))))
+  (match (get-arc-points center-x center-y radius start end ccw?)
+    [(list x1 y1 x2 y2 x3 y3)
+     (if ccw?
+         (arc #f #f #f layer (node center-x center-y) radius start end (node x3 y3) (node x2 y2) (node x1 y1) #t)
+         (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))]))
 
 (: make-path (-> String (Listof (U line arc)) path))
 (define (make-path layer lst)
@@ -88,7 +83,7 @@ Try to keep the more complex and specific functions in lst-utils.
          [visible? : Boolean (entity-visible a-struct)]
          [reversed-struct : Entity ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
                                                   (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
-                                                  (arc (make-arc layer (node-x center) (node-y center) radius start end #t))
+                                                  (arc (make-arc layer (node-x center) (node-y center) radius start end (not ccw)))
                                                   (path (lambda (x) (make-path layer (reverse x)))))
                                     a-struct)])
     (when highlighted? (set-entity-highlighted! reversed-struct #t))
@@ -137,7 +132,7 @@ Try to keep the more complex and specific functions in lst-utils.
 ;this does a node by node check so there may be "islands" that are actually connected"
 (: separate-list-of-entities (-> Entities (Listof Entities)))
 (define (separate-list-of-entities entity-lst)
-  ;iterate through each value of entity-ls
+  ;iterate through each value of entity-lst
   (let master : (Listof Entities)
     ([acc : (Listof Entities) '()]
      [remainder : Entities entity-lst])

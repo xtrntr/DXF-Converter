@@ -45,10 +45,12 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 ;135.224 represented as 135224
 (: ils-x (-> Real Real))
 (define (ils-x x)
+  ;25.4 inches debug
   (round-to-int (* 1000 (round-3 (+ x-off x)))))
 
 (: ils-y (-> Real Real))
 (define (ils-y y)
+  ;25.4 inches debug
   (round-to-int (* 1000 (round-3 (+ y-off y)))))
 
 (: insert-newline (-> Void))
@@ -151,7 +153,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
   (insert-newline))
   
 ;identify first
-(: ils-path (-> (Listof (U line arc)) Void))
+(: ils-path (-> Path-Entities Void))
 (define (ils-path path-list)
   (: line-arc? (-> Entity Entity Boolean))
   (define (line-arc? x y)
@@ -169,7 +171,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
   (define (arc-arc? x y)
     (and (equal? (object-name x) 'arc)
          (equal? (object-name y) 'arc)))
-  (: iterate (-> (Listof (U line arc)) (U line arc) Void))
+  (: iterate (-> Path-Entities Path-Entity Void))
   (define (iterate lst prev)
     (define current (car lst))
     (spacing)
@@ -206,7 +208,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
            (ils-arc-point (node-x (arc-p2 current)) (node-y (arc-p2 current)))
            (iterate (cdr lst) current))))
   (unless (= (length path-list) 1)
-    (let ([start : (U line arc) (car path-list)])
+    (let ([start : Path-Entity (car path-list)])
       (match start
         [(line highlighted selected visible layer p1 p2)                                (ils-line-start (node-x p1) (node-y p1))]
         [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)  (ils-arc-start (node-x p1) (node-y p1))

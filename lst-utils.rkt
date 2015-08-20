@@ -31,6 +31,7 @@
         [else (error "Expected the node to be start or end of the entity, but was given: " start-n x)]))
 
 ;;HELPER functions for finding (and reversing if needed) entity/entities in a list of entity.
+;;they are a little dense, so feel free to remove the (cast .. ..) for readability. they were put in there for optimization.
 ;;names are self explanatory, and they use 1/2 node(s) to determine the matching entity
 (: find-entity-with-starting-node (-> node Entities (U Entity False)))
 (define (find-entity-with-starting-node start-n lst)
@@ -87,24 +88,23 @@
 
 ;build a path,
 ;given the starting node and the list of entities to build the path
-(: reorder-open-path (-> node Entities path))
+(: reorder-open-path (-> node Path-Entities Path-Entities))
 (define (reorder-open-path start-n entity-lst)
   (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
   (define layer (entity-layer (first entity-lst)))
-  (make-selected-path layer 
-                      (cast (let main : Entities
-                              ([current : Entity first-entity]
-                               [acc : Entities (list first-entity)]
-                               [unchecked : Entities new-lst])
-                              (cond ((empty? unchecked) acc)
-                                    (else
-                                     (let-values ([(next-entity new-lst) 
-                                                   (find-entity-from-node (get-entity-end current) unchecked)])
-                                       (main next-entity (append acc (list next-entity)) new-lst))))) (Listof (U line arc)))))
+  (cast (let main : Entities
+          ([current : Entity first-entity]
+           [acc : Entities (list first-entity)]
+           [unchecked : Entities new-lst])
+          (cond ((empty? unchecked) acc)
+                (else
+                 (let-values ([(next-entity new-lst) 
+                               (find-entity-from-node (get-entity-end current) unchecked)])
+                   (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))
 
 ;build a path,
 ;given a starting node, the list of entities to build the path and the direction CW/CCW of the path from the starting node
-(: reorder-closed-path (-> node Entities Boolean path))
+(: reorder-closed-path (-> node Path-Entities Boolean Path-Entities))
 (define (reorder-closed-path start-n entity-lst ccw?)
   (define-values (possibilities not-used) (find-entities-from-node start-n entity-lst))
   (let* ([layer (entity-layer (first possibilities))]
@@ -118,12 +118,35 @@
                           ((and ccw? a>b>c-clockwise?) a)
                           ((and ccw? (not a>b>c-clockwise?)) c))])
     (let-values ([(first-entity new-lst) (find-entity-from-nodes start-n next-node entity-lst)])
-      (make-selected-path layer (cast (let main : Entities
-                                        ([current : Entity first-entity]
-                                         [acc : Entities (list first-entity)]
-                                         [unchecked : Entities new-lst])
-                                        (cond ((empty? unchecked) acc)
-                                              (else
-                                               (let-values ([(next-entity new-lst) 
-                                                             (find-entity-from-node (get-entity-end current) unchecked)])
-                                                 (main next-entity (append acc (list next-entity)) new-lst))))) (Listof (U line arc)))))))
+      (cast (let main : Entities
+              ([current : Entity first-entity]
+               [acc : Entities (list first-entity)]
+               [unchecked : Entities new-lst])
+              (cond ((empty? unchecked) acc)
+                    (else
+                     (let-values ([(next-entity new-lst) 
+                                   (find-entity-from-node (get-entity-end current) unchecked)])
+                       (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))))
+
+(: make-path (-> String Path-Entities path))
+(define (make-path layer lst)
+  (if (closed-path-entity-list? lst)
+      (path #f #f #f layer (reorder-closed-path (get-entity-start (first lst)) lst #t))
+      (path #f #f #f layer (reorder-open-path (first (get-start/end-nodes lst)) lst))))
+
+
+(: reverse-direction (-> Entity Entity))
+(define (reverse-direction a-struct)
+  (let* ([layer : String (entity-layer a-struct)]
+         [highlighted? : Boolean (entity-highlighted a-struct)]
+         [selected? : Boolean (entity-selected a-struct)]
+         [visible? : Boolean (entity-visible a-struct)]
+         [reversed-struct : Entity ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
+                                                  (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
+                                                  (arc (make-arc layer (node-x center) (node-y center) radius start end (not ccw)))
+                                                  (path (lambda (x) (make-path layer (reverse x)))))
+                                    a-struct)])
+    (when highlighted? (set-entity-highlighted! reversed-struct #t))
+    (when selected? (set-entity-selected! reversed-struct #t))
+    (when visible? (set-entity-visible! reversed-struct #t))
+    reversed-struct))

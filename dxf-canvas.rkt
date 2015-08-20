@@ -222,7 +222,7 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
-                              [new-path (reorder-open-path highlighted-node list-of-entities-to-reorder)])
+                              [new-path (make-selected (make-path (reorder-open-path highlighted-node list-of-entities-to-reorder)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))
@@ -234,7 +234,7 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
-                              [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #f)])
+                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #f)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))
@@ -246,7 +246,7 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
-                              [new-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #t)])
+                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #t)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))
@@ -335,7 +335,14 @@ limit panning and zooming with respect to a specified workspace limit
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-         (let ([selected-list (get-belonging-list highlighted-node (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list))))])
+         (let* ([entities-list (separate-list-of-entities (get-selected-entities search-list))]
+                [selected-list (get-belonging-list highlighted-node (sort-list-of-entities entities-list))])
+           (display (length entities-list))
+           (newline)
+           (newline)
+           (display entities-list)
+           (newline)
+           (newline)
            (unless (ormap (lambda (x) (path? x)) selected-list)
              (if (closed-path-entity-list? selected-list)
                  (send this popup-menu popup-closed cursor-x cursor-y)

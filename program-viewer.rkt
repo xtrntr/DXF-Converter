@@ -102,14 +102,15 @@ be able to "drag"
         (send a-list-box set 
               (entities-to-strings displayed-list)
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
-              ;(map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
-              ;(map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
-              ;(map to-display (map unscale-x (map node-x (map get-entity-end displayed-list))))
-              ;(map to-display (map unscale-y (map node-y (map get-entity-end displayed-list))))
-              (map to-display (map node-x (map get-entity-start displayed-list)))
-              (map to-display (map node-y (map get-entity-start displayed-list)))
-              (map to-display (map node-x (map get-entity-end displayed-list)))
-              (map to-display (map node-y (map get-entity-end displayed-list))))))
+              (map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
+              (map to-display (map unscale-x (map node-x (map get-entity-end displayed-list))))
+              (map to-display (map unscale-y (map node-y (map get-entity-end displayed-list)))))))
+              ;debugging mode
+              ;(map to-display (map node-x (map get-entity-start displayed-list)))
+              ;(map to-display (map node-y (map get-entity-start displayed-list)))
+              ;(map to-display (map node-x (map get-entity-end displayed-list)))
+              ;(map to-display (map node-y (map get-entity-end displayed-list))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -214,8 +215,9 @@ be able to "drag"
   (new button%
        [label "Generate for ILS"]
        [parent button-panel-2]
-       [callback (lambda (b e) 
-                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
+       [callback (lambda (b e)
+                   ;debugging mode
+                   (display (get-selected-entities (get-field search-list a-canvas)))
                    (display "1"))])
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])

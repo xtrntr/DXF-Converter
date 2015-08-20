@@ -1,7 +1,8 @@
 #lang typed/racket
 
 (require "structs.rkt"
-         "utils.rkt")
+         "utils.rkt"
+         "lst-utils.rkt")
 
 (provide (all-defined-out))
 
@@ -31,6 +32,7 @@
         [else (error "Expected the node to be start or end of the entity, but was given: " start-n x)]))
 
 ;;HELPER functions for finding (and reversing if needed) entity/entities in a list of entity.
+;;they are a little dense, so feel free to remove the (cast .. ..) for readability. they were put in there for optimization.
 ;;names are self explanatory, and they use 1/2 node(s) to determine the matching entity
 (: find-entity-with-starting-node (-> node Entities (U Entity False)))
 (define (find-entity-with-starting-node start-n lst)
@@ -81,19 +83,14 @@
 ;given 3 nodes a b c, find if a->b->c is in a clockwise or anticlockwise direction
 (: clockwise-turn? (-> node node node Boolean))
 (define (clockwise-turn? a b c)
-  (let* ((ax (node-x a))
-         (ay (node-y a))
-         (bx (node-x b))
-         (by (node-y b))
-         (cx (node-x c))
-         (cy (node-y c)))
-    (not (positive? (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay)))))))
+  (match* (a b c) 
+    [((node ax ay) (node bx by) (node cx cy)) 
+     (not (positive? (- (* (- bx ax) (- cy ay)) (* (- cx ax) (- by ay)))))]))
 
 ;build a path,
 ;given the starting node and the list of entities to build the path
 (: reorder-open-path (-> node Entities path))
 (define (reorder-open-path start-n entity-lst)
-  (display (list start-n entity-lst))
   (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
   (define layer (entity-layer (first entity-lst)))
   (make-selected-path layer 

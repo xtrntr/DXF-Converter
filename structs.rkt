@@ -12,6 +12,8 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (define-type Entity (U line arc path dot))
 (define-type Entities (Listof Entity))
+(define-type Path-Entity (U line arc))
+(define-type Path-Entities (Listof Path-Entity))
 
 (struct node 
   ([x : Real]
@@ -46,7 +48,7 @@ Try to keep the more complex and specific functions in lst-utils.
   #:transparent #:mutable)
 
 (struct path entity
-  ([entities : (Listof (U line arc))])
+  ([entities : (Listof Path-Entity)])
   #:transparent)
 
 ;; CONSTRUCTORS
@@ -66,31 +68,13 @@ Try to keep the more complex and specific functions in lst-utils.
          (arc #f #f #f layer (node center-x center-y) radius start end (node x3 y3) (node x2 y2) (node x1 y1) #t)
          (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))]))
 
-(: make-path (-> String (Listof (U line arc)) path))
-(define (make-path layer lst)
-  (path #f #f #f layer lst))
-
-(: make-selected-path (-> String (Listof (U line arc)) path))
-(define (make-selected-path layer lst)
-  (path #f #t #t layer lst))
+(: make-selected (-> Entity Entity))
+(define (make-selected an-entity)
+  (set-entity-selected! an-entity #t)
+  (set-entity-visible! an-entity #t)
+  an-entity)
 
 ;; ENTITY OPERATIONS
-(: reverse-direction (-> Entity Entity))
-(define (reverse-direction a-struct)
-  (let* ([layer : String (entity-layer a-struct)]
-         [highlighted? : Boolean (entity-highlighted a-struct)]
-         [selected? : Boolean (entity-selected a-struct)]
-         [visible? : Boolean (entity-visible a-struct)]
-         [reversed-struct : Entity ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
-                                                  (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
-                                                  (arc (make-arc layer (node-x center) (node-y center) radius start end (not ccw)))
-                                                  (path (lambda (x) (make-path layer (reverse x)))))
-                                    a-struct)])
-    (when highlighted? (set-entity-highlighted! reversed-struct #t))
-    (when selected? (set-entity-selected! reversed-struct #t))
-    (when visible? (set-entity-visible! reversed-struct #t))
-    reversed-struct))
-
 (: are-entities-connected? (-> Entity Entity Boolean))
 (define (are-entities-connected? x y)
   (or (node-equal? (get-entity-end x) (get-entity-end y))
@@ -132,7 +116,7 @@ Try to keep the more complex and specific functions in lst-utils.
 ;this does a node by node check so there may be "islands" that are actually connected"
 (: separate-list-of-entities (-> Entities (Listof Entities)))
 (define (separate-list-of-entities entity-lst)
-  ;iterate through each value of entity-ls
+  ;iterate through each value of entity-lst
   (let master : (Listof Entities)
     ([acc : (Listof Entities) '()]
      [remainder : Entities entity-lst])

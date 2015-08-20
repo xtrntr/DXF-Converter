@@ -9,8 +9,7 @@ It will loop through the data of this section and create a list of structs that 
 |#
 
 (require "structs.rkt"
-         "utils.rkt"
-         "lst-utils.rkt")
+         "utils.rkt")
 
 (provide file->struct-list)
 
@@ -68,7 +67,8 @@ It will loop through the data of this section and create a list of structs that 
 (: extract-val (-> (HashTable String String) String Real))
 (define (extract-val ht header)
   (define val (string->number (hash-ref ht header)))
-  (assert val real?))
+  ;inches
+  (assert (/ val 25.4) real?))
 
 (: separate (-> (Listof String) (Listof (Pairof String String))))
 (define (separate lst)
@@ -114,9 +114,9 @@ It will loop through the data of this section and create a list of structs that 
          [center-x : Real       (extract-val ht "10")]
          [center-y : Real       (extract-val ht "20")]
          [radius : Real         (extract-val ht "40")])
-    (path #f #f #f layer 
-          (list (make-arc layer center-x center-y radius 0 180 #f)
-                (make-arc layer center-x center-y radius 180 360 #f)))))
+    (make-path layer 
+               (list (make-arc layer center-x center-y radius 0 180 #f)
+                     (make-arc layer center-x center-y radius 180 360 #f)))))
 
 (: dxf-path (-> (Listof String) path))
 (define (dxf-path lst)
@@ -137,9 +137,9 @@ It will loop through the data of this section and create a list of structs that 
          [first-y : String                  (cadr (cast (memf (lambda ([x : String]) (equal? x "20")) lst) (Listof String)))])
     (if closed?
         (make-path layer 
-                   (let closed-polyline : Path-Entities
+                   (let closed-polyline : (Listof (U line arc))
                      ([path-lst : (Listof String) lst]
-                      [acc : Path-Entities null])
+                      [acc : (Listof (U line arc)) null])
                      (match path-lst
                        [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
                        [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
@@ -148,9 +148,9 @@ It will loop through the data of this section and create a list of structs that 
                        [(list _ _ rest ...)                                        (closed-polyline rest acc)]
                        [_ (error "This is not expected, given: " path-lst)])))
         (make-path layer 
-               (let open-polyline : Path-Entities
+               (let open-polyline : (Listof (U line arc))
                  ([path-lst : (Listof String) lst]
-                  [acc : Path-Entities null])
+                  [acc : (Listof (U line arc)) null])
                  (match path-lst
                    [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 "0")      (cons (smake-arc layer x1 y1 x2 y2 bulge) acc)]
                    [(list "10" x1 "20" y1 "10" x2 "20" y2 "0")                 (cons (smake-line layer x1 y1 x2 y2) acc)]
