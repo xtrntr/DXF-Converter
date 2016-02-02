@@ -225,7 +225,7 @@ be able to "drag"
        [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-visible-entities (get-field search-list a-canvas)))
+                   (define stripped (get-base-elements (get-visible-entities (get-field search-list a-canvas))))
                    (display "search list:")
                    (display stripped))])
   ;binary for osx, text for windows

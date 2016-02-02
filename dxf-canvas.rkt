@@ -182,8 +182,14 @@ limit panning and zooming with respect to a specified workspace limit
     (define/public (update-node-lst)
       (if (empty? (get-selected-entities search-list))
           (set! node-lst '())
-          ;[groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities (filter-not path? search-list))))]
-          (begin (let ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))])
+          (begin (let* ([a (time (get-selected-entities search-list))]
+                        [z (newline)]
+                        [b (time (separate-list-of-entities a))]
+                        [y (newline)]
+                        [c (time (sort-list-of-entities b))]
+                        [x (newline)]
+                        [groups-of-connected-entities c])
+                   (newline)
                    (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))))))
     
     (define/public (update-canvas)
