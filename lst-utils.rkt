@@ -21,6 +21,7 @@
           (car connection-lst)
           (main (cdr connection-lst))))))
 
+;get all the base elements out of a path
 (: get-base-elements (-> Entities Entities))
 (define (get-base-elements lst)
   (let loop : Entities
@@ -52,7 +53,7 @@
 (: find-entity-with-ending-node (-> node Entities (U Entity False)))
 (define (find-entity-with-ending-node end-n lst)
   (let [(result : (U Entity False) (findf (lambda ([x : Entity]) (node-equal? (get-entity-end x) end-n)) lst))]
-    (when (not result)
+    (when (eq? #f result)
       (display "Error: node ")
       (display end-n)
       (display " cannot be found among: ")

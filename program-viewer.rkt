@@ -73,14 +73,9 @@ be able to "drag"
                   (make-path layer (downscale path-list scale))]))))
   
   (define original-list (file->struct-list input-port))
-<<<<<<< Updated upstream
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define drawing-scale (get-display-scale original-list editor-width editor-height))
-=======
-  (define-values (drawing-scale left bottom) (get-display-scale original-list editor-width editor-height))
-  ;(display (list drawing-scale left bottom))
->>>>>>> Stashed changes
   (define search-list (rescale original-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
@@ -229,17 +224,10 @@ be able to "drag"
   (new button%
        [label "Generate for ILS"]
        [parent button-panel-2]
-<<<<<<< HEAD
-       [callback (lambda (b e)
-                   ;debugging mode
-                   (display (get-selected-entities (get-field search-list a-canvas)))
-                   (display "1"))])
-=======
        [callback (lambda (b e) 
                    (define stripped (get-visible-entities (get-field search-list a-canvas)))
                    (display "search list:")
                    (display stripped))])
->>>>>>> one-main-window
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
@@ -249,12 +237,8 @@ be able to "drag"
        [callback (lambda (b e) 
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
-<<<<<<< Updated upstream
-                   (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))]))
-=======
                    (make-mirror stripped)
                    (generate-gr-pattern
                     (downscale stripped drawing-scale)
                     (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
                    (make-mirror stripped))]))
->>>>>>> Stashed changes

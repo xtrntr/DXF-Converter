@@ -114,6 +114,7 @@ Try to keep the more complex and specific functions in lst-utils.
 
 ;separate a group of entities according to whether they are connected or not. 
 ;this does a node by node check so there may be "islands" that are actually connected"
+;i.e. '( (1 2) (2 3) (9 10) (10 11)) -> '( ((1 2) (2 3)) ((9 10) (10 11))) )
 (: separate-list-of-entities (-> Entities (Listof Entities)))
 (define (separate-list-of-entities entity-lst)
   ;iterate through each value of entity-lst

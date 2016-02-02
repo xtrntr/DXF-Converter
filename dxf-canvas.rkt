@@ -338,32 +338,9 @@ limit panning and zooming with respect to a specified workspace limit
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-<<<<<<< HEAD
-         (let* ([entities-list (separate-list-of-entities (get-selected-entities search-list))]
-                [selected-list (get-belonging-list highlighted-node (sort-list-of-entities entities-list))])
-<<<<<<< HEAD
-           (display (length entities-list))
-           (newline)
-           (newline)
-           (display entities-list)
-           (newline)
-           (newline)
-           (unless (ormap (lambda (x) (path? x)) selected-list)
-=======
-         (let ([selected-list (get-belonging-list highlighted-node (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list))))])
-           (when (andmap (lambda (x) (path? x)) selected-list)
-             (display "\n")
-             (display "\n")
-             (display "cannot show popup, selected-list: ")
-             (display selected-list)
-             (display "\n")
-             (display "\n"))
-           (unless (andmap (lambda (x) (path? x)) selected-list)
->>>>>>> one-main-window
-             (if (closed-path-entity-list? selected-list)
-                 (send this popup-menu popup-closed cursor-x cursor-y)
-                 (send this popup-menu popup-opened cursor-x cursor-y)))))
-=======
+           (let* ([entities-list (separate-list-of-entities (get-selected-entities search-list))]
+                   [selected-list (get-belonging-list highlighted-node (sort-list-of-entities entities-list))])
+             #|
            (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                   [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                   [base-elements (get-base-elements list-of-entities-to-reorder)])
@@ -374,10 +351,10 @@ limit panning and zooming with respect to a specified workspace limit
              (display base-elements)
              (newline)
              (newline))
-           (if (closed-path-entity-list? selected-list)
-               (send this popup-menu popup-closed cursor-x cursor-y)
-               (send this popup-menu popup-opened cursor-x cursor-y))))
->>>>>>> origin/master
+|#
+             (if (closed-path-entity-list? selected-list)
+                 (send this popup-menu popup-closed cursor-x cursor-y)
+                 (send this popup-menu popup-opened cursor-x cursor-y))))
         (is-selecting?
          (change-cursor selecting)
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)
