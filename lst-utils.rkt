@@ -39,7 +39,13 @@
 
 (: find-entity-with-ending-node (-> node Entities (U Entity False)))
 (define (find-entity-with-ending-node end-n lst)
-  (findf (lambda ([x : Entity]) (node-equal? (get-entity-end x) end-n)) lst))
+  (let [(result : (U Entity False) (findf (lambda ([x : Entity]) (node-equal? (get-entity-end x) end-n)) lst))]
+    (when (not result)
+      (display "Error: node ")
+      (display end-n)
+      (display " cannot be found among: ")
+      (display lst))
+    result))
 
 (: find-entity-with-ending-and-starting-node (-> node node Entities (U Entity False)))
 (define (find-entity-with-ending-and-starting-node start-n end-n lst)

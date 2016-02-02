@@ -4,7 +4,8 @@
 
 TODO:
 more sophisticated way of refocusing canvas.
-when you select/unselect item(s) in the spreadsheet display, highlight/unhighlight relevant entities in canvas but it should not work the other way round.
+when you select/unselect item(s) in the spreadsheet display, highlight/unhighlight relevant entities
+in canvas but it should not work the other way round.
 be able to "drag" 
 
 |#
@@ -29,12 +30,12 @@ be able to "drag"
 (define button-height 30)
 
 (define (open-file input-port a-frame)
-
+  
   (define area-container (send a-frame get-area-container))
   (for/list ([i (send area-container get-children)])
     (send area-container delete-child i))
   (define-values (editor-width editor-height) (send a-frame get-size))
-
+  
   (define (scale-x coord)
     (* drawing-scale (- coord left)))
   
@@ -50,27 +51,40 @@ be able to "drag"
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)                               (make-line layer (scale-x (node-x p1)) (scale-y (node-y p1)) (scale-x (node-x p2)) (scale-y (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (make-arc layer (scale-x (node-x center)) (scale-y (node-y center)) (* scale radius) start end ccw)]
-                 [(dot highlighted selected visible layer p)                                    (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
-                 [(path highlighted selected visible layer path-list)                           (make-path layer (rescale path-list scale))]))))
+                 [(line highlighted selected visible layer p1 p2)
+                  (make-line layer (scale-x (node-x p1)) (scale-y (node-y p1)) (scale-x (node-x p2)) (scale-y (node-y p2)))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
+                  (make-arc layer (scale-x (node-x center)) (scale-y (node-y center)) (* scale radius) start end ccw)]
+                 [(dot highlighted selected visible layer p)
+                  (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
+                 [(path highlighted selected visible layer path-list)
+                  (make-path layer (rescale path-list scale))]))))
   
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)                               (make-line layer (unscale-x (node-x p1)) (unscale-y (node-y p1)) (unscale-x (node-x p2)) (unscale-y (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (make-arc layer (unscale-x (node-x center)) (unscale-y (node-y center)) (/ radius scale) start end ccw)]
-                 [(dot highlighted selected visible layer p)                                    (make-dot layer (unscale-x (node-x p)) (unscale-y (node-y p)))]
-                 [(path highlighted selected visible layer path-list)                           (make-path layer (downscale path-list scale))]))))
+                 [(line highlighted selected visible layer p1 p2)
+                  (make-line layer (unscale-x (node-x p1)) (unscale-y (node-y p1)) (unscale-x (node-x p2)) (unscale-y (node-y p2)))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
+                  (make-arc layer (unscale-x (node-x center)) (unscale-y (node-y center)) (/ radius scale) start end ccw)]
+                 [(dot highlighted selected visible layer p)
+                  (make-dot layer (unscale-x (node-x p)) (unscale-y (node-y p)))]
+                 [(path highlighted selected visible layer path-list)
+                  (make-path layer (downscale path-list scale))]))))
   
   (define original-list (file->struct-list input-port))
+<<<<<<< Updated upstream
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define drawing-scale (get-display-scale original-list editor-width editor-height))
+=======
+  (define-values (drawing-scale left bottom) (get-display-scale original-list editor-width editor-height))
+  ;(display (list drawing-scale left bottom))
+>>>>>>> Stashed changes
   (define search-list (rescale original-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
-
+  
   (define main-panel
     (new horizontal-panel%
          [parent area-container]))
@@ -189,7 +203,7 @@ be able to "drag"
                    (set-field! reorder? a-canvas #t)
                    (send a-canvas update-canvas)
                    )])
-
+  
   (new button%
        [label "Make mirror image"]
        [parent button-panel-1]
@@ -215,10 +229,17 @@ be able to "drag"
   (new button%
        [label "Generate for ILS"]
        [parent button-panel-2]
+<<<<<<< HEAD
        [callback (lambda (b e)
                    ;debugging mode
                    (display (get-selected-entities (get-field search-list a-canvas)))
                    (display "1"))])
+=======
+       [callback (lambda (b e) 
+                   (define stripped (get-visible-entities (get-field search-list a-canvas)))
+                   (display "search list:")
+                   (display stripped))])
+>>>>>>> one-main-window
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
@@ -228,4 +249,12 @@ be able to "drag"
        [callback (lambda (b e) 
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
+<<<<<<< Updated upstream
                    (generate-gr-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))]))
+=======
+                   (make-mirror stripped)
+                   (generate-gr-pattern
+                    (downscale stripped drawing-scale)
+                    (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
+                   (make-mirror stripped))]))
+>>>>>>> Stashed changes
