@@ -224,7 +224,8 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
-                              [new-path (make-selected (make-path (reorder-open-path highlighted-node list-of-entities-to-reorder)))])
+                              [base-elements (get-base-elements list-of-entities-to-reorder)]
+                              [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-open-path highlighted-node base-elements)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))
@@ -236,7 +237,8 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #f)))])
+                              [base-elements (get-base-elements list-of-entities-to-reorder)]
+                              [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #f)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))
@@ -248,7 +250,9 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node list-of-entities-to-reorder #t)))])
+                              [base-elements (get-base-elements list-of-entities-to-reorder)]
+                              [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #t)))])
+
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-spreadsheet search-list)))]))
@@ -337,6 +341,7 @@ limit panning and zooming with respect to a specified workspace limit
 <<<<<<< HEAD
          (let* ([entities-list (separate-list-of-entities (get-selected-entities search-list))]
                 [selected-list (get-belonging-list highlighted-node (sort-list-of-entities entities-list))])
+<<<<<<< HEAD
            (display (length entities-list))
            (newline)
            (newline)
@@ -358,6 +363,21 @@ limit panning and zooming with respect to a specified workspace limit
              (if (closed-path-entity-list? selected-list)
                  (send this popup-menu popup-closed cursor-x cursor-y)
                  (send this popup-menu popup-opened cursor-x cursor-y)))))
+=======
+           (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
+                  [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
+                  [base-elements (get-base-elements list-of-entities-to-reorder)])
+             (display (length base-elements))
+             (newline)
+             (display (length list-of-entities-to-reorder))
+             (newline)
+             (display base-elements)
+             (newline)
+             (newline))
+           (if (closed-path-entity-list? selected-list)
+               (send this popup-menu popup-closed cursor-x cursor-y)
+               (send this popup-menu popup-opened cursor-x cursor-y))))
+>>>>>>> origin/master
         (is-selecting?
          (change-cursor selecting)
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)

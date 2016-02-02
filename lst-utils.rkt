@@ -21,6 +21,18 @@
           (car connection-lst)
           (main (cdr connection-lst))))))
 
+(: get-base-elements (-> Entities Entities))
+(define (get-base-elements lst)
+  (let loop : Entities
+    ([acc : Entities '()]
+     [remaining : Entities lst])
+    (if (empty? remaining)
+        acc
+        (if (path? (first remaining))
+            (loop (loop acc (path-entities (first remaining)))
+                  (rest remaining))
+            (loop (cons (first remaining) acc) (rest remaining))))))
+
 ;given a start node and an entity, reorder the entity if necessary
 (: reorder-entity (-> node Entity Entity))
 (define (reorder-entity start-n x)
@@ -134,10 +146,23 @@
                                    (find-entity-from-node (get-entity-end current) unchecked)])
                        (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))))
 
+(: reorder-jumbled-path (-> node Path-Entities Boolean Path-Entities))
+(define (reorder-jumbled-path start-n entity-lst ccw?)
+  (let-values ([(first-entity new-lst) (find-entity-from-node start-n entity-lst)])
+    (cast (let main : Entities
+            ([current : Entity first-entity]
+             [acc : Entities (list first-entity)]
+             [unchecked : Entities new-lst])
+            (cond ((empty? unchecked) acc)
+                  (else
+                   (let-values ([(next-entity new-lst) 
+                                 (find-entity-from-node (get-entity-end current) unchecked)])
+                     (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities)))
+
 (: make-path (-> String Path-Entities path))
 (define (make-path layer lst)
   (if (closed-path-entity-list? lst)
-      (path #f #f #f layer (reorder-closed-path (get-entity-start (first lst)) lst #t))
+      (path #f #f #f layer (reorder-jumbled-path (get-entity-start (first lst)) lst #t))
       (path #f #f #f layer (reorder-open-path (first (get-start/end-nodes lst)) lst))))
 
 
