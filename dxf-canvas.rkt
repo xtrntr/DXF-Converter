@@ -182,15 +182,13 @@ limit panning and zooming with respect to a specified workspace limit
     (define/public (update-node-lst)
       (if (empty? (get-selected-entities search-list))
           (set! node-lst '())
-          (begin (let* ([a (time (get-selected-entities search-list))]
-                        [z (newline)]
+          (begin (let* ([z (newline)]
+                        [a (time (get-selected-entities (filter-not dot? search-list)))]
                         [b (time (separate-list-of-entities a))]
-                        [y (newline)]
                         [c (time (sort-list-of-entities b))]
-                        [x (newline)]
                         [groups-of-connected-entities c])
-                   (newline)
-                   (set! node-lst (flatten (map get-start/end-nodes groups-of-connected-entities)))))))
+                   (display b)
+                   (set! node-lst (time (flatten (map get-start/end-nodes groups-of-connected-entities))))))))
     
     (define/public (update-canvas)
       (send (get-dc) set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
@@ -358,7 +356,7 @@ limit panning and zooming with respect to a specified workspace limit
              (newline)
              (newline))
 |#
-             (if (closed-path-entity-list? selected-list)
+             (if (closed-path? (entities->nodes selected-list))
                  (send this popup-menu popup-closed cursor-x cursor-y)
                  (send this popup-menu popup-opened cursor-x cursor-y))))
         (is-selecting?

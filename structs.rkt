@@ -91,11 +91,15 @@ Try to keep the more complex and specific functions in lst-utils.
           (else
            (match (car lst)
              [(struct* line  ([p1 p1]
-                              [p2 p2]))              (loop (cons (node-x p1) (cons (node-x p2) acc)) (cdr lst))]
+                              [p2 p2]))
+              (loop (cons (node-x p1) (cons (node-x p2) acc)) (cdr lst))]
              [(struct* arc   ([center center]
-                              [radius radius]))      (loop (cons (+ (node-x center) radius) (cons (- (node-x center) radius) acc)) (cdr lst))]
-             [(struct* dot   ([p p]))                (loop (cons (node-x p) acc) (cdr lst))]
-             [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
+                              [radius radius]))
+              (loop (cons (+ (node-x center) radius) (cons (- (node-x center) radius) acc)) (cdr lst))]
+             [(struct* dot   ([p p]))
+              (loop (cons (node-x p) acc) (cdr lst))]
+             [(struct* path  ([entities entities]))
+              (loop acc (append entities (cdr lst)))])))))
 
 (: get-y-vals (-> Entities (Listof Real)))
 (define (get-y-vals struct-lst)
@@ -106,15 +110,55 @@ Try to keep the more complex and specific functions in lst-utils.
           (else
            (match (car lst)
              [(struct* line  ([p1 p1]
-                              [p2 p2]))              (loop (cons (node-y p1) (cons (node-y p2) acc)) (cdr lst))]
+                              [p2 p2]))
+              (loop (cons (node-y p1) (cons (node-y p2) acc)) (cdr lst))]
              [(struct* arc   ([center center]
-                              [radius radius]))      (loop (cons (+ (node-y center) radius) (cons (- (node-y center) radius) acc)) (cdr lst))]
-             [(struct* dot   ([p p]))                (loop (cons (node-y p) acc) (cdr lst))]
-             [(struct* path  ([entities entities]))  (loop acc (append entities (cdr lst)))])))))
+                              [radius radius]))
+              (loop (cons (+ (node-y center) radius) (cons (- (node-y center) radius) acc)) (cdr lst))]
+             [(struct* dot   ([p p]))
+              (loop (cons (node-y p) acc) (cdr lst))]
+             [(struct* path  ([entities entities]))
+              (loop acc (append entities (cdr lst)))])))))
+
+(: get-duplicate-nodes (-> (Listof node) (Listof node)))
+(define (get-duplicate-nodes lst)
+  (let* ([elements : (Listof node) (set->list (list->set lst))]
+         [duplicates : (Listof node) (for/fold ([x lst]) ([y elements])
+                                       ((inst remove node) y x))])
+    duplicates))
+
+;old definition
+;i.e. from a path of 2 entities where the connection is (0,0)->(1,0)->(1,1) return (list (0,0) (1,1))
+;new comments (3/2/15)
+;casting dupl from (U False (Listof node)) to (Listof node) may fail.
+(: get-unique-nodes (-> (Listof node) (Listof node)))
+(define (get-unique-nodes lst)
+  (let* ([elements : (Listof node) (set->list (list->set lst))]
+         [duplicates : (Listof node) (for/fold ([x lst]) ([y elements])
+                                       ((inst remove node) y x))]
+         [uniques : (Listof node) (remove* duplicates elements)])
+    uniques))
+
+;old definition
+;determine if a list of CONNECTED entities is a closed path or not. think of a horseshoe vs a circle.
+;new definition
+;determine from list of the nodes of CONNECTED entities is a closed path or not
+(: closed-path? (-> (Listof node) Boolean))
+(define (closed-path? node-lst)
+  (empty? (get-unique-nodes node-lst)))
+
+;return all the start/end nodes given a list of entities. for an open path, this means the path ends, for a closed path, it can be any node along the path.
+(: get-start/end-nodes (-> Entities (Listof node)))
+(define (get-start/end-nodes entity-lst)
+  (define node-lst (entities->nodes entity-lst))
+  ;if there is a closed path containing 
+  (if (closed-path? node-lst)
+      node-lst
+      (get-unique-nodes node-lst)))
 
 ;separate a group of entities according to whether they are connected or not. 
 ;this does a node by node check so there may be "islands" that are actually connected"
-;i.e. '( (1 2) (2 3) (9 10) (10 11)) -> '( ((1 2) (2 3)) ((9 10) (10 11))) )
+;i.e. '( (1 2) (2 3) (9 10) (10 11) ) -> '( ((1 2) (2 3)) ((9 10) (10 11))) )
 (: separate-list-of-entities (-> Entities (Listof Entities)))
 (define (separate-list-of-entities entity-lst)
   ;iterate through each value of entity-lst
@@ -122,24 +166,30 @@ Try to keep the more complex and specific functions in lst-utils.
     ([acc : (Listof Entities) '()]
      [remainder : Entities entity-lst])
     (cond ((empty? remainder) acc)
-          (else (master (let sort :  (Listof Entities)
-                          ([current : Entity (first remainder)]
-                           [checked : (Listof Entities) '()]
-                           [unchecked : (Listof Entities) acc])
-                          (cond ((empty? unchecked) 
-                                 (cons (list current)
-                                       checked))
-                                ((ormap (lambda ([check-against : Entity]) 
-                                          (are-entities-connected? current check-against)) (first unchecked))
-                                 (append (rest unchecked) 
-                                         (list (cons current (first unchecked)))
-                                         checked))
-                                (else (sort current (cons (first unchecked) checked) (rest unchecked)))))
-                        (rest remainder))))))
+          (else
+           (master
+            (let sort :  (Listof Entities)
+              ([current : Entity (first remainder)]
+               [checked : (Listof Entities) '()]
+               [unchecked : (Listof Entities) acc])
+              (cond [(empty? unchecked) 
+                     (cons (list current)
+                           checked)]
+                    [(ormap (lambda ([check-against : Entity]) 
+                              (are-entities-connected? current check-against)) (first unchecked))
+                     (append (rest unchecked) 
+                             (list (cons current (first unchecked)))
+                             checked)]
+                    [else (sort current (cons (first unchecked) checked) (rest unchecked))]))
+            (rest remainder))))))
+
+
 
 ;compare 2 list of entities for any connection
+;shared/duplicate nodes means they connect
 (: lists-of-entities-connected? (-> Entities Entities Boolean))
 (define (lists-of-entities-connected? lst1 lst2)
+#|
   (cond ((empty? lst1) #f)
         (else 
          (let loop : Boolean
@@ -149,6 +199,12 @@ Try to keep the more complex and specific functions in lst-utils.
                              [y (car entity-lst)])
                          (cond [(are-entities-connected? x y) #t]
                                [else (loop (cdr entity-lst))]))])))))
+|#
+  (let* ([lst1-nodes : (Setof node) (list->set (entities->nodes lst1))]
+         [lst2-nodes : (Setof node) (list->set (entities->nodes lst2))]
+         [combined : (Setof node) (set-intersect lst1-nodes lst2-nodes)])
+    (not (set-empty? combined))))
+
 
 ;check a list of entities(listof entity) if they are connected, if yes then join them together.
 (: sort-list-of-entities (-> (Listof Entities) (Listof Entities)))
@@ -158,7 +214,7 @@ Try to keep the more complex and specific functions in lst-utils.
      [checked : (Listof Entities) '()]
      [unchecked : (Listof Entities) (rest entity-lst)]
      [current-list : Entities (first entity-lst)])
-    (cond ((and (empty? checked) (empty? unchecked)) 
+    (cond ((and (empty? checked) (empty? unchecked))
            (cons current-list acc))
           ((empty? unchecked) 
            (master (cons current-list acc) '() (rest checked) (first checked)))
@@ -168,41 +224,15 @@ Try to keep the more complex and specific functions in lst-utils.
           (else
            (master acc (cons (first unchecked) checked) (rest unchecked) current-list)))))
 
-;i.e. from a path of 2 entities where the connection is (0,0)->(1,0)->(1,1) return (list (0,0) (1,1))
-(: get-path-ends (-> (Listof node) (U (Listof node) Null)))
-(define (get-path-ends lst)
-  (let loop : (U (Listof node) Null)
-    ([dupl : (Listof node) '()]
-     [singles : (Listof node) '()]
-     [lst : (Listof node) lst])
-    (cond ((empty? lst) (remove* dupl singles node-equal?))
-          ((ormap (lambda ([x : node]) (node-equal? (car lst) x)) singles)
-           (loop (cons (car lst) dupl) (cons (car lst) singles) (cdr lst)))
-          (else
-           (loop dupl (cons (car lst) singles) (cdr lst))))))
-
-;determine if a list of CONNECTED entities is a closed path or not. think of a horseshoe vs a circle.
-(: closed-path-entity-list? (-> Entities Boolean))
-(define (closed-path-entity-list? entity-lst)
-  (define node-lst (entities->nodes entity-lst))
-  (empty? (get-path-ends node-lst)))
-
-;return all the start/end nodes given a list of entities. for an open path, this means the path ends, for a closed path, it can be any node along the path.
-(: get-start/end-nodes (-> Entities (Listof node)))
-(define (get-start/end-nodes entity-lst)
-  (define node-lst (entities->nodes entity-lst))
-  (if (closed-path-entity-list? entity-lst)
-      node-lst
-      (get-path-ends node-lst)))
-
 ;return all the nodes of the path given a list of entities
+;TODO: can we use remove* to remove duplicates here without breaking the program?
 (: entities->nodes (-> Entities (Listof node)))
 (define (entities->nodes entity-lst)
   (let ([start-nodes (map get-entity-start entity-lst)]
         [end-nodes (map get-entity-end entity-lst)])
     (append start-nodes end-nodes)))
 
- 
+
 ;; NODE OPERATIONS
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
@@ -237,17 +267,21 @@ Try to keep the more complex and specific functions in lst-utils.
           (else
            (loop (rest x))
            (match (car x)
-             [(dot highlighted selected visible layer p)                                     (set-node-y! p (* -1 (node-y p)))]
-             [(line highlighted selected visible layer p1 p2)                                (set-node-y! p1 (* -1 (node-y p1)))
-                                                                                             (set-node-y! p2 (* -1 (node-y p2)))]
-             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)  (set-node-y! p1 (* -1 (node-y p1)))
-                                                                                             (set-node-y! p2 (* -1 (node-y p2)))
-                                                                                             (set-node-y! p3 (* -1 (node-y p3)))
-                                                                                             (set-arc-start! (car x) (get-mirror-angle end))
-                                                                                             (set-arc-end! (car x) (get-mirror-angle start))
-                                                                                             (set-arc-ccw! (car x) (not ccw))
-                                                                                             (set-node-y! center (* -1 (node-y center)))]
-             [(path highlighted selected visible layer entities)                             (loop (path-entities (car x)))])))))
+             [(dot highlighted selected visible layer p)
+              (set-node-y! p (* -1 (node-y p)))]
+             [(line highlighted selected visible layer p1 p2)
+              (set-node-y! p1 (* -1 (node-y p1)))
+              (set-node-y! p2 (* -1 (node-y p2)))]
+             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
+              (set-node-y! p1 (* -1 (node-y p1)))
+              (set-node-y! p2 (* -1 (node-y p2)))
+              (set-node-y! p3 (* -1 (node-y p3)))
+              (set-arc-start! (car x) (get-mirror-angle end))
+              (set-arc-end! (car x) (get-mirror-angle start))
+              (set-arc-ccw! (car x) (not ccw))
+              (set-node-y! center (* -1 (node-y center)))]
+             [(path highlighted selected visible layer entities)
+              (loop (path-entities (car x)))])))))
 
 (define-syntax match-struct
   (lambda (stx)
