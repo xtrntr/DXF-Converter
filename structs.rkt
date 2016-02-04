@@ -15,6 +15,8 @@ Try to keep the more complex and specific functions in lst-utils.
 (define-type Path-Entity (U line arc))
 (define-type Path-Entities (Listof Path-Entity))
 
+(define-type Connection (List node node))
+
 (struct node 
   ([x : Real]
    [y : Real])
@@ -120,6 +122,8 @@ Try to keep the more complex and specific functions in lst-utils.
              [(struct* path  ([entities entities]))
               (loop acc (append entities (cdr lst)))])))))
 
+;'((1 2) (3 4) (1 2)) -> '((1 2))
+;self explanatory
 (: get-duplicate-nodes (-> (Listof node) (Listof node)))
 (define (get-duplicate-nodes lst)
   (let* ([elements : (Listof node) (set->list (list->set lst))]
@@ -127,10 +131,8 @@ Try to keep the more complex and specific functions in lst-utils.
                                        ((inst remove node) y x))])
     duplicates))
 
-;old definition
-;i.e. from a path of 2 entities where the connection is (0,0)->(1,0)->(1,1) return (list (0,0) (1,1))
-;new comments (3/2/15)
-;casting dupl from (U False (Listof node)) to (Listof node) may fail.
+;'((1 2) (3 4) (1 2)) -> '((3 4))
+;self explanatory
 (: get-unique-nodes (-> (Listof node) (Listof node)))
 (define (get-unique-nodes lst)
   (let* ([elements : (Listof node) (set->list (list->set lst))]
@@ -139,13 +141,24 @@ Try to keep the more complex and specific functions in lst-utils.
          [uniques : (Listof node) (remove* duplicates elements)])
     uniques))
 
-;old definition
-;determine if a list of CONNECTED entities is a closed path or not. think of a horseshoe vs a circle.
-;new definition
-;determine from list of the nodes of CONNECTED entities is a closed path or not
+(: no-of-unique-nodes (-> (Listof node) Integer))
+(define (no-of-unique-nodes node-lst)
+  (length (get-unique-nodes node-lst)))
+
+;a list of nodes that form a circle contains no unique nodes.
 (: closed-path? (-> (Listof node) Boolean))
 (define (closed-path? node-lst)
-  (empty? (get-unique-nodes node-lst)))
+  (= (no-of-unique-nodes node-lst) 0))
+
+;a list of nodes that form a horseshoe contains 2 unique nodes at the horseshoe ends.
+(: open-path? (-> (Listof node) Boolean))
+(define (open-path? node-lst)
+  (= (no-of-unique-nodes node-lst) 2))
+
+;a list of nodes that form a tree has more than 1 unique nodes as dead ends.
+(: tree-path? (-> (Listof node) Boolean))
+(define (tree-path? node-lst)
+  (> (no-of-unique-nodes node-lst) 2))
 
 ;return all the start/end nodes given a list of entities. for an open path, this means the path ends, for a closed path, it can be any node along the path.
 (: get-start/end-nodes (-> Entities (Listof node)))
@@ -156,74 +169,6 @@ Try to keep the more complex and specific functions in lst-utils.
       node-lst
       (get-unique-nodes node-lst)))
 
-;separate a group of entities according to whether they are connected or not. 
-;this does a node by node check so there may be "islands" that are actually connected"
-;i.e. '( (1 2) (2 3) (9 10) (10 11) ) -> '( ((1 2) (2 3)) ((9 10) (10 11))) )
-(: separate-list-of-entities (-> Entities (Listof Entities)))
-(define (separate-list-of-entities entity-lst)
-  ;iterate through each value of entity-lst
-  (let master : (Listof Entities)
-    ([acc : (Listof Entities) '()]
-     [remainder : Entities entity-lst])
-    (cond ((empty? remainder) acc)
-          (else
-           (master
-            (let sort :  (Listof Entities)
-              ([current : Entity (first remainder)]
-               [checked : (Listof Entities) '()]
-               [unchecked : (Listof Entities) acc])
-              (cond [(empty? unchecked) 
-                     (cons (list current)
-                           checked)]
-                    [(ormap (lambda ([check-against : Entity]) 
-                              (are-entities-connected? current check-against)) (first unchecked))
-                     (append (rest unchecked) 
-                             (list (cons current (first unchecked)))
-                             checked)]
-                    [else (sort current (cons (first unchecked) checked) (rest unchecked))]))
-            (rest remainder))))))
-
-
-
-;compare 2 list of entities for any connection
-;shared/duplicate nodes means they connect
-(: lists-of-entities-connected? (-> Entities Entities Boolean))
-(define (lists-of-entities-connected? lst1 lst2)
-#|
-  (cond ((empty? lst1) #f)
-        (else 
-         (let loop : Boolean
-           ([entity-lst : Entities lst2])
-           (cond [(empty? entity-lst) (lists-of-entities-connected? (cdr lst1) lst2)]
-                 [else (let ([x (car lst1)]
-                             [y (car entity-lst)])
-                         (cond [(are-entities-connected? x y) #t]
-                               [else (loop (cdr entity-lst))]))])))))
-|#
-  (let* ([lst1-nodes : (Setof node) (list->set (entities->nodes lst1))]
-         [lst2-nodes : (Setof node) (list->set (entities->nodes lst2))]
-         [combined : (Setof node) (set-intersect lst1-nodes lst2-nodes)])
-    (not (set-empty? combined))))
-
-
-;check a list of entities(listof entity) if they are connected, if yes then join them together.
-(: sort-list-of-entities (-> (Listof Entities) (Listof Entities)))
-(define (sort-list-of-entities entity-lst)
-  (let master : (Listof Entities)
-    ([acc : (Listof Entities) '()]
-     [checked : (Listof Entities) '()]
-     [unchecked : (Listof Entities) (rest entity-lst)]
-     [current-list : Entities (first entity-lst)])
-    (cond ((and (empty? checked) (empty? unchecked))
-           (cons current-list acc))
-          ((empty? unchecked) 
-           (master (cons current-list acc) '() (rest checked) (first checked)))
-          ((lists-of-entities-connected? current-list (first unchecked))
-           ;if new current-list, recheck everything in checked - put checked into unchecked
-           (master acc '() (append checked (rest unchecked)) (append current-list (first unchecked))))
-          (else
-           (master acc (cons (first unchecked) checked) (rest unchecked) current-list)))))
-
 ;return all the nodes of the path given a list of entities
 ;TODO: can we use remove* to remove duplicates here without breaking the program?
 (: entities->nodes (-> Entities (Listof node)))
@@ -232,6 +177,10 @@ Try to keep the more complex and specific functions in lst-utils.
         [end-nodes (map get-entity-end entity-lst)])
     (append start-nodes end-nodes)))
 
+(: entities->connections (-> Entities (Listof Connection)))
+(define (entities->connections entity-lst)
+  (map (lambda ([x : Entity]) (list (get-entity-start x)
+                                    (get-entity-end x))) entity-lst))
 
 ;; NODE OPERATIONS
 (: node-equal? (-> node node Boolean))

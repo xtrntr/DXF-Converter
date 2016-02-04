@@ -20,6 +20,7 @@ limit panning and zooming with respect to a specified workspace limit
          "canvas-utils.rkt"
          "lst-utils.rkt"
          "utils.rkt"
+         "graphs.rkt"
          racket/draw)
 
 (provide dxf-canvas%)
@@ -163,12 +164,12 @@ limit panning and zooming with respect to a specified workspace limit
         (for/list ([i lst])
           ;only calculate intersections for visible and not yet selected items
           (when (and (entity-visible i) (not (entity-selected i)))
-            (cond ((line? i) 
-                   (if (line-intersect? i small-x small-y big-x big-y) 
+            (cond ((line? i)
+                   (if (line-intersect? i small-x small-y big-x big-y)
                        (set-entity-highlighted! i #t)
                        (set-entity-highlighted! i #f)))
                   ((arc? i)
-                   (if (arc-intersect? i small-x small-y big-x big-y) 
+                   (if (arc-intersect? i small-x small-y big-x big-y)
                        (set-entity-highlighted! i #t)
                        (set-entity-highlighted! i #f)))
                   ((dot? i)
@@ -182,13 +183,10 @@ limit panning and zooming with respect to a specified workspace limit
     (define/public (update-node-lst)
       (if (empty? (get-selected-entities search-list))
           (set! node-lst '())
-          (begin (let* ([z (newline)]
-                        [a (time (get-selected-entities (filter-not dot? search-list)))]
-                        [b (time (separate-list-of-entities a))]
-                        [c (time (sort-list-of-entities b))]
-                        [groups-of-connected-entities c])
-                   (display b)
-                   (set! node-lst (time (flatten (map get-start/end-nodes groups-of-connected-entities))))))))
+          (let* ([to-display-for (get-selected-entities (filter-not dot? search-list))]
+                 [groups (my-sorted to-display-for)] 
+                 [islands-removed (filter-not (lambda (group) (= 1 (length group))) groups)]) ;i.e. a path, dont need to show nodes for it
+            (set! node-lst (flatten (map get-start/end-nodes islands-removed))))))
     
     (define/public (update-canvas)
       (send (get-dc) set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
@@ -213,7 +211,11 @@ limit panning and zooming with respect to a specified workspace limit
       (new popup-menu%
            [popdown-callback (lambda (p e)
                                (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
-    
+
+    (define popup-error
+      (new popup-menu%
+           [popdown-callback (lambda (p e)
+                               (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
     
     (define popup-closed
       (new popup-menu%
@@ -221,12 +223,21 @@ limit panning and zooming with respect to a specified workspace limit
                                (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
     
     ;; POPUP MENU items
+    (define display-err
+      (new menu-item%
+           [label "This node is connected to a tree pattern."]
+           [parent popup-error]
+           [callback (lambda (b e)
+                       (let* ([groups (my-sorted (get-selected-entities search-list))]
+                              [selected-list (get-belonging-list highlighted-node groups)])
+                         (display (no-of-unique-nodes node-lst))))]))
+    
     (define open-nodir
       (new menu-item%
            [label "Form an open path."]
            [parent popup-opened]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
+                       (let* ([groups-of-connected-entities (my-sorted(get-selected-entities search-list))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-open-path highlighted-node base-elements)))])
@@ -239,7 +250,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form a path that moves clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
+                       (let* ([groups-of-connected-entities (my-sorted (get-selected-entities search-list))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #f)))])
@@ -252,7 +263,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
+                       (let* ([groups-of-connected-entities (my-sorted (get-selected-entities search-list))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #t)))])
@@ -334,6 +345,7 @@ limit panning and zooming with respect to a specified workspace limit
          (set! y-offset (vector-ref (send drawer get-transformation) 2))
          (change-cursor normal))
         (start-selecting?
+         (change-cursor selecting)
          (set! init-cursor-x scaled-cursor-x)
          (set! init-cursor-y scaled-cursor-y)
          (set! display-select-box #t))
@@ -342,25 +354,16 @@ limit panning and zooming with respect to a specified workspace limit
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-           (let* ([entities-list (separate-list-of-entities (get-selected-entities search-list))]
-                   [selected-list (get-belonging-list highlighted-node (sort-list-of-entities entities-list))])
-             #|
-           (let* ([groups-of-connected-entities (sort-list-of-entities (separate-list-of-entities (get-selected-entities search-list)))]
-                  [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
-                  [base-elements (get-base-elements list-of-entities-to-reorder)])
-             (display (length base-elements))
-             (newline)
-             (display (length list-of-entities-to-reorder))
-             (newline)
-             (display base-elements)
-             (newline)
-             (newline))
-|#
-             (if (closed-path? (entities->nodes selected-list))
-                 (send this popup-menu popup-closed cursor-x cursor-y)
-                 (send this popup-menu popup-opened cursor-x cursor-y))))
+         (let* ([groups (my-sorted (get-selected-entities search-list))]
+                [selected-list (get-belonging-list highlighted-node groups)]
+                [node-lst (entities->nodes selected-list)]
+                [closed-pattern? (closed-path? node-lst)]
+                [open-pattern? (open-path? node-lst)]
+                [tree-pattern? (tree-path? node-lst)])
+           (cond [open-pattern? (send this popup-menu popup-opened cursor-x cursor-y)]
+                 [closed-pattern? (send this popup-menu popup-closed cursor-x cursor-y)]
+                 [tree-pattern? (send this popup-menu popup-error cursor-x cursor-y)])))
         (is-selecting?
-         (change-cursor selecting)
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)
          (highlight-paths search-list)
          (set! select-box (list (list init-cursor-x init-cursor-y scaled-cursor-x init-cursor-y #t)

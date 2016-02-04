@@ -221,8 +221,8 @@ be able to "drag"
                       [put? #t]
                       [filters (list (list "Text Files" "*.txt"))]))
   
-  (new button%
-       [label "Generate for ILS"]
+      (new button%
+           [label "Generate for ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
