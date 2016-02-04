@@ -20,7 +20,7 @@ limit panning and zooming with respect to a specified workspace limit
          "canvas-utils.rkt"
          "lst-utils.rkt"
          "utils.rkt"
-         "graphs.rkt"
+         "graph.rkt"
          racket/draw)
 
 (provide dxf-canvas%)
@@ -184,7 +184,7 @@ limit panning and zooming with respect to a specified workspace limit
       (if (empty? (get-selected-entities search-list))
           (set! node-lst '())
           (let* ([to-display-for (get-selected-entities (filter-not dot? search-list))]
-                 [groups (my-sorted to-display-for)] 
+                 [groups (group-entities to-display-for)] 
                  [islands-removed (filter-not (lambda (group) (= 1 (length group))) groups)]) ;i.e. a path, dont need to show nodes for it
             (set! node-lst (flatten (map get-start/end-nodes islands-removed))))))
     
@@ -228,7 +228,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "This node is connected to a tree pattern."]
            [parent popup-error]
            [callback (lambda (b e)
-                       (let* ([groups (my-sorted (get-selected-entities search-list))]
+                       (let* ([groups (group-entities (get-selected-entities search-list))]
                               [selected-list (get-belonging-list highlighted-node groups)])
                          (display (no-of-unique-nodes node-lst))))]))
     
@@ -237,7 +237,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form an open path."]
            [parent popup-opened]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (my-sorted(get-selected-entities search-list))]
+                       (let* ([groups-of-connected-entities (group-entities(get-selected-entities search-list))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-open-path highlighted-node base-elements)))])
@@ -250,7 +250,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form a path that moves clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (my-sorted (get-selected-entities search-list))]
+                       (let* ([groups-of-connected-entities (group-entities (get-selected-entities search-list))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #f)))])
@@ -263,7 +263,7 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([groups-of-connected-entities (my-sorted (get-selected-entities search-list))]
+                       (let* ([groups-of-connected-entities (group-entities (get-selected-entities search-list))]
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #t)))])
@@ -354,7 +354,7 @@ limit panning and zooming with respect to a specified workspace limit
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-         (let* ([groups (my-sorted (get-selected-entities search-list))]
+         (let* ([groups (group-entities (get-selected-entities search-list))]
                 [selected-list (get-belonging-list highlighted-node groups)]
                 [node-lst (entities->nodes selected-list)]
                 [closed-pattern? (closed-path? node-lst)]

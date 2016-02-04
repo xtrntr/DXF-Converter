@@ -3,6 +3,8 @@
 (require graph
          "structs.rkt") ;stephen chang's graph library
 
+(provide group-entities)
+
 (define (make-node-hs entity-lst)
   (let ([hashy (hash)]
         [add-key-pair
@@ -36,7 +38,7 @@
                           group))))
    groups))
 
-(define (sort-entities entity-lst)
+(define (group-entities entity-lst)
   (let* ([connections (entities->connections entity-lst)] ;(Listof (List node node))
          [graph (unweighted-graph/undirected connections)]
          [groups (cc graph)]
