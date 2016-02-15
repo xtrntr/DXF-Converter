@@ -28,14 +28,14 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 (define x-deviation 0)
 (define num-repeat 0)
 (define y-deviation 0) 
-(define ret-height 0)
+(define ret-height 2)
 (define ret-speed 0)
 (define disp-dur 0)
 (define ret-delay 0)
-(define clear-height 0)
+(define clear-height 5)
 (define trav-delay 0)
-(define trav-speed 0)
-(define disp-onoff 0)
+(define trav-speed 5)
+(define disp-onoff 1)
 
 (: x-off Real)
 (define x-off 0)
@@ -55,7 +55,9 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: insert-newline (-> Void))
 (define (insert-newline)
-  (printf "~n"))
+  ;CR LF for windows
+  ; ~n or \n for windows
+  (printf "\r\n"))
 
 (: spacing (-> Void))
 (define (spacing)
@@ -149,7 +151,8 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (: ils-link-arc-end (-> Real Real Void))
 (define (ils-link-arc-end x y) ;travel speed, dispense on/off, retract delay, retract height, retract speed, move height
-  (printf (format "linksArcEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; z=~a; sp=~a; z=~a)" (ils-x x) (ils-y y) 0 trav-speed disp-onoff (exact->inexact ret-delay) ret-height ret-speed clear-height))
+  ;(printf (format "linksArcEnd(x=~a, y=~a, z=~a; sp=~a; ~a; ~a; z=~a; sp=~a; z=~a)" (ils-x x) (ils-y y) 0 trav-speed disp-onoff (exact->inexact ret-delay) ret-height ret-speed clear-height))
+  (printf (format "linksArcEnd(x=~a, y=~a, z=~a; sp=~a; ~a)" (ils-x x) (ils-y y) 0 trav-speed disp-onoff))
   (insert-newline))
   
 ;identify first

@@ -5,6 +5,9 @@
 
 (provide group-entities)
 
+;; creates a hash map of
+;;key -> node
+;;value -> entities connected to that node
 (define (make-node-hs entity-lst)
   (let ([hashy (hash)]
         [add-key-pair

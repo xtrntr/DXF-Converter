@@ -185,8 +185,8 @@ Try to keep the more complex and specific functions in lst-utils.
 ;; NODE OPERATIONS
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
-  (and (> 0.5 (cast (abs (- (node-x n1) (node-x n2))) Float))
-       (> 0.5 (cast (abs (- (node-y n1) (node-y n2))) Float))))
+  (and (= 0 (cast (abs (- (node-x n1) (node-x n2))) Float))
+       (= 0 (cast (abs (- (node-y n1) (node-y n2))) Float))))
 
 (: round-off-node (-> node node))
 (define (round-off-node p)

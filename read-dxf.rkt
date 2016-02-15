@@ -16,7 +16,6 @@ It will loop through the data of this section and create a list of structs that 
 
 (define supported-types '("LWPOLYLINE" "ARC" "POINT" "CIRCLE" "LINE"))
 (define entity-types '("3DFACE"  "3DSOLID"  "ACAD_PROXY_ENTITY" "ARC" "ARCALIGNEDTEXT"  "ATTDEF"  "ATTRIB"  "BODY"  "CIRCLE" "DIMENSION" "ELLIPSE"  "HATCH" "IMAGE"  "INSERT"  "LEADER"  "LINE" "LWPOLYLINE" "MLINE"  "MTEXT"  "OLEFRAME"  "OLE2FRAME"  "POINT" "POLYLINE" "RAY"  "REGION"  "RTEXT"  "SEQEND"  "SHAPE"  "SOLID" "SPLINE" "TEXT"  "TOLERANCE"  "TRACE"  "VERTEX"  "VIEWPORT" "WIPEOUT" "XLINE"))
-(define sections (list "ENTITIES" "ENDSEC"))
 
 (: split (-> String (Pairof String (Listof String))))
 (define (split str [ptn #rx"[ ]+"])
@@ -40,15 +39,15 @@ It will loop through the data of this section and create a list of structs that 
            (append fst r))
          '() lines))
 
-(: extract-section (-> (Listof String) (List String String) (Listof String)))
-(define (extract-section lst header)
+(: extract-section (-> (Listof String) String (Listof String)))
+(define (extract-section lst section-name)
   (: extract-until (-> (U False (Listof String)) String (Listof String)))
   (define (extract-until lst keyword)
     ;need to handle error properly
     (cond ((not lst) '())
           ((equal? (car lst) keyword) '())
           (else (cons (car lst) (extract-until (cdr lst) keyword)))))
-  (extract-until ((inst member String) (car header) lst) (cadr header)))
+  (extract-until (member section-name lst) "ENDSEC"))
 
 (: separate-entities (-> (Listof String) (Listof (Listof String))))
 (define (separate-entities lst)
@@ -268,10 +267,14 @@ It will loop through the data of this section and create a list of structs that 
            [_ (error "This is not expected, given: " x)]))
        entity-list))
 
-(: file->struct-list (-> Path-String Entities))
+(: file->struct-list (-> Path-String (Values Entities Real)))
 (define (file->struct-list path-string)
-  (let* ((file-list (reader (open-input-file path-string)))
-         (section-list (extract-section file-list sections))
-         (entity-list (separate-entities section-list))
-         (whatsthis (create-structs entity-list)))
-    whatsthis))
+  (let* ([file-list (reader (open-input-file path-string))]
+         [entity-section (extract-section file-list "ENTITIES")]
+         [header-section (extract-section file-list "HEADER")]
+         ;;either 25.4 or 1
+         [dxf-scale (let ([scale (cast (string->number (third (cast (member "$DIMALTF" header-section) (Listof String)))) Real)])
+                      (if (> scale 1) scale 1))]
+         [entity-list (separate-entities entity-section)]
+         [struct-lst (create-structs entity-list)])
+    (values struct-lst dxf-scale)))

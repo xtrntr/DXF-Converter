@@ -1,4 +1,0 @@
-Without acr.
-lineStart(x=1000, y=1868, z=0; 0.0)
-   linksLinePoint(x=1000, y=2973, z=0; sp=0; 0)
-lineEnd(x=1000, y=1868, z=0; sp=0; 0; 0.0; z=0; sp=0; z=0)

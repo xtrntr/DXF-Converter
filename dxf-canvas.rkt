@@ -67,7 +67,7 @@ limit panning and zooming with respect to a specified workspace limit
      [select-box '()]
      
      [reorder? #f] ;display clickpoints of selected entities
-     [highlighted-node '()] ;clickpoint near cursor
+     [highlighted-node #f] ;clickpoint near cursor
      [path-lst '()]  ;list of connections
      [node-lst '()]) ;list of clickable nodes
     
@@ -91,10 +91,10 @@ limit panning and zooming with respect to a specified workspace limit
       (/ (- y y-offset) y-scale))
     
     (define (change-pen pen-type)
-        (send (get-dc) set-pen pen-type))
+      (send (get-dc) set-pen pen-type))
     
     (define (change-cursor cursor-type)
-        (send this set-cursor cursor-type))
+      (send this set-cursor cursor-type))
     
     (define-syntax my-draw
       (lambda (stx)
@@ -140,19 +140,38 @@ limit panning and zooming with respect to a specified workspace limit
     
     (define (draw-select-box lst)
       (for/list ([i lst])
-        (apply draw-line i)))
+                (apply draw-line i)))
     
-    (define (cursor-nearby? x1 y1 x2 y2 lst)
-      (let ((big-x (biggest (list x1 x2)))
-            (big-y (biggest (list y1 y2)))
-            (small-x (smallest (list x1 x2)))
-            (small-y (smallest (list y1 y2))))
+    (define (cursor-nearby? x1 y1 x2 y2)
+      (let ([big-x (biggest (list x1 x2))]
+            [big-y (biggest (list y1 y2))]
+            [small-x (smallest (list x1 x2))]
+            [small-y (smallest (list y1 y2))]
+            [selected-entities (get-selected-entities search-list)])
         (when reorder? 
-          (for/list ([i lst])
-            (cond ((point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y) 
-                   (draw-start/end-nodes (node-x i) (node-y i) #t)
-                   (set! highlighted-node i))
-                  (else (draw-start/end-nodes (node-x i) (node-y i) #f)))))))
+          (for/list ([i node-lst])
+            (if (point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y) 
+                (begin (draw-start/end-nodes (node-x i) (node-y i) #t)
+                       (set! highlighted-node i))
+                (draw-start/end-nodes (node-x i) (node-y i) #f))))))
+        #|
+        (when reorder?
+          (for/list ([i node-lst])
+                    (when (point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y)
+                      (set! highlighted-node i)))
+          (if highlighted-node
+              (let* ([groups (group-entities selected-entities)]
+                     [selected-list (get-belonging-list highlighted-node groups)]
+                     [highlighted-node-lst (get-start/end-nodes selected-list)]
+                     [normal-node-lst (remove* highlighted-node-lst node-lst)])
+                (for/list ([i highlighted-node-lst])
+                          (draw-start/end-nodes (node-x i) (node-y i) #t))
+                (for/list ([i normal-node-lst])
+                          (draw-start/end-nodes (node-x i) (node-y i) #f)))
+              (for/list ([i node-lst])
+                        (draw-start/end-nodes (node-x i) (node-y i) #f))))))
+    |#
+
     
     ;pass intersect? the start and end point of select box and the struct-list
     ;it will traverse the struct-list to see if any elements
@@ -162,23 +181,23 @@ limit panning and zooming with respect to a specified workspace limit
             (small-x (smallest (list x1 x2)))
             (small-y (smallest (list y1 y2))))
         (for/list ([i lst])
-          ;only calculate intersections for visible and not yet selected items
-          (when (and (entity-visible i) (not (entity-selected i)))
-            (cond ((line? i)
-                   (if (line-intersect? i small-x small-y big-x big-y)
-                       (set-entity-highlighted! i #t)
-                       (set-entity-highlighted! i #f)))
-                  ((arc? i)
-                   (if (arc-intersect? i small-x small-y big-x big-y)
-                       (set-entity-highlighted! i #t)
-                       (set-entity-highlighted! i #f)))
-                  ((dot? i)
-                   (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y) 
-                       (set-entity-highlighted! i #t)
-                       (set-entity-highlighted! i #f)))
-                  ((path? i)
-                   (intersect? x1 y1 x2 y2 (path-entities i))))))))
-
+                  ;only calculate intersections for visible and not yet selected items
+                  (when (and (entity-visible i) (not (entity-selected i)))
+                    (cond ((line? i)
+                           (if (line-intersect? i small-x small-y big-x big-y)
+                               (set-entity-highlighted! i #t)
+                               (set-entity-highlighted! i #f)))
+                          ((arc? i)
+                           (if (arc-intersect? i small-x small-y big-x big-y)
+                               (set-entity-highlighted! i #t)
+                               (set-entity-highlighted! i #f)))
+                          ((dot? i)
+                           (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y) 
+                               (set-entity-highlighted! i #t)
+                               (set-entity-highlighted! i #f)))
+                          ((path? i)
+                           (intersect? x1 y1 x2 y2 (path-entities i))))))))
+    
     ;don't include paths
     (define/public (update-node-lst)
       (if (empty? (get-selected-entities search-list))
@@ -194,7 +213,7 @@ limit panning and zooming with respect to a specified workspace limit
     
     (define/public (refresh-spreadsheet)
       (update-spreadsheet search-list))
-
+    
     (define/public (refocus)
       (define left (+ 0 (smallest (get-x-vals (get-visible-entities search-list)))))
       (define bottom (+ 0 (* -1 (smallest (get-y-vals (get-visible-entities search-list))))))
@@ -211,7 +230,7 @@ limit panning and zooming with respect to a specified workspace limit
       (new popup-menu%
            [popdown-callback (lambda (p e)
                                (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
-
+    
     (define popup-error
       (new popup-menu%
            [popdown-callback (lambda (p e)
@@ -243,6 +262,7 @@ limit panning and zooming with respect to a specified workspace limit
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-open-path highlighted-node base-elements)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
+                         (update-canvas)
                          (update-spreadsheet search-list)))]))
     
     (define closed-clockwise
@@ -256,6 +276,7 @@ limit panning and zooming with respect to a specified workspace limit
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #f)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
+                         (update-canvas)
                          (update-spreadsheet search-list)))]))
     
     (define closed-anticlockwise
@@ -267,9 +288,9 @@ limit panning and zooming with respect to a specified workspace limit
                               [list-of-entities-to-reorder (get-belonging-list highlighted-node groups-of-connected-entities)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (entity-layer (first base-elements)) (reorder-closed-path highlighted-node base-elements #t)))])
-
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
+                         (update-canvas)
                          (update-spreadsheet search-list)))]))
     
     ;; KEYBOARD events
@@ -320,14 +341,15 @@ limit panning and zooming with respect to a specified workspace limit
       (define end-panning? release-left)
       (define start-selecting? (and click-left caps-on))
       (define is-selecting? (and dragging caps-on))
-      (define end-selecting? (and release-left caps-on))
+      ;use display-select-box as a flag to check whether we were selecting previously.
+      (define end-selecting? (and release-left display-select-box))
       (define show-popup? (and (node? highlighted-node) click-right))
       (define click-detected? (and release-left
                                    (> 0.5 (abs (- scaled-cursor-x init-cursor-x)))
                                    (> 0.5 (abs (- scaled-cursor-y init-cursor-y)))))
-      
+
       (send this refresh-now)
-      
+
       (cond
         (end-selecting?
          (change-cursor normal)
@@ -383,7 +405,7 @@ limit panning and zooming with respect to a specified workspace limit
       (send this suspend-flush)
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
-      (cursor-nearby? (- scaled-cursor-x 3) (- scaled-cursor-y 3) (+ scaled-cursor-x 3) (+ scaled-cursor-y 3) node-lst)
+      (cursor-nearby? (- scaled-cursor-x 3) (- scaled-cursor-y 3) (+ scaled-cursor-x 3) (+ scaled-cursor-y 3))
       (draw-objects search-list)
       (change-pen black-pen)
       (send this resume-flush))

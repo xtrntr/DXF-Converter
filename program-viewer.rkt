@@ -36,18 +36,16 @@ be able to "drag"
     (send area-container delete-child i))
   (define-values (editor-width editor-height) (send a-frame get-size))
   
+  ;;drawing scaling/unscaling
+  (define *dxf-scale (lambda (x) (* x dxf-scale)))
   (define (scale-x coord)
     (* drawing-scale (- coord left)))
-  
   (define (scale-y coord)
     (* drawing-scale (- coord bottom)))
-  
   (define (unscale-x coord)
     (+ left (/ coord drawing-scale)))
-  
   (define (unscale-y coord)
     (+ bottom (/ coord drawing-scale)))
-  
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
@@ -59,7 +57,6 @@ be able to "drag"
                   (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
                  [(path highlighted selected visible layer path-list)
                   (make-path layer (rescale path-list scale))]))))
-  
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
@@ -71,8 +68,20 @@ be able to "drag"
                   (make-dot layer (unscale-x (node-x p)) (unscale-y (node-y p)))]
                  [(path highlighted selected visible layer path-list)
                   (make-path layer (downscale path-list scale))]))))
-  
-  (define original-list (file->struct-list input-port))
+  (define (unit-scale struct-lst)
+    (flatten (for/list ([i struct-lst])
+               (match i
+                 [(line highlighted selected visible layer p1 p2)
+                  (make-line layer (*dxf-scale (node-x p1)) (*dxf-scale (node-y p1)) (*dxf-scale (node-x p2)) (*dxf-scale (node-y p2)))]
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
+                  (make-arc layer (*dxf-scale (node-x center)) (*dxf-scale (node-y center)) (*dxf-scale radius) start end ccw)]
+                 [(dot highlighted selected visible layer p)
+                  (make-dot layer (*dxf-scale (node-x p)) (*dxf-scale (node-y p)))]
+                 [(path highlighted selected visible layer path-list)
+                  (make-path layer (unit-scale path-list))]))))
+
+  ;dxf-scale is 25.4(inches) or 0.0394(mm)
+  (define-values (original-list dxf-scale) (file->struct-list input-port))
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define drawing-scale (get-display-scale original-list editor-width editor-height))
@@ -111,15 +120,15 @@ be able to "drag"
         (send a-list-box set 
               (entities-to-strings displayed-list)
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
-              ;(map to-display (map unscale-x (map node-x (map get-entity-start displayed-list))))
-              ;(map to-display (map unscale-y (map node-y (map get-entity-start displayed-list))))
-              ;(map to-display (map unscale-x (map node-x (map get-entity-end displayed-list))))
-              ;(map to-display (map unscale-y (map node-y (map get-entity-end displayed-list)))))))
+              (map (lambda (x) (to-display (unscale-x (node-x (get-entity-start x))))) displayed-list)
+              (map (lambda (x) (to-display (unscale-y (node-y (get-entity-start x))))) displayed-list)
+              (map (lambda (x) (to-display (unscale-x (node-x (get-entity-end x))))) displayed-list)
+              (map (lambda (x) (to-display (unscale-y (node-y (get-entity-end x))))) displayed-list))))
               ;debugging mode
-              (map to-display (map node-x (map get-entity-start displayed-list)))
-              (map to-display (map node-y (map get-entity-start displayed-list)))
-              (map to-display (map node-x (map get-entity-end displayed-list)))
-              (map to-display (map node-y (map get-entity-end displayed-list))))))
+              ;(map to-display (map node-x (map get-entity-start displayed-list)))
+              ;(map to-display (map node-y (map get-entity-start displayed-list)))
+              ;(map to-display (map node-x (map get-entity-end displayed-list)))
+              ;(map to-display (map node-y (map get-entity-end displayed-list))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -222,7 +231,7 @@ be able to "drag"
                       [filters (list (list "Text Files" "*.txt"))]))
   
       (new button%
-           [label "Generate for ILS"]
+           [label "Generate for IDS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
@@ -232,13 +241,13 @@ be able to "drag"
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (new button%
-       [label "Generate for GR"]
+       [label "Generate for GR/ILS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
                    (make-mirror stripped)
                    (generate-gr-pattern
-                    (downscale stripped drawing-scale)
+                    (unit-scale (downscale stripped drawing-scale))
                     (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
                    (make-mirror stripped))]))
