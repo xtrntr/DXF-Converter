@@ -53,11 +53,6 @@
 (: find-entity-with-ending-node (-> node Entities (U Entity False)))
 (define (find-entity-with-ending-node end-n lst)
   (let [(result : (U Entity False) (findf (lambda ([x : Entity]) (node-equal? (get-entity-end x) end-n)) lst))]
-    (when (eq? #f result)
-      (display "Error: node ")
-      (display end-n)
-      (display " cannot be found among: ")
-      (display lst))
     result))
 
 (: find-entity-with-ending-and-starting-node (-> node node Entities (U Entity False)))
@@ -117,7 +112,7 @@
            [unchecked : Entities new-lst])
           (cond ((empty? unchecked) acc)
                 (else
-                 (let-values ([(next-entity new-lst) 
+                 (let-values ([(next-entity new-lst)
                                (find-entity-from-node (get-entity-end current) unchecked)])
                    (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))
 
@@ -175,7 +170,7 @@
          [visible? : Boolean (entity-visible a-struct)]
          [reversed-struct : Entity ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
                                                   (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
-                                                  (arc (make-arc layer (node-x center) (node-y center) radius start end (not ccw)))
+                                                  (arc (make-arc layer (node-x center) (node-y center) radius end start (not ccw)))
                                                   (path (lambda (x) (make-path layer (reverse x)))))
                                     a-struct)])
     (when highlighted? (set-entity-highlighted! reversed-struct #t))

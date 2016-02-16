@@ -67,7 +67,7 @@ Try to keep the more complex and specific functions in lst-utils.
   (match (get-arc-points center-x center-y radius start end ccw?)
     [(list x1 y1 x2 y2 x3 y3)
      (if ccw?
-         (arc #f #f #f layer (node center-x center-y) radius start end (node x3 y3) (node x2 y2) (node x1 y1) #t)
+         (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #t)
          (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))]))
 
 (: make-selected (-> Entity Entity))
@@ -185,8 +185,8 @@ Try to keep the more complex and specific functions in lst-utils.
 ;; NODE OPERATIONS
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
-  (and (= 0 (cast (abs (- (node-x n1) (node-x n2))) Float))
-       (= 0 (cast (abs (- (node-y n1) (node-y n2))) Float))))
+  (and (> 0.5 (cast (abs (- (node-x n1) (node-x n2))) Float))
+       (> 0.5 (cast (abs (- (node-y n1) (node-y n2))) Float))))
 
 (: round-off-node (-> node node))
 (define (round-off-node p)
@@ -227,7 +227,7 @@ Try to keep the more complex and specific functions in lst-utils.
               (set-node-y! p3 (* -1 (node-y p3)))
               (set-arc-start! (car x) (get-mirror-angle end))
               (set-arc-end! (car x) (get-mirror-angle start))
-              (set-arc-ccw! (car x) (not ccw))
+;              (set-arc-ccw! (car x) (not ccw))
               (set-node-y! center (* -1 (node-y center)))]
              [(path highlighted selected visible layer entities)
               (loop (path-entities (car x)))])))))

@@ -1,0 +1,8 @@
+Without acr.
+arcStart(x=3794, y=6588, z=0; 0.0)
+       arcPoint(x=1000, y=3794, z=0)
+   linksArcEnd(x=3794, y=1000, z=0; sp=5; 1)
+   linksArcStart(x=11160, y=1000, z=0; sp=5; 1)
+       arcPoint(x=8366, y=3794, z=0)
+   linksArcEnd(x=11160, y=6588, z=0; sp=5; 1)
+lineEnd(x=3794, y=6588, z=0; sp=5; 1; 0.0; z=-2000; sp=0; z=-5000)

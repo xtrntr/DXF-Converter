@@ -56,7 +56,7 @@ be able to "drag"
                  [(dot highlighted selected visible layer p)
                   (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
                  [(path highlighted selected visible layer path-list)
-                  (make-path layer (rescale path-list scale))]))))
+                  (path #f #f #f layer (rescale path-list scale))]))))
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
@@ -67,7 +67,7 @@ be able to "drag"
                  [(dot highlighted selected visible layer p)
                   (make-dot layer (unscale-x (node-x p)) (unscale-y (node-y p)))]
                  [(path highlighted selected visible layer path-list)
-                  (make-path layer (downscale path-list scale))]))))
+                  (path #f #f #f layer (downscale path-list scale))]))))
   (define (unit-scale struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i
@@ -78,7 +78,7 @@ be able to "drag"
                  [(dot highlighted selected visible layer p)
                   (make-dot layer (*dxf-scale (node-x p)) (*dxf-scale (node-y p)))]
                  [(path highlighted selected visible layer path-list)
-                  (make-path layer (unit-scale path-list))]))))
+                  (path #f #f #f layer (unit-scale path-list))]))))
 
   ;dxf-scale is 25.4(inches) or 0.0394(mm)
   (define-values (original-list dxf-scale) (file->struct-list input-port))
@@ -118,13 +118,18 @@ be able to "drag"
     (if (empty? displayed-list)
         (send a-list-box clear)
         (send a-list-box set 
-              (entities-to-strings displayed-list)
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
+              (entities-to-strings displayed-list)
               (map (lambda (x) (to-display (unscale-x (node-x (get-entity-start x))))) displayed-list)
               (map (lambda (x) (to-display (unscale-y (node-y (get-entity-start x))))) displayed-list)
               (map (lambda (x) (to-display (unscale-x (node-x (get-entity-end x))))) displayed-list)
               (map (lambda (x) (to-display (unscale-y (node-y (get-entity-end x))))) displayed-list))))
               ;debugging mode
+              ;(map number->string (range (length (filter (lambda (x) (arc? x)) displayed-list))))
+              ;(map (lambda (x) (to-display (*dxf-scale (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list))
+              ;(map (lambda (x) (to-display (*dxf-scale (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list))
+              ;(map (lambda (x) (to-display (*dxf-scale (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list))
+              ;(map (lambda (x) (to-display (*dxf-scale (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list)))))
               ;(map to-display (map node-x (map get-entity-start displayed-list)))
               ;(map to-display (map node-y (map get-entity-start displayed-list)))
               ;(map to-display (map node-x (map get-entity-end displayed-list)))
@@ -170,13 +175,13 @@ be able to "drag"
                            (begin (set-entity-visible! struct #t) (set-entity-selected! struct #f))
                            (set-entity-visible! struct #f)))
                      (define (map-toggle-visibility lst)
-                       (cond ((empty? lst) '())
-                             ((path? (car lst)) (begin 
+                       (cond [(empty? lst) '()]
+                             [(path? (car lst)) (begin 
                                                   (toggle-visibility (car lst))
                                                   (map-toggle-visibility (path-entities (car lst)))
-                                                  (map-toggle-visibility (cdr lst))))
-                             (else (begin (toggle-visibility (car lst))
-                                          (map-toggle-visibility (cdr lst))))))
+                                                  (map-toggle-visibility (cdr lst)))]
+                             [else (begin (toggle-visibility (car lst))
+                                          (map-toggle-visibility (cdr lst)))]))
                      (send a-canvas update-canvas)
                      (map-toggle-visibility (filter entity-same-layer? (get-field search-list a-canvas)))
                      (send a-canvas draw-objects search-list)
@@ -230,24 +235,27 @@ be able to "drag"
                       [put? #t]
                       [filters (list (list "Text Files" "*.txt"))]))
   
-      (new button%
-           [label "Generate for IDS"]
+  (new button%
+       [label "Generate for IDS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
-                   (display "search list:")
-                   (display stripped))])
+                   (for/list ([arc stripped])
+                             (display arc)
+                             (newline)))
+                 ])
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
   (new button%
        [label "Generate for GR/ILS"]
        [parent button-panel-2]
-       [callback (lambda (b e) 
+       [callback (lambda (b e)
+                   (make-mirror (get-field search-list a-canvas))
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
-                   (make-mirror stripped)
                    (generate-gr-pattern
                     (unit-scale (downscale stripped drawing-scale))
                     (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
-                   (make-mirror stripped))]))
+                   (make-mirror (get-field search-list a-canvas))
+                   )]))

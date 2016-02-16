@@ -40,8 +40,7 @@ This module contains all helper functions that can operate on numbers, strings, 
 ;1 decimal place
 (: round-1 (-> Real Real))
 (define (round-1 z)
-  (let* ([power (expt 10 0)]
-         [result (/ (round (* power z)) power)])
+  (let* ([result (/ (round (* 1 z)) 1)])
     (if (= result -0.0)
         0.0
         result)))
@@ -113,77 +112,88 @@ This module contains all helper functions that can operate on numbers, strings, 
 (define (get-mirror-angle x)
   (- 360 x))
 
+(: localize-degree (-> Real Real))
+(define (localize-degree degree)
+  (cond ((in-between? degree 0 90) degree)
+        ((in-between? degree 90 180) (- degree 90))
+        ((in-between? degree 180 270) (- degree 180))
+        ((in-between? degree 270 360) (- degree 270))
+        ((> degree 360) [error "localize-degree function in utils.rkt: " degree])
+        (else degree)))
+
+;;calculate the x and y coordinates for arc points
+(: arc-point-x (-> Real Real Real Real))
+(define (arc-point-x circle-x degree radius)
+  (let ((adjusted (localize-degree degree)))
+    (cond ((or (= degree 90) (= degree 270)) circle-x)
+          ((= degree 180) (- circle-x radius))
+          ((or (= degree 360) (= degree 0)) (+ circle-x radius)) 
+          ((in-between? degree 0 90)    (+ circle-x (* radius (cos (degrees->radians adjusted)))))
+          ((in-between? degree 90 180)  (- circle-x (* radius (sin (degrees->radians adjusted)))))
+          ((in-between? degree 180 270) (- circle-x (* radius (cos (degrees->radians adjusted)))))
+          ((in-between? degree 270 360) (+ circle-x (* radius (sin (degrees->radians adjusted)))))
+          (else [error "arc-point-x function in utils.rkt"]))))
+
+(: arc-point-y (-> Real Real Real Real))
+(define (arc-point-y circle-y degree radius)
+  (let ((adjusted (localize-degree degree)))
+    (cond ((or (= degree 0) (= degree 360) (= degree 180)) circle-y)
+          ((= degree 90) (+ circle-y radius))
+          ((= degree 270) (- circle-y radius))
+          ((in-between? degree 0 90)    (+ circle-y (* radius (sin (degrees->radians adjusted)))))
+          ((in-between? degree 90 180)  (+ circle-y (* radius (cos (degrees->radians adjusted)))))
+          ((in-between? degree 180 270) (- circle-y (* radius (sin (degrees->radians adjusted)))))
+          ((in-between? degree 270 360) (- circle-y (* radius (cos (degrees->radians adjusted)))))
+          (else [error "arc-point-y function in utils.rkt"]))))
+
+;given 3 nodes a b c, find if a->b->c is in a clockwise or anticlockwise direction
+(: cw-turn? (-> Real Real Real Real Real Real Boolean))
+(define (cw-turn? x1 y1 x2 y2 x3 y3)
+  (not (positive? (- (* (- x2 x1) (- y3 y1)) (* (- x3 x1) (- y2 y1))))))
+
+;given 3 nodes a b c, find if a->b->c is in a clockwise or anticlockwise direction
+(: ccw-turn? (-> Real Real Real Real Real Real Boolean))
+(define (ccw-turn? x1 y1 x2 y2 x3 y3)
+  (not (cw-turn? x1 y1 x2 y2 x3 y3)))
+  
+(: arc-centerpoint (-> Real Real Real Real Boolean Real Real Real Real (List Real Real)))
+(define (arc-centerpoint center-x center-y radius angle ccw? x1 y1 x3 y3)
+  (let* ([opposing-angle (get-opposing-angle angle)]
+         [1st-x2 (arc-point-x center-x angle radius)]
+         [1st-y2 (arc-point-y center-y angle radius)]
+         [2nd-x2 (arc-point-x center-x opposing-angle radius)]
+         [2nd-y2 (arc-point-y center-y opposing-angle radius)]
+         [cw? (not ccw?)]
+    [result (cond [(and ccw? (ccw-turn? x1 y1 1st-x2 1st-y2 x3 y3) (cw-turn? x1 y1 2nd-x2 2nd-y2 x3 y3))
+                   (list 2nd-x2 2nd-y2)
+                   ;(list 1st-x2 1st-y2)
+                   ]
+                  [(and ccw? (ccw-turn? x1 y1 2nd-x2 2nd-y2 x3 y3) (cw-turn? x1 y1 1st-x2 1st-y2 x3 y3))
+                   (list 1st-x2 1st-y2)
+                   ;(list 2nd-x2 2nd-y2)
+                   ]
+                  [(and cw?  (ccw-turn? x1 y1 2nd-x2 2nd-y2 x3 y3) (cw-turn? x1 y1 1st-x2 1st-y2 x3 y3))
+                   (list 2nd-x2 2nd-y2)
+                   ;(list 1st-x2 1st-y2)
+                   ]
+                  [(and cw?  (ccw-turn? x1 y1 1st-x2 1st-y2 x3 y3) (cw-turn? x1 y1 2nd-x2 2nd-y2 x3 y3))
+                   (list 1st-x2 1st-y2)
+                   ;(list 2nd-x2 2nd-y2)
+                   ]
+          (else [error "arc-centerpoint function in utils.rkt"]))])
+    result))
+                    
+
 ;; NOT YET TESTED PROPERLY.
 ;; from the center xy, start and end points, return x1 y1 x2 y2 x3 y3 which is the start, middle and end point of the arc respectively.
 (: get-arc-points (-> Real Real Real Real Real Boolean (Listof Real)))
-(define (get-arc-points center-x center-y radius start-angle end-angle ccw?)
-  (: determine-quadrant (-> (Option Real) Real))
-  (define (determine-quadrant angle)
-    (assert angle real?)
-    (cond ((or (reasonable-equal? angle 0) (reasonable-equal? angle 90) 
-               (reasonable-equal? angle 270)(reasonable-equal? angle 180) 
-               (reasonable-equal? angle 360)) 0)
-          ((in-between? angle 0 90) 1)
-          ((in-between? angle 90 180) 2)
-          ((in-between? angle 180 270) 3)
-          ((in-between? angle 270 360) 4)
-          (error "Expected a number, given " angle)))
-  (: get-narrow-angle (-> (Option Real) (Option Real) Real))
-  (define (get-narrow-angle angle quadrant)
-    (assert angle real?)
-    (assert quadrant real?)
-    (cond ((= quadrant 2) (- angle 90))
-          ((= quadrant 3) (- angle 180))
-          ((= quadrant 4) (- angle 270))
-          (else angle)))
-  (: get-x-value (-> (Option Real) (Option Real) Real Real Real))
-  (define (get-x-value angle quadrant center-x radius)
-    (assert angle real?)
-    (assert quadrant real?)
-    (cond ((reasonable-equal? angle 90) center-x)
-          ((reasonable-equal? angle 180) (- center-x radius))
-          ((reasonable-equal? angle 270) center-x)
-          ((or (reasonable-equal? angle 360) (reasonable-equal? angle 0)) (+ center-x radius))
-          ((= quadrant 1) (+ center-x (* radius (cos (degrees->radians angle)))))
-          ((= quadrant 2) (- center-x (* radius (sin (degrees->radians angle)))))
-          ((= quadrant 3) (- center-x (* radius (cos (degrees->radians angle)))))
-          ((= quadrant 4) (+ center-x (* radius (sin (degrees->radians angle)))))
-          (error "Expected a number, given " quadrant)))
-  (: get-y-value (-> (Option Real) (Option Real) Real Real Real))
-  (define (get-y-value angle quadrant center-y radius)
-    (assert angle real?)
-    (assert quadrant real?)
-    (cond ((reasonable-equal? angle 90) (+ center-y radius))
-          ((reasonable-equal? angle 180) center-y)
-          ((reasonable-equal? angle 270) (- center-y radius))
-          ((or (reasonable-equal? angle 360) (reasonable-equal? angle 0)) center-y)
-          ((= quadrant 1) (+ center-y (* radius (sin (degrees->radians angle)))))
-          ((= quadrant 2) (+ center-y (* radius (cos (degrees->radians angle)))))
-          ((= quadrant 3) (- center-y (* radius (sin (degrees->radians angle)))))
-          ((= quadrant 4) (- center-y (* radius (cos (degrees->radians angle)))))
-          (error "Expected a number, given " quadrant)))
-  (let* ((mid-angle (if (and ccw? (> start-angle end-angle))
-                        (get-opposing-angle (/ (+ start-angle end-angle) 2))
-                        (/ (+ start-angle end-angle) 2)))
-         (first-point-quadrant (determine-quadrant start-angle))
-         (second-point-quadrant (determine-quadrant mid-angle))
-         (third-point-quadrant (determine-quadrant end-angle))
-         (first-point-narrow-angle (get-narrow-angle start-angle first-point-quadrant))
-         (second-point-narrow-angle (get-narrow-angle mid-angle second-point-quadrant))
-         (third-point-narrow-angle (get-narrow-angle end-angle third-point-quadrant))
-         (x1 (get-x-value first-point-narrow-angle first-point-quadrant center-x radius))
-         (y1 (get-y-value first-point-narrow-angle first-point-quadrant center-y radius))
-         (x2 (get-x-value second-point-narrow-angle second-point-quadrant center-x radius))
-         (y2 (get-y-value second-point-narrow-angle second-point-quadrant center-y radius))
-         (x3 (get-x-value third-point-narrow-angle third-point-quadrant center-x radius))
-         (y3 (get-y-value third-point-narrow-angle third-point-quadrant center-y radius)))
-    (list x1 y1 x2 y2 x3 y3)))
-;    (get-arc-points center-x           center-y           radius             start-angle    end-angle)
-;for (get-arc-points 432.08641063489955 25.258493353064345 25.258493353064345 270.0000000014 360.0),
-;should return (457.345 25.258) (432.086 0)
-;instead it returns (457.3449039879639 25.258493352447164) (457.3449039879639 25.258493353064345)
-
-;    (get-arc-points center-x           center-y           radius             start-angle    end-angle)
-;for (get-arc-points  35.72747415069246 248.39734121147703 26.58788774003842 111.212723819 180.0)
-;should return (9.139 ...) (10.941 
-;instead it returns (10.941089388271768 258.0176792973305) 20.70863089581764 270.3370340480322 (9.139586410654056 248.39734121147703)
+(define (get-arc-points circle-x circle-y radius start end ccw?)
+  (let* ([arc-x1 (arc-point-x circle-x start radius)]
+         [arc-y1 (arc-point-y circle-y start radius)]
+         [arc-x3 (arc-point-x circle-x end radius)]
+         [arc-y3 (arc-point-y circle-y end radius)]
+         [half-angle (let [(x (/ (+ start end) 2))]
+                       (if (> x 360) (- x 360) x))]
+         [arc-x2 (first (arc-centerpoint circle-x circle-y radius half-angle ccw? arc-x1 arc-y1 arc-x3 arc-y3))]
+         [arc-y2 (second (arc-centerpoint circle-x circle-y radius half-angle ccw? arc-x1 arc-y1 arc-x3 arc-y3))])
+    (list arc-x1 arc-y1 arc-x2 arc-y2 arc-x3 arc-y3)))

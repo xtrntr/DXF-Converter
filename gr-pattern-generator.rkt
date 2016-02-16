@@ -25,14 +25,16 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 
 (provide generate-gr-pattern)
 
+;1000 = 1mm
+;1000 = 1second
 (define x-deviation 0)
 (define num-repeat 0)
 (define y-deviation 0) 
-(define ret-height 2)
+(define ret-height -2000) 
 (define ret-speed 0)
 (define disp-dur 0)
 (define ret-delay 0)
-(define clear-height 5)
+(define clear-height -5000)
 (define trav-delay 0)
 (define trav-speed 5)
 (define disp-onoff 1)

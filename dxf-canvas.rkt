@@ -77,6 +77,8 @@ limit panning and zooming with respect to a specified workspace limit
     (define black-pen (new pen% [color "black"] [width 1]))
     (define big-blue-pen (new pen% [color "RoyalBlue"] [width 5]))
     (define big-orange-pen (new pen% [color "Orange"] [width 5]))
+    ;debugging pen
+    (define mah-pen (new pen% [color "red"] [width 1]))
     
     ;; CURSOR TYPES
     (define normal (make-object cursor% 'arrow))
@@ -117,15 +119,28 @@ limit panning and zooming with respect to a specified workspace limit
     
     (define (draw-start/end-nodes x y highlight?)
       (my-draw (point) (x y) highlight? (big-orange-pen big-blue-pen)))
-    
-    (define (draw-arc x y radius start end highlight?)
+
+    ;p1 p2 p3 and ccw are for debugging. they're so useful so leave them in for now.
+    (define (draw-arc x y radius start end highlight? p1 p2 p3 ccw)
       ;racket's draw-arc function's x,y starts at bottom left corner (docs say top left but inverted because of -ve y-scale)
       ;DXF provided arc x,y coordinates are at the center of the arc/circle
       (let ((start (degrees->radians (- 360 start))) ;; DXF angles are CW, Racket angles are CCW (because of inverting y scale)
             (end (degrees->radians (- 360 end)))
             (center-x (- x radius))
-            (center-y (- y radius)))
-        (my-draw (arc) (center-x center-y (* 2 radius) (* 2 radius) end start) highlight? (red-pen black-pen))))
+            (center-y (- y radius))
+            [x1 (node-x p1)]
+            [y1 (node-y p1)]
+            [x2 (node-x p2)]
+            [y2 (node-y p2)]
+            [x3 (node-x p3)]
+            [y3 (node-y p3)]
+            )
+        (my-draw (line) (x1 y1 x2 y2) highlight? (mah-pen mah-pen))
+        (my-draw (line) (x2 y2 x3 y3) highlight? (mah-pen mah-pen))
+        (if ccw
+            (my-draw (arc) (center-x center-y (* 2 radius) (* 2 radius) start end) highlight? (red-pen black-pen))
+            (my-draw (arc) (center-x center-y (* 2 radius) (* 2 radius) end start) highlight? (red-pen black-pen)))
+        ))
     
     ;make public to allow checking/unchecking of layers outside of the canvas
     (define/public (draw-objects lst)
@@ -133,7 +148,7 @@ limit panning and zooming with respect to a specified workspace limit
         (when (entity-visible x)
           (match x
             [(line highlighted selected visible layer p1 p2)                               (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) (or selected highlighted))]
-            [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (draw-arc (node-x center) (node-y center) radius start end (or selected highlighted))]
+            [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (draw-arc (node-x center) (node-y center) radius start end (or selected highlighted) p1 p2 p3 ccw)]
             [(dot highlighted selected visible layer p)                                    (draw-dot (node-x p) (node-y p) (or selected highlighted))]
             [(path highlighted selected visible layer path-list)                           (draw-objects path-list)])))
       (map apply-procedure lst))
