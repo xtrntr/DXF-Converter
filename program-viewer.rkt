@@ -52,9 +52,9 @@ be able to "drag"
   (define (rescale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)
+                 [(line highlighted selected visible layer p1 p2 mbr)
                   (make-line layer (scale-x (node-x p1)) (scale-y (node-y p1)) (scale-x (node-x p2)) (scale-y (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
                   (make-arc layer (scale-x (node-x center)) (scale-y (node-y center)) (* scale radius) start end ccw)]
                  [(dot highlighted selected visible layer p)
                   (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
@@ -63,9 +63,9 @@ be able to "drag"
   (define (downscale struct-lst scale)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)
+                 [(line highlighted selected visible layer p1 p2 mbr)
                   (make-line layer (unscale-x (node-x p1)) (unscale-y (node-y p1)) (unscale-x (node-x p2)) (unscale-y (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
                   (make-arc layer (unscale-x (node-x center)) (unscale-y (node-y center)) (/ radius scale) start end ccw)]
                  [(dot highlighted selected visible layer p)
                   (make-dot layer (unscale-x (node-x p)) (unscale-y (node-y p)))]
@@ -74,9 +74,9 @@ be able to "drag"
   (define (unit-scale struct-lst)
     (flatten (for/list ([i struct-lst])
                (match i
-                 [(line highlighted selected visible layer p1 p2)
+                 [(line highlighted selected visible layer p1 p2 mbr)
                   (make-line layer (*dxf-scale (node-x p1)) (*dxf-scale (node-y p1)) (*dxf-scale (node-x p2)) (*dxf-scale (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
+                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
                   (make-arc layer (*dxf-scale (node-x center)) (*dxf-scale (node-y center)) (*dxf-scale radius) start end ccw)]
                  [(dot highlighted selected visible layer p)
                   (make-dot layer (*dxf-scale (node-x p)) (*dxf-scale (node-y p)))]
@@ -91,6 +91,11 @@ be able to "drag"
   (define search-list (rescale original-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
+
+  (display "length of entities list")
+  (newline)
+  (display (length search-list))
+  (newline)
   
   (define main-panel
     (new horizontal-panel%
@@ -219,8 +224,8 @@ be able to "drag"
   (new button%
        [label "Make mirror image"]
        [parent button-panel-1]
-       [callback (lambda (b e) 
-                   (make-mirror (get-field search-list a-canvas))
+       [callback (lambda (b e)
+                   (set-field! search-list a-canvas (make-mirror (get-field search-list a-canvas)))
                    (send a-canvas update-node-lst)
                    (send a-canvas update-canvas)
                    (send a-canvas refresh-spreadsheet)
@@ -346,18 +351,15 @@ be able to "drag"
                    (debug-display (length (get-field search-list a-canvas)))
                    (newline)
                    (set-field! search-list a-canvas (do-optimization stripped))
-                   (debug-display (length (get-field search-list a-canvas)))
                    (newline))])
   
   (new button%
        [label "Generate for GR/ILS"]
        [parent button-panel-2]
        [callback (lambda (b e)
-                   (make-mirror (get-field search-list a-canvas))
-                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
+                   (define stripped (get-selected-entities (make-mirror (get-field search-list a-canvas))))
                    ;binary for osx, text for windows
                    (generate-gr-pattern
                     (unit-scale (downscale stripped drawing-scale))
                     (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
-                   (make-mirror (get-field search-list a-canvas))
                    )]))

@@ -209,3 +209,9 @@ This module contains all helper functions that can operate on numbers, strings, 
            (newline))
       (begin (display x) (newline)))
   (newline))
+
+(: time-debug-display (-> Any Any))
+(define (time-debug-display x)
+  (display (string-append (symbol->string (quote x)) ": "))
+  (newline)
+  (time x))

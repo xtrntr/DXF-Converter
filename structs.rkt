@@ -35,7 +35,8 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (struct line entity 
   ([p1 : node]
-   [p2 : node])
+   [p2 : node]
+   [mbr : rect])
   #:transparent)
 
 (struct arc entity 
@@ -46,12 +47,28 @@ Try to keep the more complex and specific functions in lst-utils.
    [p1 : node]
    [p2 : node]
    [p3 : node]
-   [ccw : Boolean]) 
+   [ccw : Boolean]
+   [mbr : rect]) 
   #:transparent #:mutable)
 
 (struct path entity
   ([entities : (Listof Path-Entity)])
   #:transparent)
+
+;minimum bounding-rect
+(struct rect
+  ([x1 : Real]
+   [y1 : Real]
+   [x2 : Real]
+   [y2 : Real]) 
+  #:transparent)
+
+(: rect-intersect? (-> rect rect Boolean))
+(define (rect-intersect? r1 r2)
+  (and (< (rect-x1 r1) (rect-x2 r2))
+       (> (rect-x2 r1) (rect-x1 r2))
+       (< (rect-y1 r1) (rect-y2 r2))
+       (> (rect-y2 r1) (rect-y1 r2))))
 
 ;; CONSTRUCTORS
 (: make-dot (-> String Real Real dot))
@@ -60,15 +77,23 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: make-line (-> String Real Real Real Real line))
 (define (make-line layer x1 y1 x2 y2)
-  (line #f #f #f layer (node x1 y1) (node x2 y2)))
+  (let* ([xb (biggest (list x1 x2))]
+         [yb (biggest (list y1 y2))]
+         [xs (smallest (list x1 x2))]
+         [ys (smallest (list y1 y2))]
+         [mbr (rect xs ys xb yb)])
+    (line #f #f #f layer (node x1 y1) (node x2 y2) mbr)))
 
 (: make-arc (-> String Real Real Real Real Real Boolean arc))
 (define (make-arc layer center-x center-y radius start end ccw?)
   (match (get-arc-points center-x center-y radius start end ccw?)
     [(list x1 y1 x2 y2 x3 y3)
-     (if ccw?
-         (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #t)
-         (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) #f))]))
+     (let* ([xb (biggest (list x1 x2 x3))]
+            [yb (biggest (list y1 y2 y3))]
+            [xs (smallest (list x1 x2 x3))]
+            [ys (smallest (list y1 y2 y3))]
+            [mbr (rect xs ys xb yb)])
+       (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) ccw? mbr))]))
 
 (: make-selected (-> Entity Entity))
 (define (make-selected an-entity)
@@ -222,29 +247,31 @@ Try to keep the more complex and specific functions in lst-utils.
                                  (path (lambda (x) (get-entity-end (last x)))))
                    a-struct)))
 
-(: make-mirror (-> Entities Void))
+(: make-mirror (-> Entities Entities))
 (define (make-mirror entity-lst)
-  (let loop : Void
-    ([x : Entities entity-lst])
-    (cond ((empty? x) (void))
-          (else
-           (loop (rest x))
-           (match (car x)
-             [(dot highlighted selected visible layer p)
-              (set-node-y! p (* -1 (node-y p)))]
-             [(line highlighted selected visible layer p1 p2)
-              (set-node-y! p1 (* -1 (node-y p1)))
-              (set-node-y! p2 (* -1 (node-y p2)))]
-             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)
-              (set-node-y! p1 (* -1 (node-y p1)))
-              (set-node-y! p2 (* -1 (node-y p2)))
-              (set-node-y! p3 (* -1 (node-y p3)))
-              (set-arc-start! (car x) (get-mirror-angle start))
-              (set-arc-end! (car x) (get-mirror-angle end))
-              (set-arc-ccw! (car x) (not ccw))
-              (set-node-y! center (* -1 (node-y center)))]
-             [(path highlighted selected visible layer entities)
-              (loop (path-entities (car x)))])))))
+  (for/list ([x : Entity entity-lst])
+            (match x
+              [(dot highlighted selected visible layer p)
+               (dot highlighted selected visible layer
+                    (node (node-x p) (* -1 (node-y p))))]
+              [(line highlighted selected visible layer p1 p2 mbr)
+               (line highlighted selected visible layer
+                     (node (node-x p1) (* -1 (node-y p1)))
+                     (node (node-x p2) (* -1 (node-y p2)))
+                     mbr)]
+              [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
+               (arc highlighted selected visible layer
+                    (node (node-x center) (* -1 (node-y center)))
+                    radius
+                    (get-mirror-angle start)
+                    (get-mirror-angle end)
+                    (node (node-x p1) (* -1 (node-y p1)))
+                    (node (node-x p2) (* -1 (node-y p2)))
+                    (node (node-x p3) (* -1 (node-y p3)))
+                    (not ccw)
+                    mbr)]
+              [(path highlighted selected visible layer entities)
+               (path highlighted selected visible layer (cast (make-mirror entities) Path-Entities))])))
 
 (define-syntax match-struct
   (lambda (stx)
@@ -255,7 +282,7 @@ Try to keep the more complex and specific functions in lst-utils.
                       [tmp2 (syntax->datum #'c)])
          #'(lambda (a-struct)
              (match a-struct
-               [(dot highlighted selected visible layer p)                                    tmp0]
-               [(line highlighted selected visible layer p1 p2)                               tmp1]
-               [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) tmp2]
-               [(path highlighted selected visible layer entities)                            (d entities)])))])))
+               [(dot highlighted selected visible layer p)                                        tmp0]
+               [(line highlighted selected visible layer p1 p2 mbr)                               tmp1]
+               [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr) tmp2]
+               [(path highlighted selected visible layer entities)                               (d entities)])))])))

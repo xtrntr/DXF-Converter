@@ -144,12 +144,25 @@ limit panning and zooming with respect to a specified workspace limit
     (define/public (draw-objects lst)
       (define (apply-procedure x)
         (when (entity-visible x)
+          #|
+          (cond [(line? x)
+                 (draw-line (node-x (line-p1 x)) (node-y (line-p1 x)) (node-x (line-p2 x)) (node-y (line-p2 x)) (entity-selected x) (entity-highlighted x))]
+                [(arc? x)
+                 (draw-arc (node-x (arc-center x)) (node-y (arc-center x)) (arc-radius x) (arc-start x) (arc-end x) (entity-selected x) (entity-highlighted x) (arc-p1 x) (arc-p2 x) (arc-p3 x) (arc-ccw x))]
+                [(dot? x)
+                 (draw-dot (node-x (dot-p x)) (node-y (dot-p x)) (entity-highlighted x))]
+                [(path? x)
+                 (draw-objects (path-entities x))])))
+          |#
           (match x
-            [(line highlighted selected visible layer p1 p2)                               (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) selected highlighted)]
-            [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (draw-arc (node-x center) (node-y center) radius start end selected highlighted p1 p2 p3 ccw)]
-            [(dot highlighted selected visible layer p)                                    (draw-dot (node-x p) (node-y p) highlighted)]
-            [(path highlighted selected visible layer path-list)                           (draw-objects path-list)])))
-      (map apply-procedure lst))
+            [(line highlighted selected visible layer p1 p2 mbr)                               (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) selected highlighted)]
+            [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr) (draw-arc (node-x center) (node-y center) radius start end selected highlighted p1 p2 p3 ccw)]
+            [(dot highlighted selected visible layer p)                                        (draw-dot (node-x p) (node-y p) highlighted)]
+            [(path highlighted selected visible layer path-list)                               (draw-objects path-list)])))
+      ;(display "draw-obj: ")
+      ;(newline)
+      (time (for/list ([x lst])
+             (apply-procedure x))))
     
     (define (draw-select-box lst)
       (for/list ([i lst])
@@ -184,27 +197,30 @@ limit panning and zooming with respect to a specified workspace limit
     ;pass intersect? the start and end point of select box and the struct-list
     ;it will traverse the struct-list to see if any elements
     (define (intersect? x1 y1 x2 y2 lst)
-      (let ((big-x (biggest (list x1 x2)))
-            (big-y (biggest (list y1 y2)))
-            (small-x (smallest (list x1 x2)))
-            (small-y (smallest (list y1 y2))))
-        (for/list ([i lst])
-                  ;only calculate intersections for visible and not yet selected items
-                  (when (and (entity-visible i) (not (entity-selected i)))
-                    (cond ((line? i)
-                           (if (line-intersect? i small-x small-y big-x big-y)
-                               (set-entity-highlighted! i #t)
-                               (set-entity-highlighted! i #f)))
-                          ((arc? i)
-                           (if (arc-intersect? i small-x small-y big-x big-y)
-                               (set-entity-highlighted! i #t)
-                               (set-entity-highlighted! i #f)))
-                          ((dot? i)
-                           (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y) 
-                               (set-entity-highlighted! i #t)
-                               (set-entity-highlighted! i #f)))
-                          ((path? i)
-                           (intersect? x1 y1 x2 y2 (path-entities i))))))))
+      (let* ([big-x (biggest (list x1 x2))]
+             [big-y (biggest (list y1 y2))]
+             [small-x (smallest (list x1 x2))]
+             [small-y (smallest (list y1 y2))]
+             [query-mbr (rect small-x small-y big-x big-y)])
+           (for/list ([i lst])
+                     ;only calculate intersections for visible and not yet selected items
+                     (when (and (entity-visible i) (not (entity-selected i)))
+                       (cond [(line? i)
+                              (if (and (line-intersect? i small-x small-y big-x big-y)
+                                       (rect-intersect? (line-mbr i) query-mbr))
+                                  (set-entity-highlighted! i #t)
+                                  (set-entity-highlighted! i #f))]
+                             [(arc? i)
+                              (if (and (arc-intersect? i small-x small-y big-x big-y)
+                                       (rect-intersect? (arc-mbr i) query-mbr))
+                                  (set-entity-highlighted! i #t)
+                                  (set-entity-highlighted! i #f))]
+                             [(dot? i)
+                              (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y)
+                                  (set-entity-highlighted! i #t)
+                                  (set-entity-highlighted! i #f))]
+                             [(path? i)
+                           (intersect? x1 y1 x2 y2 (path-entities i))])))))
     
     ;don't include paths
     (define/public (update-node-lst)
@@ -217,7 +233,7 @@ limit panning and zooming with respect to a specified workspace limit
     
     (define/public (update-canvas)
       (send (get-dc) set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
-      (send this refresh))
+      (flush-display))
     
     (define/public (refresh-spreadsheet)
       (update-spreadsheet search-list))
@@ -356,7 +372,7 @@ limit panning and zooming with respect to a specified workspace limit
                                    (> 0.5 (abs (- scaled-cursor-x init-cursor-x)))
                                    (> 0.5 (abs (- scaled-cursor-y init-cursor-y)))))
 
-      (send this refresh-now)
+      ;
 
       (cond
         (end-selecting?
@@ -399,8 +415,7 @@ limit panning and zooming with respect to a specified workspace limit
          (set! select-box (list (list init-cursor-x init-cursor-y scaled-cursor-x init-cursor-y #t #f)
                                 (list scaled-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y #t #f)
                                 (list scaled-cursor-x scaled-cursor-y init-cursor-x scaled-cursor-y #t #f)
-                                (list init-cursor-x scaled-cursor-y init-cursor-x init-cursor-y #t #f)))
-         (update-canvas))
+                                (list init-cursor-x scaled-cursor-y init-cursor-x init-cursor-y #t #f))))
         (is-panning?
          (let* ((current-x (- cursor-x init-cursor-x))
                 (current-y (- cursor-y init-cursor-y)))
