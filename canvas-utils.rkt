@@ -53,15 +53,21 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 
 (: unselect-all (-> Entities Void))
 (define (unselect-all lst)
+  (: unselect (-> Entity Void))
+  (define (unselect x)
+    (set-entity-selected! x #f)
+    (set-entity-highlighted! x #f))
   (unless (empty? lst)
     (let ((current (first lst)))
-      (cond ((path? current)
-             (set-entity-selected! current #f)
+      (cond [(and (path? current) (entity-selected current))
+             (unselect current)
              (unselect-all (path-entities current))
-             (unselect-all (cdr lst)))
-            (else (set-entity-selected! current #f)
-                  (unselect-all (cdr lst))))))
-  (void))
+             (unselect-all (cdr lst))]
+            [(entity-selected current)
+             (unselect current)
+             (unselect-all (cdr lst))]
+            [else (unselect-all (cdr lst))]))
+    (void)))
 
 (: delete-selected (-> Entities Void))
 (define (delete-selected lst)
@@ -244,23 +250,18 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 ;; 2.3.5) is the y-intercept bigger or smaller than the y-intercept of the dividing line? use that as a barometer for any point intersecting the circle.
 ;; 2.3.6) if the line formed with the intersecting point falls on the right side of the "dividing line" together with the line formed with the mid-point line, then there is an intersection.
 (: arc-intersect? (-> arc Real Real Real Real Boolean))
-(define (arc-intersect? arc-struct xs ys xb yb)
-  (let* ((radius (arc-radius arc-struct))
-         [ccw? (arc-ccw arc-struct)]
-         (circle-x (node-x (arc-center arc-struct)))
-         (circle-y (node-y (arc-center arc-struct)))
-         (start (arc-start arc-struct))
-         (end (arc-end arc-struct))
-         (angle-difference (if (> end start) (- end start) (+ (- 360 start) end)))
-         [half-angle (if (> end start) (/ (+ start end) 2) (if (< 360 (+ 180 (/ (+ start end) 2))) (- (+ 180 (/ (+ start end) 2)) 360) (+ 180 (/ (+ start end) 2))))]
-         (radius (arc-radius arc-struct))
-         (arc-x1 (arc-point-x circle-x start radius))
-         (arc-y1 (arc-point-y circle-y start radius))
-         (arc-x3 (arc-point-x circle-x end radius))
-         (arc-y3 (arc-point-y circle-y end radius))
-         ;we calculate the middle arc-point to determine which is the right side
-         [arc-x2 (arc-point-x circle-x half-angle radius)]
-         [arc-y2 (arc-point-y circle-y half-angle radius)])
+(define (arc-intersect? an-arc xs ys xb yb)
+  (let* ([radius (arc-radius an-arc)]
+         [ccw? (arc-ccw an-arc)]
+         [circle-x (node-x (arc-center an-arc))]
+         [circle-y (node-y (arc-center an-arc))]
+         [radius (arc-radius an-arc)]
+         [arc-x1 (node-x (arc-p1 an-arc))]
+         [arc-y1 (node-y (arc-p1 an-arc))]
+         [arc-x2 (node-x (arc-p2 an-arc))]
+         [arc-y2 (node-y (arc-p2 an-arc))]
+         [arc-x3 (node-x (arc-p3 an-arc))]
+         [arc-y3 (node-y (arc-p3 an-arc))])
     (: right-side-y? (-> Real Real Boolean))
     (define (right-side-y? x y)
       (let* ((dividing-line-slope       (/ (- arc-y3 arc-y1) (- arc-x3 arc-x1)))

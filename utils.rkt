@@ -197,3 +197,15 @@ This module contains all helper functions that can operate on numbers, strings, 
          [arc-x2 (first (arc-centerpoint circle-x circle-y radius half-angle ccw? arc-x1 arc-y1 arc-x3 arc-y3))]
          [arc-y2 (second (arc-centerpoint circle-x circle-y radius half-angle ccw? arc-x1 arc-y1 arc-x3 arc-y3))])
     (list arc-x1 arc-y1 arc-x2 arc-y2 arc-x3 arc-y3)))
+
+(: debug-display (-> Any Void))
+(define (debug-display x)
+  (display (string-append (symbol->string (quote x)) ": "))
+  (newline)
+  (newline)
+  (if (list? x)
+      (for ([element : Any (cast x (Listof Any))])
+           (display element)
+           (newline))
+      (begin (display x) (newline)))
+  (newline))

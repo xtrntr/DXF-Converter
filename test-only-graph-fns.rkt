@@ -89,3 +89,8 @@
            [keys (build-list (length lst) values)])
           (values keys vals)))
 |#
+
+(apply append (for/list ([edge1 (permutations (list 1 2))])
+             (apply append (for/list ([edge2 (permutations (list 3 4))])
+                                   (permutations (list edge1 edge2))))))
+

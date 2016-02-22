@@ -15,7 +15,7 @@ Try to keep the more complex and specific functions in lst-utils.
 (define-type Path-Entity (U line arc))
 (define-type Path-Entities (Listof Path-Entity))
 
-(define-type Connection (List node node))
+(define-type Edge (List node node))
 
 (struct node 
   ([x : Real]
@@ -177,12 +177,26 @@ Try to keep the more complex and specific functions in lst-utils.
         [end-nodes (map get-entity-end entity-lst)])
     (append start-nodes end-nodes)))
 
-(: entities->connections (-> Entities (Listof Connection)))
-(define (entities->connections entity-lst)
+(: entities->edges (-> Entities (Listof Edge)))
+(define (entities->edges entity-lst)
   (map (lambda ([x : Entity]) (list (get-entity-start x)
                                     (get-entity-end x))) entity-lst))
 
 ;; NODE OPERATIONS
+(: node-distance (-> node node Real))
+(define (node-distance n1 n2)
+  (sqrt (+ (sqr (- (node-x n2) (node-x n1)))
+           (sqr (- (node-y n2) (node-y n1))))))
+
+;given a start-n and a list of nodes, find a node in the list nearest to the given start-n
+(: nn (-> node (Listof node) node))
+(define (nn start-n node-lst)
+  (let ([hs : (HashTable Real node) (make-hash)])
+    (map (lambda ([n : node])
+           (hash-set! hs (node-distance start-n n) n))
+         node-lst)
+    (hash-ref hs (smallest (hash-keys hs)))))
+
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
   (and (> 0.5 (cast (abs (- (node-x n1) (node-x n2))) Float))
@@ -225,9 +239,9 @@ Try to keep the more complex and specific functions in lst-utils.
               (set-node-y! p1 (* -1 (node-y p1)))
               (set-node-y! p2 (* -1 (node-y p2)))
               (set-node-y! p3 (* -1 (node-y p3)))
-              (set-arc-start! (car x) (get-mirror-angle end))
-              (set-arc-end! (car x) (get-mirror-angle start))
-;              (set-arc-ccw! (car x) (not ccw))
+              (set-arc-start! (car x) (get-mirror-angle start))
+              (set-arc-end! (car x) (get-mirror-angle end))
+              (set-arc-ccw! (car x) (not ccw))
               (set-node-y! center (* -1 (node-y center)))]
              [(path highlighted selected visible layer entities)
               (loop (path-entities (car x)))])))))

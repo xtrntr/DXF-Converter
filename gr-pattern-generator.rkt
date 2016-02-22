@@ -186,9 +186,9 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
                                                                                              (ils-link-arc-end (node-x p1) (node-y p1))
                                                                                              (ils-line-point (node-x p1) (node-y p1)))
                                                                                          (ils-line-end (node-x p2) (node-y p2))]
-             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw)  (if (arc? prev)
-                                                                                                 (ils-link-arc-restart (node-x p1) (node-y p1))
-                                                                                                 (ils-link-arc-start (node-x p1) (node-y p1)))
+             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw) (if (arc? prev)
+                                                                                                (ils-link-arc-restart (node-x p1) (node-y p1))
+                                                                                                (ils-link-arc-start (node-x p1) (node-y p1)))
                                                                                              (arc-point-spacing)
                                                                                              (ils-arc-point (node-x p2) (node-y p2))
                                                                                              (ils-arc-end (node-x p3) (node-y p3))]))

@@ -32,7 +32,7 @@
                    (add-key-pair (first lst) ht)))))))
 
 
-(define (sort-from-connections groups node-ht)
+(define (sort-from-edges groups node-ht)
   (map
    (lambda (group)
      (remove-duplicates (flatten
@@ -42,9 +42,13 @@
    groups))
 
 (define (group-entities entity-lst)
-  (let* ([connections (entities->connections entity-lst)] ;(Listof (List node node))
-         [graph (unweighted-graph/undirected connections)]
+  (let* ([edges (entities->edges entity-lst)] ;(Listof (List node node))
+         [weight-and-edges (for/list ([edge edges])
+                                     (let ([n1 (first edge)]
+                                           [n2 (second edge)])
+                                     (list (node-distance n1 n2) n1 n2)))]
+         [graph (weighted-graph/undirected weight-and-edges)]
          [groups (cc graph)]
          [node-hash (make-node-hs entity-lst)]
-         [sorted (sort-from-connections groups node-hash)])
+         [sorted (sort-from-edges groups node-hash)])
     sorted))

@@ -19,7 +19,10 @@ be able to "drag"
          "utils.rkt"
          "gr-pattern-generator.rkt"
          mrlib/path-dialog
-         racket/gui/base)
+         racket/gui/base
+
+         ;test
+         "graph.rkt")
 
 (provide (all-defined-out))
 
@@ -234,18 +237,117 @@ be able to "drag"
   (define create (new path-dialog%
                       [put? #t]
                       [filters (list (list "Text Files" "*.txt"))]))
-  
+
+  #|
   (new button%
        [label "Generate for IDS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
-                   (for/list ([arc stripped])
-                             (display arc)
+                   (define stripped (filter (lambda (x) (tree-path? (entities->nodes x))) (group-entities (get-selected-entities (get-field search-list a-canvas)))))
+                   (for/list ([tree stripped])
+                             (display tree)
+                             (newline)
                              (newline)))
                  ])
+  |#
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+  
+  (define (do-optimization lst)
+    (let loop ([start (node 0 0)]
+               [entity-lst lst]
+               [acc '()]
+               [individuals '()])
+      (if (empty? entity-lst)
+          (reverse acc) ;cuz order of the list matters here
+          (let* ([groups (group-entities entity-lst)]
+                 [start-n (nn start (flatten (map get-start/end-nodes groups)))]
+                 [lst-to-reorder (get-belonging-list start-n groups)]
+                 [base-elements (get-base-elements lst-to-reorder)]
+                 ;we actually want to remove one instance of each element in base elements, not all instances
+                 [rest-of-lst (remove* base-elements entity-lst)]
+                 [nodes (entities->nodes base-elements)]
+                 [single-entity? (= (length lst-to-reorder) 1)]
+                 [closed-pattern? (closed-path? nodes)]
+                 [open-pattern? (open-path? nodes)]
+                 [tree-pattern? (tree-path? nodes)])
+            ;possible bug where entity start and end node are equal to each other because they are too close
+            ;need to fix node-equal?
+            (cond [single-entity? (let ([x (first lst-to-reorder)])
+                                    (loop (if (node-equal? start-n (get-entity-start x)) (get-entity-end x) (get-entity-start x))
+                                          rest-of-lst
+                                          (cons (reorder-entity start-n x) acc)
+                                          individuals))]
+                  [open-pattern? (let ([new-path (make-selected (make-path (reorder-open-path start-n base-elements)))])
+                                   (loop (get-entity-end new-path)
+                                         rest-of-lst
+                                         (cons new-path acc)
+                                         individuals))]
+                  [closed-pattern? (let ([new-path (make-selected (make-path (reorder-closed-path start-n base-elements #f)))])
+                                     (loop (get-entity-end new-path)
+                                           rest-of-lst
+                                           (cons new-path acc)
+                                           individuals))]
+                  [tree-pattern? (loop start-n
+                                       rest-of-lst
+                                       acc
+                                       (cons lst-to-reorder individuals))])))))
+  
+  (new button%
+       [label "display selected entities"]
+       [parent button-panel-2]
+       [callback (lambda (b e)
+                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
+                   (for/list ([entity stripped])
+                             (let ([x-off 0] ;1877.4885921766004]
+                                   [y-off 0]);-311.00031196211586])
+                               (when (line? entity)
+                                 (display (+ (node-x (line-p1 entity)) x-off))
+                                 (display ", ")
+                                 (display (+ (node-y (line-p1 entity)) y-off))
+                                 (newline)
+                                 (display (+ (node-x (line-p2 entity)) x-off))
+                                 (display " , ")
+                                 (display (+ (node-y (line-p2 entity)) y-off))
+                                 (newline)
+                                 (newline))
+                               (when (arc? entity)
+                                 (display (+ (node-x (arc-p1 entity)) x-off))
+                                 (display " , ")
+                                 (display (+ (node-y (arc-p1 entity)) y-off))
+                                 (newline)
+                                 (display (+ (node-x (arc-p2 entity)) x-off))
+                                 (display " , ")
+                                 (display (+ (node-y (arc-p2 entity)) y-off))
+                                 (newline)
+                                 (display (+ (node-x (arc-p3 entity)) x-off))
+                                 (display " , ")
+                                 (display (+ (node-y (arc-p3 entity)) y-off))
+                                 (newline)
+                                 (newline)))))])
+
+  (new button%
+       [label "get start/end nodes of entities"]
+       [parent button-panel-2]
+       [callback (lambda (b e)
+                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
+                   (display "start/end-nodes: ")
+                   (newline)
+                   (for/list ([node (get-start/end-nodes stripped)])
+                             (display node)
+                             (newline))
+                   (newline))])
+
+  (new button%
+       [label "do optimization"]
+       [parent button-panel-2]
+       [callback (lambda (b e)
+                   (define stripped (get-field search-list a-canvas))
+                   (debug-display (length (get-field search-list a-canvas)))
+                   (newline)
+                   (set-field! search-list a-canvas (do-optimization stripped))
+                   (debug-display (length (get-field search-list a-canvas)))
+                   (newline))])
   
   (new button%
        [label "Generate for GR/ILS"]

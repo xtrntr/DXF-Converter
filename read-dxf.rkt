@@ -106,16 +106,14 @@ It will loop through the data of this section and create a list of structs that 
          [end : Real            (extract-val ht "51")])
     (make-arc layer center-x center-y radius start end #f)))
 
-(: dxf-circle (-> (Listof String) path))
+(: dxf-circle (-> (Listof String) arc))
 (define (dxf-circle lst)
   (let* ([ht : (HashTable String String)        (make-hash (separate lst))]
          [layer : String        (extract-str ht "8")]
          [center-x : Real       (extract-val ht "10")]
          [center-y : Real       (extract-val ht "20")]
          [radius : Real         (extract-val ht "40")])
-    (path #f #f #f layer 
-          (list (make-arc layer center-x center-y radius 0 180 #f)
-                (make-arc layer center-x center-y radius 180 360 #f)))))
+    (make-arc layer center-x center-y radius 0 0 #f)))
 
 (: dxf-path (-> (Listof String) path))
 (define (dxf-path lst)
@@ -135,8 +133,7 @@ It will loop through the data of this section and create a list of structs that 
          [first-x : String                  (cadr (cast (memf (lambda ([x : String]) (equal? x "10")) lst) (Listof String)))]
          [first-y : String                  (cadr (cast (memf (lambda ([x : String]) (equal? x "20")) lst) (Listof String)))])
     (if closed?
-        (make-path layer 
-                   (let closed-polyline : Path-Entities
+        (make-path (let closed-polyline : Path-Entities
                      ([path-lst : (Listof String) lst]
                       [acc : Path-Entities null])
                      (match path-lst
@@ -146,17 +143,16 @@ It will loop through the data of this section and create a list of structs that 
                        [(list "10" x1 "20" y1 "0")                                 (cons (smake-line layer x1 y1 first-x first-y) acc)]
                        [(list _ _ rest ...)                                        (closed-polyline rest acc)]
                        [_ (error "This is not expected, given: " path-lst)])))
-        (make-path layer 
-               (let open-polyline : Path-Entities
-                 ([path-lst : (Listof String) lst]
-                  [acc : Path-Entities null])
-                 (match path-lst
-                   [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 "0")      (cons (smake-arc layer x1 y1 x2 y2 bulge) acc)]
-                   [(list "10" x1 "20" y1 "10" x2 "20" y2 "0")                 (cons (smake-line layer x1 y1 x2 y2) acc)]
-                   [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
-                   [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
-                   [(list _ _ rest ...)                                        (open-polyline rest acc)]
-                   [_ (error "This is not expected, given: " path-lst)]))))))
+        (make-path (let open-polyline : Path-Entities
+                     ([path-lst : (Listof String) lst]
+                      [acc : Path-Entities null])
+                     (match path-lst
+                       [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 "0")      (cons (smake-arc layer x1 y1 x2 y2 bulge) acc)]
+                       [(list "10" x1 "20" y1 "10" x2 "20" y2 "0")                 (cons (smake-line layer x1 y1 x2 y2) acc)]
+                       [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
+                       [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
+                       [(list _ _ rest ...)                                        (open-polyline rest acc)]
+                       [_ (error "This is not expected, given: " path-lst)]))))))
 
 ;; 1) determine the center point of the arc given the angle and the 2 arc points.
 ;; 1.1) calculate the 2 possible center points using vectors. the 2 arc points form a line/chord.
