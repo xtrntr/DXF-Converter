@@ -159,11 +159,11 @@ limit panning and zooming with respect to a specified workspace limit
             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr) (draw-arc (node-x center) (node-y center) radius start end selected highlighted p1 p2 p3 ccw)]
             [(dot highlighted selected visible layer p)                                        (draw-dot (node-x p) (node-y p) highlighted)]
             [(path highlighted selected visible layer path-list)                               (draw-objects path-list)])))
-      (display "draw-obj: ")
-      (newline)
-      (time
+      ;(display "draw-obj: ")
+      ;(newline)
+      ;(time
       (for/list ([x lst])
-                      (apply-procedure x))))
+                      (apply-procedure x)))
     
     (define (draw-select-box lst)
       (for/list ([i lst])
@@ -341,6 +341,7 @@ limit panning and zooming with respect to a specified workspace limit
     
     ;; MOUSE events
     (define/override (on-event event)
+
       (define drawer (get-dc))
       
       (set! cursor-x (send event get-x))
@@ -373,12 +374,13 @@ limit panning and zooming with respect to a specified workspace limit
                                    (> 0.5 (abs (- scaled-cursor-x init-cursor-x)))
                                    (> 0.5 (abs (- scaled-cursor-y init-cursor-y)))))
 
-      (refresh-now)
+      (refresh)
 
       (cond
         (end-selecting?
          (change-cursor normal)
          (set! display-select-box #f)
+         (set! select-box '())
          (select-highlighted search-list)
          (update-spreadsheet search-list)
          (update-node-lst)
@@ -425,14 +427,15 @@ limit panning and zooming with respect to a specified workspace limit
            (refresh)))))
     
     (define/override (on-paint)
-      (define drawer (get-dc))
-      ;(send this suspend-flush)
+      (display "on-paint: ")
+      (time (define drawer (get-dc))
+      (send this suspend-flush)
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
       (cursor-nearby? (- scaled-cursor-x 3) (- scaled-cursor-y 3) (+ scaled-cursor-x 3) (+ scaled-cursor-y 3))
       (draw-objects search-list)
       (change-pen black-pen)
-      ;(send this resume-flush)
-      )
+      (send this resume-flush)))
+      
     
     (super-instantiate ())))
