@@ -264,7 +264,7 @@ be able to "drag"
                [acc '()]
                [individuals '()])
       (if (empty? entity-lst)
-          (reverse acc) ;cuz order of the list matters here
+          (append (reverse acc) individuals) ;cuz order of the list matters here
           (let* ([groups (group-entities entity-lst)]
                  [start-n (nn start (flatten (map get-start/end-nodes groups)))]
                  [lst-to-reorder (get-belonging-list start-n groups)]
@@ -296,7 +296,7 @@ be able to "drag"
                   [tree-pattern? (loop start-n
                                        rest-of-lst
                                        acc
-                                       (cons lst-to-reorder individuals))])))))
+                                       (append lst-to-reorder individuals))])))))
   
   (new button%
        [label "display selected entities"]
@@ -307,27 +307,27 @@ be able to "drag"
                              (let ([x-off 0] ;1877.4885921766004]
                                    [y-off 0]);-311.00031196211586])
                                (when (line? entity)
-                                 (display (+ (node-x (line-p1 entity)) x-off))
+                                 (display (to-display (+ (node-x (line-p1 entity)) x-off)))
                                  (display ", ")
-                                 (display (+ (node-y (line-p1 entity)) y-off))
+                                 (display (to-display (+ (node-y (line-p1 entity)) y-off)))
                                  (newline)
-                                 (display (+ (node-x (line-p2 entity)) x-off))
+                                 (display (to-display (+ (node-x (line-p2 entity)) x-off)))
                                  (display " , ")
-                                 (display (+ (node-y (line-p2 entity)) y-off))
+                                 (display (to-display (+ (node-y (line-p2 entity)) y-off)))
                                  (newline)
                                  (newline))
                                (when (arc? entity)
-                                 (display (+ (node-x (arc-p1 entity)) x-off))
+                                 (display (to-display (+ (node-x (arc-p1 entity)) x-off)))
                                  (display " , ")
-                                 (display (+ (node-y (arc-p1 entity)) y-off))
+                                 (display (to-display (+ (node-y (arc-p1 entity)) y-off)))
                                  (newline)
-                                 (display (+ (node-x (arc-p2 entity)) x-off))
+                                 ;(display (to-display (+ (node-x (arc-p2 entity)) x-off)))
+                                 ;(display " , ")
+                                 ;(display (to-display (+ (node-y (arc-p2 entity)) y-off)))
+                                 ;(newline)
+                                 (display (to-display (+ (node-x (arc-p3 entity)) x-off)))
                                  (display " , ")
-                                 (display (+ (node-y (arc-p2 entity)) y-off))
-                                 (newline)
-                                 (display (+ (node-x (arc-p3 entity)) x-off))
-                                 (display " , ")
-                                 (display (+ (node-y (arc-p3 entity)) y-off))
+                                 (display (to-display (+ (node-y (arc-p3 entity)) y-off)))
                                  (newline)
                                  (newline)))))])
 
@@ -347,11 +347,12 @@ be able to "drag"
        [label "do optimization"]
        [parent button-panel-2]
        [callback (lambda (b e)
-                   (define stripped (get-field search-list a-canvas))
-                   (debug-display (length (get-field search-list a-canvas)))
-                   (newline)
+                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
+                   ;(debug-display (length (get-field search-list a-canvas)))
                    (set-field! search-list a-canvas (do-optimization stripped))
-                   (newline))])
+                   (send a-canvas update-node-lst)
+                   (send a-canvas update-canvas)
+                   (send a-canvas refresh-spreadsheet))])
   
   (new button%
        [label "Generate for GR/ILS"]

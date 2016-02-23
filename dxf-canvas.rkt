@@ -29,7 +29,7 @@ limit panning and zooming with respect to a specified workspace limit
   (class canvas%
     
     ;shorten
-    (inherit get-dc)
+    (inherit get-dc refresh refresh-now get-width get-height suspend-flush resume-flush)
     
     (init-field
      ;;vars
@@ -159,10 +159,11 @@ limit panning and zooming with respect to a specified workspace limit
             [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr) (draw-arc (node-x center) (node-y center) radius start end selected highlighted p1 p2 p3 ccw)]
             [(dot highlighted selected visible layer p)                                        (draw-dot (node-x p) (node-y p) highlighted)]
             [(path highlighted selected visible layer path-list)                               (draw-objects path-list)])))
-      ;(display "draw-obj: ")
-      ;(newline)
-      (time (for/list ([x lst])
-             (apply-procedure x))))
+      (display "draw-obj: ")
+      (newline)
+      (time
+      (for/list ([x lst])
+                      (apply-procedure x))))
     
     (define (draw-select-box lst)
       (for/list ([i lst])
@@ -233,7 +234,7 @@ limit panning and zooming with respect to a specified workspace limit
     
     (define/public (update-canvas)
       (send (get-dc) set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
-      (flush-display))
+      (refresh))
     
     (define/public (refresh-spreadsheet)
       (update-spreadsheet search-list))
@@ -241,7 +242,7 @@ limit panning and zooming with respect to a specified workspace limit
     (define/public (refocus)
       (define left (+ 0 (smallest (get-x-vals (get-visible-entities search-list)))))
       (define bottom (+ 0 (* -1 (smallest (get-y-vals (get-visible-entities search-list))))))
-      (define drawing-scale (get-display-scale search-list (send this get-width) (send this get-height)))
+      (define drawing-scale (get-display-scale search-list (get-width) (get-height)))
       (set! x-offset left)
       (set! y-offset bottom)
       (set! x-scale  drawing-scale)
@@ -372,7 +373,7 @@ limit panning and zooming with respect to a specified workspace limit
                                    (> 0.5 (abs (- scaled-cursor-x init-cursor-x)))
                                    (> 0.5 (abs (- scaled-cursor-y init-cursor-y)))))
 
-      ;
+      (refresh-now)
 
       (cond
         (end-selecting?
@@ -421,16 +422,17 @@ limit panning and zooming with respect to a specified workspace limit
                 (current-y (- cursor-y init-cursor-y)))
            (change-cursor panning)
            (send drawer set-transformation (vector transformation-matrix (+ current-x x-offset) (+ current-y y-offset) x-scale y-scale rotation))
-           (send this refresh)))))
+           (refresh)))))
     
     (define/override (on-paint)
       (define drawer (get-dc))
-      (send this suspend-flush)
+      ;(send this suspend-flush)
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
       (cursor-nearby? (- scaled-cursor-x 3) (- scaled-cursor-y 3) (+ scaled-cursor-x 3) (+ scaled-cursor-y 3))
       (draw-objects search-list)
       (change-pen black-pen)
-      (send this resume-flush))
+      ;(send this resume-flush)
+      )
     
     (super-instantiate ())))
