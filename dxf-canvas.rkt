@@ -89,7 +89,7 @@ limit panning and zooming with respect to a specified workspace limit
     ;scale mouse coordinates to pixel coordinates
     (define (mouse2display-x x)
       (/ (- x x-offset) x-scale))
-    (define (mouse2display-y y) 
+    (define (mouse2display-y y)
       (/ (- y y-offset) y-scale))
     
     (define (change-pen pen-type)
@@ -99,17 +99,13 @@ limit panning and zooming with respect to a specified workspace limit
       (send this set-cursor cursor-type))
     
     ;; DRAWING FUNCTIONS
-    (define (draw-dot x y highlight?)
-      (if highlight?
-          (change-pen blue-pen)
-          (change-pen black-pen))
+    (define (draw-dot x y)
       (send (get-dc) draw-point x y))
 
-    (define (draw-line x1 y1 x2 y2 select? highlight?)
-      (cond [(and highlight? select?) (change-pen orange-pen)]
-            [(or highlight? select?)  (change-pen blue-pen)]
-            [else (change-pen black-pen)])
-      (send (get-dc) draw-line x1 y1 x2 y2))
+    (define (draw-line x1 y1 x2 y2 dc-path)
+      ;(send dc-path move-to x1 y1)
+      ;(send dc-path line-to x2 y2)
+      (send dc-path close))
     
     (define (draw-start/end-nodes x y highlight?)
       (if highlight?
@@ -118,7 +114,7 @@ limit panning and zooming with respect to a specified workspace limit
       (send (get-dc) draw-point x y))
 
     ;p1 p2 p3 and ccw are for debugging. they're so useful so leave them in for now.
-    (define (draw-arc x y radius start end select? highlight? p1 p2 p3 ccw)
+    (define (draw-arc x y radius start end p1 p2 p3 ccw dc)
       ;racket's draw-arc function's x,y starts at bottom left corner (docs say top left but inverted because of -ve y-scale)
       ;DXF provided arc x,y coordinates are at the center of the arc/circle
       (let ((start (degrees->radians (- 360 start))) ;; DXF angles are CW, Racket angles are CCW (because of inverting y scale)
@@ -133,41 +129,47 @@ limit panning and zooming with respect to a specified workspace limit
             [y3 (node-y p3)])
         ;(draw-line x1 y1 x2 y2 highlight?)
         ;(draw-line x2 y2 x3 y3 highlight?)
-        (cond [(and highlight? select?) (change-pen orange-pen)]
-              [(or highlight? select?) (change-pen blue-pen)]
-              [else (change-pen black-pen)])
         (if ccw
             (send (get-dc) draw-arc center-x center-y (* 2 radius) (* 2 radius) start end)
             (send (get-dc) draw-arc center-x center-y (* 2 radius) (* 2 radius) end start))))
     
     ;make public to allow checking/unchecking of layers outside of the canvas
     (define/public (draw-objects lst)
-      (define (apply-procedure x)
+      (let ([dc (get-dc)])
+      (define (apply-procedure x dc-path)
         (when (entity-visible x)
-          #|
-          (cond [(line? x)
-                 (draw-line (node-x (line-p1 x)) (node-y (line-p1 x)) (node-x (line-p2 x)) (node-y (line-p2 x)) (entity-selected x) (entity-highlighted x))]
-                [(arc? x)
-                 (draw-arc (node-x (arc-center x)) (node-y (arc-center x)) (arc-radius x) (arc-start x) (arc-end x) (entity-selected x) (entity-highlighted x) (arc-p1 x) (arc-p2 x) (arc-p3 x) (arc-ccw x))]
-                [(dot? x)
-                 (draw-dot (node-x (dot-p x)) (node-y (dot-p x)) (entity-highlighted x))]
-                [(path? x)
-                 (draw-objects (path-entities x))])))
-          |#
-          (match x
-            [(line highlighted selected visible layer p1 p2 mbr)                               (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) selected highlighted)]
-            [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr) (draw-arc (node-x center) (node-y center) radius start end selected highlighted p1 p2 p3 ccw)]
-            [(dot highlighted selected visible layer p)                                        (draw-dot (node-x p) (node-y p) highlighted)]
-            [(path highlighted selected visible layer path-list)                               (draw-objects path-list)])))
-      ;(display "draw-obj: ")
-      ;(newline)
-      ;(time
-      (for/list ([x lst])
-                      (apply-procedure x)))
+            (match x
+            [(line _ _ _ _ p1 p2 _)                                 (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) dc-path)]
+            [(arc _ _ _ _ center radius start end p1 p2 p3 ccw _)   (draw-arc (node-x center) (node-y center) radius start end p1 p2 p3 ccw dc)]
+            [(dot _ _ _ _ p)                                        (draw-dot (node-x p) (node-y p))]
+            [(path _ _ _ _ path-list)                               (draw-objects path-list)])))
+      (time (let ([dc-path (new dc-path%)])
+        (for/list ([x (filter (lambda (x) (and (entity-highlighted x) (entity-selected x))) lst)])
+          (change-pen orange-pen)
+          (apply-procedure x dc-path))
+        (send (get-dc) draw-path dc-path)
+        (send dc-path reset)
+        (for/list ([x (filter (lambda (x) (or (entity-highlighted x) (entity-selected x))) lst)])
+          (change-pen blue-pen)
+          (apply-procedure x dc-path))
+        (send (get-dc) draw-path dc-path)
+        (send dc-path reset)
+        (for/list ([x (filter (lambda (x) (and (not (entity-highlighted x)) (not (entity-selected x)))) lst)])
+          (change-pen black-pen)
+          (apply-procedure x dc-path))
+        (send (get-dc) draw-path dc-path)
+        (send dc-path reset)))))
     
     (define (draw-select-box lst)
-      (for/list ([i lst])
-                (apply draw-line i)))
+      (let ([big-x (biggest (take lst 2))]
+            [big-y (biggest (drop lst 2))]
+            [small-x (smallest (take lst 2))]
+            [small-y (smallest (drop lst 2))]
+            [width (abs (- big-x small-x))]
+            [height (abs (- big-y small-y))]
+            [dc-path (new dc-path%)])
+        (send dc-path rectangle small-x small-y width height)
+        (send (get-dc) draw-path dc-path)))
     
     (define (cursor-nearby? x1 y1 x2 y2)
       (let ([big-x (biggest (list x1 x2))]
@@ -365,8 +367,8 @@ limit panning and zooming with respect to a specified workspace limit
       (define start-panning? click-left)
       (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
       (define end-panning? release-left)
-      (define start-selecting? (and click-left caps-on))
-      (define is-selecting? (and dragging caps-on))
+      (define start-selecting? (and click-left hold-ctrl))
+      (define is-selecting? (and dragging hold-ctrl))
       ;use display-select-box as a flag to check whether we were selecting previously.
       (define end-selecting? (and release-left display-select-box))
       (define show-popup? (and (node? highlighted-node) click-right))
@@ -415,10 +417,7 @@ limit panning and zooming with respect to a specified workspace limit
         (is-selecting?
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)
          (highlight-paths search-list)
-         (set! select-box (list (list init-cursor-x init-cursor-y scaled-cursor-x init-cursor-y #t #f)
-                                (list scaled-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y #t #f)
-                                (list scaled-cursor-x scaled-cursor-y init-cursor-x scaled-cursor-y #t #f)
-                                (list init-cursor-x scaled-cursor-y init-cursor-x init-cursor-y #t #f))))
+         (set! select-box (list init-cursor-x scaled-cursor-x init-cursor-y scaled-cursor-y #t #f)))
         (is-panning?
          (let* ((current-x (- cursor-x init-cursor-x))
                 (current-y (- cursor-y init-cursor-y)))
@@ -427,15 +426,13 @@ limit panning and zooming with respect to a specified workspace limit
            (refresh)))))
     
     (define/override (on-paint)
-      (display "on-paint: ")
-      (time (define drawer (get-dc))
+      (define drawer (get-dc))
       (send this suspend-flush)
       (send drawer set-brush no-brush)
       (when display-select-box (draw-select-box select-box))
       (cursor-nearby? (- scaled-cursor-x 3) (- scaled-cursor-y 3) (+ scaled-cursor-x 3) (+ scaled-cursor-y 3))
       (draw-objects search-list)
-      (change-pen black-pen)
-      (send this resume-flush)))
+      (send this resume-flush))
       
     
     (super-instantiate ())))
