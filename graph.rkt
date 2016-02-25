@@ -31,7 +31,8 @@
              (loop (rest lst)
                    (add-key-pair (first lst) ht)))))))
 
-
+;; we can use node-equal here to check for similar keys
+;; (get-duplicate-nodes (hash-keys node-ht)) then link the 2 groups together.
 (define (sort-from-edges groups node-ht)
   (map
    (lambda (group)

@@ -50,25 +50,11 @@
 (: find-entity-with-starting-node (-> node Entities (U Entity False)))
 (define (find-entity-with-starting-node start-n lst)
   (define result (findf (lambda ([x : Entity]) (node-equal? (get-entity-start x) start-n)) lst))
-  ;(when (not result)
-  ;  (display "start-n, ")
-  ;  (display start-n)
-  ;  (newline)
-  ;  (display "length lst, ")
-  ;  (display (length lst))
-  ;  (newline))
   result)
 
 (: find-entity-with-ending-node (-> node Entities (U Entity False)))
 (define (find-entity-with-ending-node end-n lst)
   (define result (findf (lambda ([x : Entity]) (node-equal? (get-entity-end x) end-n)) lst))
-  ;(when (not result)
-  ;  (display "end-n:, ")
-  ;  (display end-n)
-  ;  (newline)
-  ;  (display "(length lst) lst, ")
-  ;  (display (length lst))
-  ;  (newline))
   result)
 
 (: find-entity-with-ending-and-starting-node (-> node node Entities (U Entity False)))
@@ -82,13 +68,6 @@
   (define norm (find-entity-with-starting-node start-n entity-lst))
   (if (not norm)
       (let* ([found? : (U Entity False) (find-entity-with-ending-node start-n entity-lst)]
-             #|[a : Void (when (not found?)
-                        (display "start-n, ")
-                        (display start-n)
-                        (newline)
-                        (display "entity lst, ")
-                        (display entity-lst)
-                        (newline))]|#
              [reversed : Entity (reverse-direction (cast found? Entity))])
              (values reversed (remove found? entity-lst)))
       (values norm (remove norm entity-lst))))
@@ -130,17 +109,6 @@
 (define (reorder-open-path start-n entity-lst)
   (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
   (define layer (entity-layer (first entity-lst)))
-  #|
-  (display "reorder-open-path, ")
-  (newline)
-  (display "start-n, ")
-  (display start-n)
-  (newline)
-  (display "entity-lst, ")
-  (display (length entity-lst))
-  (newline)
-  (newline)
-  |#
   (cast (let main : Entities
           ([current : Entity first-entity]
            [acc : Entities (list first-entity)]
@@ -149,13 +117,6 @@
                 (else
                  (let-values ([(next-entity new-lst)
                                (find-entity-from-node (get-entity-end current) unchecked)])
-                   #|
-                   (display "next-entity, ")
-                   (display next-entity)
-                   (newline)
-                   (display "rest of lst, ")
-                   (display (length unchecked))
-                   (newline) |#
                    (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))
 
 ;build a path,
@@ -163,17 +124,6 @@
 (: reorder-closed-path (-> node Path-Entities Boolean Path-Entities))
 (define (reorder-closed-path start-n entity-lst ccw?)
   (define-values (possibilities not-used) (find-entities-from-node start-n entity-lst))
-  #|
-  (display "reorder-closed-path, ")
-  (newline)
-  (display "start-n, ")
-  (display start-n)
-  (newline)
-  (display "entity-lst, ")
-  (display entity-lst)
-  (newline)
-  (newline)
-  |#
   (let* ([layer (entity-layer (first possibilities))]
          [nodes (remove start-n (remove-duplicates (entities->nodes possibilities)))] ;list of 2 nodes
          [a (first nodes)]
@@ -197,17 +147,6 @@
 
 (: reorder-jumbled-path (-> node Path-Entities Boolean Path-Entities))
 (define (reorder-jumbled-path start-n entity-lst ccw?)
-  #|
-  (display "reorder-jumbled-path, ")
-  (newline)
-  (display "start-n, ")
-  (display start-n)
-  (newline)
-  (display "entity-lst, ")
-  (display entity-lst)
-  (newline)
-  (newline)
-  |#
   (let-values ([(first-entity new-lst) (find-entity-from-node start-n entity-lst)])
     (cast (let main : Entities
             ([current : Entity first-entity]

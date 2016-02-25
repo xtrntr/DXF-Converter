@@ -133,26 +133,26 @@ It will loop through the data of this section and create a list of structs that 
          [first-x : String                  (cadr (cast (memf (lambda ([x : String]) (equal? x "10")) lst) (Listof String)))]
          [first-y : String                  (cadr (cast (memf (lambda ([x : String]) (equal? x "20")) lst) (Listof String)))])
     (if closed?
-        (make-path (let closed-polyline : Path-Entities
-                     ([path-lst : (Listof String) lst]
-                      [acc : Path-Entities null])
-                     (match path-lst
-                       [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
-                       [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
-                       [(list "10" x1 "20" y1 "42" bulge "0")                      (cons (smake-arc layer x1 y1 first-x first-y bulge) acc)]
-                       [(list "10" x1 "20" y1 "0")                                 (cons (smake-line layer x1 y1 first-x first-y) acc)]
-                       [(list _ _ rest ...)                                        (closed-polyline rest acc)]
-                       [_ (error "This is not expected, given: " path-lst)])))
-        (make-path (let open-polyline : Path-Entities
-                     ([path-lst : (Listof String) lst]
-                      [acc : Path-Entities null])
-                     (match path-lst
-                       [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 "0")      (cons (smake-arc layer x1 y1 x2 y2 bulge) acc)]
-                       [(list "10" x1 "20" y1 "10" x2 "20" y2 "0")                 (cons (smake-line layer x1 y1 x2 y2) acc)]
-                       [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
-                       [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
-                       [(list _ _ rest ...)                                        (open-polyline rest acc)]
-                       [_ (error "This is not expected, given: " path-lst)]))))))
+        (path #f #f #f layer (let closed-polyline : Path-Entities
+                               ([path-lst : (Listof String) lst]
+                                [acc : Path-Entities null])
+                               (match path-lst
+                                 [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
+                                 [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (closed-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
+                                 [(list "10" x1 "20" y1 "42" bulge "0")                      (cons (smake-arc layer x1 y1 first-x first-y bulge) acc)]
+                                 [(list "10" x1 "20" y1 "0")                                 (cons (smake-line layer x1 y1 first-x first-y) acc)]
+                                 [(list _ _ rest ...)                                        (closed-polyline rest acc)]
+                                 [_ (error "This is not expected, given: " path-lst)])))
+        (path #f #f #f layer (let open-polyline : Path-Entities
+                               ([path-lst : (Listof String) lst]
+                                [acc : Path-Entities null])
+                               (match path-lst
+                                 [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 "0")      (cons (smake-arc layer x1 y1 x2 y2 bulge) acc)]
+                                 [(list "10" x1 "20" y1 "10" x2 "20" y2 "0")                 (cons (smake-line layer x1 y1 x2 y2) acc)]
+                                 [(list "10" x1 "20" y1 "42" bulge "10" x2 "20" y2 rest ...) (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-arc layer x1 y1 x2 y2 bulge) acc))]
+                                 [(list "10" x1 "20" y1 "10" x2 "20" y2 rest ...)            (open-polyline (append (list "10" x2 "20" y2) rest) (cons (smake-line layer x1 y1 x2 y2) acc))]
+                                 [(list _ _ rest ...)                                        (open-polyline rest acc)]
+                                 [_ (error "This is not expected, given: " path-lst)]))))))
 
 ;; 1) determine the center point of the arc given the angle and the 2 arc points.
 ;; 1.1) calculate the 2 possible center points using vectors. the 2 arc points form a line/chord.
@@ -165,7 +165,7 @@ It will loop through the data of this section and create a list of structs that 
 ;; 4) when creating an arc from DXF files, the arcs go from start angle to end angle in a clockwise fashion. we want to represent that here.
 (: make-arc2 (-> String Real Real Real Real Real arc))
 (define (make-arc2 layer x1 y1 x2 y2 bulge)
-  (: get-center (-> Real Boolean (List Real Real Real)))
+  (: get-center (-> Real Boolean (List Real Real Real Real Real)))
   (define (get-center angle big-bulge?)
     (let* ((chord-length (sqrt (+ (sqr (- x1 x2)) (sqr (- y1 y2)))))
            (small-angle (if (< angle pi) angle (- (* 2 pi) angle)))
@@ -196,26 +196,33 @@ It will loop through the data of this section and create a list of structs that 
       (if big-bulge? 
           (if is-cw?                         ;big angle -> CW center and CW arc or CCW center and CCW arc
               (if (positive? cross-product1) ;positive cross product means center is CW with respect to point1 -> point 2
-                  (list center1-x center1-y radius)
-                  (list center2-x center2-y radius))
+                  (list center1-x center1-y center2-x center2-y radius)
+                  (list center2-x center2-y center1-x center1-y radius))
               (if (negative? cross-product2)
-                  (list center2-x center2-y radius)
-                  (list center1-x center1-y radius)))
+                  (list center2-x center2-y center1-x center1-y radius)
+                  (list center1-x center1-y center2-x center2-y radius)))
           (if is-cw?                         ;small angle -> CW center and CCW arc or CCW center and CW arc
               (if (positive? cross-product1) ;positive cross product means center is CW with respect to point1 -> point 2
-                  (list center2-x center2-y radius)
-                  (list center1-x center1-y radius))
+                  (list center2-x center2-y center1-x center1-y radius)
+                  (list center1-x center1-y center2-x center2-y radius))
               (if (negative? cross-product2)
-                  (list center1-x center1-y radius)
-                  (list center2-x center2-y radius))))))
+                  (list center1-x center1-y center2-x center2-y radius)
+                  (list center2-x center2-y center1-x center1-y radius))))))
   (let* ((arc-angle-rad (abs (* 4 (atan bulge))))
          (big-bulge? (> arc-angle-rad pi))
          (small-angle (if (< arc-angle-rad pi) arc-angle-rad (- (* 2 pi) arc-angle-rad)))
          (is-cw? (negative? bulge))
          (centerpoints (get-center arc-angle-rad big-bulge?))
-         (center-x (car centerpoints))
-         (center-y (cadr centerpoints))
-         (radius (caddr centerpoints))
+         (center-x (first centerpoints))
+         (center-y (second centerpoints))
+         [x3 (third centerpoints)]
+         [y3 (fourth centerpoints)]
+         (radius (fifth centerpoints))
+         [xb (biggest (list x1 x2 x3))]
+         [yb (biggest (list y1 y2 y3))]
+         [xs (smallest (list x1 x2 x3))]
+         [ys (smallest (list y1 y2 y3))]
+         [mbr (rect xs ys xb yb)]
          (top (+ center-y radius))
          (bottom (- center-y radius))
          (left (- center-x radius))
@@ -247,9 +254,9 @@ It will loop through the data of this section and create a list of structs that 
                       (- (+ start (radians->degrees arc-angle-rad)) 360)
                       (+ start (radians->degrees arc-angle-rad))))))
     ;DXF is CW
-    (if is-cw?
-        (make-arc layer center-x center-y radius end start #f)
-        (make-arc layer center-x center-y radius start end #f))))
+    ;in this case x3 y3 is the arc center point
+    (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x3 y3) (node x2 y2) is-cw? mbr)
+    ))
 
 (: create-structs (-> (Listof (Listof String)) Entities))
 (define (create-structs entity-list)

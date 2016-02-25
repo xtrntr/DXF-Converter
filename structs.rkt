@@ -63,13 +63,6 @@ Try to keep the more complex and specific functions in lst-utils.
    [y2 : Real]) 
   #:transparent)
 
-(: rect-intersect? (-> rect rect Boolean))
-(define (rect-intersect? r1 r2)
-  (and (< (rect-x1 r1) (rect-x2 r2))
-       (> (rect-x2 r1) (rect-x1 r2))
-       (< (rect-y1 r1) (rect-y2 r2))
-       (> (rect-y2 r1) (rect-y1 r2))))
-
 ;; CONSTRUCTORS
 (: make-dot (-> String Real Real dot))
 (define (make-dot layer x y)
@@ -98,6 +91,7 @@ Try to keep the more complex and specific functions in lst-utils.
 (: make-selected (-> Entity Entity))
 (define (make-selected an-entity)
   (set-entity-selected! an-entity #t)
+  (set-entity-highlighted! an-entity #f)
   (set-entity-visible! an-entity #t)
   an-entity)
 
@@ -108,6 +102,13 @@ Try to keep the more complex and specific functions in lst-utils.
       (node-equal? (get-entity-end x) (get-entity-start y))
       (node-equal? (get-entity-start x) (get-entity-end y))
       (node-equal? (get-entity-start x) (get-entity-start y))))
+
+(: rect-intersect? (-> rect rect Boolean))
+(define (rect-intersect? r1 r2)
+  (and (< (rect-x1 r1) (rect-x2 r2))
+       (> (rect-x2 r1) (rect-x1 r2))
+       (< (rect-y1 r1) (rect-y2 r2))
+       (> (rect-y2 r1) (rect-y1 r2))))
 
 (: get-x-vals (-> Entities (Listof Real)))
 (define (get-x-vals struct-lst)
@@ -149,9 +150,28 @@ Try to keep the more complex and specific functions in lst-utils.
 
 ;'((1 2) (3 4) (1 2)) -> '((1 2))
 ;self explanatory
+#|
+(define (get-duplicate-nodes n-lst)
+  (let loop : (Listof node)
+    ([uniq-acc : (Listof node) '()]
+     [dupl-acc : (Listof node) '()]
+     [lst : (Listof node) n-lst])
+    (if (empty? lst)
+        dupl-acc
+        (let ([current-n (first lst)])
+          ;; should we use node-equal here? when we group entities, we don't have any equality checks.
+        (if (ormap (lambda ([n : node]) (node-equal? n current-n)) uniq-acc)
+            (loop uniq-acc (cons current-n dupl-acc) (rest lst))
+            (loop (cons current-n uniq-acc) dupl-acc (rest lst)))))))
+|#
+
+(: get-element-nodes (-> (Listof node) (Listof node)))
+(define (get-element-nodes lst)
+  (set->list (list->set lst)))
+
 (: get-duplicate-nodes (-> (Listof node) (Listof node)))
 (define (get-duplicate-nodes lst)
-  (let* ([elements : (Listof node) (set->list (list->set lst))]
+  (let* ([elements : (Listof node) (get-element-nodes lst)]
          [duplicates : (Listof node) (for/fold ([x lst]) ([y elements])
                                        ((inst remove node) y x))])
     duplicates))
@@ -189,7 +209,6 @@ Try to keep the more complex and specific functions in lst-utils.
 (: get-start/end-nodes (-> Entities (Listof node)))
 (define (get-start/end-nodes entity-lst)
   (define node-lst (entities->nodes entity-lst))
-  ;if there is a closed path containing 
   (if (closed-path? node-lst)
       node-lst
       (get-unique-nodes node-lst)))
@@ -224,8 +243,8 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
-  (and (> 0.5 (cast (abs (- (node-x n1) (node-x n2))) Float))
-       (> 0.5 (cast (abs (- (node-y n1) (node-y n2))) Float))))
+  (and (> 0.1 (cast (abs (- (node-x n1) (node-x n2))) Float))
+       (> 0.1 (cast (abs (- (node-y n1) (node-y n2))) Float))))
 
 (: round-off-node (-> node node))
 (define (round-off-node p)
@@ -255,21 +274,31 @@ Try to keep the more complex and specific functions in lst-utils.
                (dot highlighted selected visible layer
                     (node (node-x p) (* -1 (node-y p))))]
               [(line highlighted selected visible layer p1 p2 mbr)
-               (line highlighted selected visible layer
-                     (node (node-x p1) (* -1 (node-y p1)))
-                     (node (node-x p2) (* -1 (node-y p2)))
-                     mbr)]
+               (let* ([xb (biggest (list (node-x p1) (node-x p2)))]
+                      [yb (biggest (list (* -1 (node-y p1)) (* -1 (node-y p2))))]
+                      [xs (smallest (list (node-x p1) (node-x p2)))]
+                      [ys (smallest (list (* -1 (node-y p1)) (* -1 (node-y p2))))]
+                      [mbr (rect xs ys xb yb)])
+                 (line highlighted selected visible layer
+                       (node (node-x p1) (* -1 (node-y p1)))
+                       (node (node-x p2) (* -1 (node-y p2)))
+                       mbr))]
               [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
-               (arc highlighted selected visible layer
-                    (node (node-x center) (* -1 (node-y center)))
-                    radius
-                    (get-mirror-angle start)
-                    (get-mirror-angle end)
-                    (node (node-x p1) (* -1 (node-y p1)))
-                    (node (node-x p2) (* -1 (node-y p2)))
-                    (node (node-x p3) (* -1 (node-y p3)))
-                    (not ccw)
-                    mbr)]
+               (let* ([xb (biggest (list (node-x p1) (node-x p2) (node-x p3)))]
+                      [yb (biggest (list (* -1 (node-y p1)) (* -1 (node-y p2)) (* -1 (node-y p3))))]
+                      [xs (smallest (list (node-x p1) (node-x p2) (node-x p3)))]
+                      [ys (smallest (list (* -1 (node-y p1)) (* -1 (node-y p2)) (* -1 (node-y p3))))]
+                      [mbr (rect xs ys xb yb)])
+                 (arc highlighted selected visible layer
+                      (node (node-x center) (* -1 (node-y center)))
+                      radius
+                      (get-mirror-angle start)
+                      (get-mirror-angle end)
+                      (node (node-x p1) (* -1 (node-y p1)))
+                      (node (node-x p2) (* -1 (node-y p2)))
+                      (node (node-x p3) (* -1 (node-y p3)))
+                      (not ccw)
+                      mbr))]
               [(path highlighted selected visible layer entities)
                (path highlighted selected visible layer (cast (make-mirror entities) Path-Entities))])))
 

@@ -91,11 +91,6 @@ be able to "drag"
   (define search-list (rescale original-list drawing-scale))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
-
-  (display "length of entities list")
-  (newline)
-  (display (length search-list))
-  (newline)
   
   (define main-panel
     (new horizontal-panel%
@@ -303,7 +298,22 @@ be able to "drag"
        [parent button-panel-2]
        [callback (lambda (b e)
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
-                   (for/list ([entity stripped])
+                   
+                   (display "all entities length: ")
+                   (display (length stripped))
+                   (newline)
+                   
+                   (display "no duplicates length: ")
+                   (display (length (remove-duplicates stripped)))
+                   (newline)
+                   
+                   (display "no duplicates ")
+                   (display (remove-duplicates stripped))
+                   (newline)
+                   
+                   #|
+                   (let loop ([lst stripped])
+                     (for/list ([entity lst])
                              (let ([x-off 0] ;1877.4885921766004]
                                    [y-off 0]);-311.00031196211586])
                                (when (line? entity)
@@ -329,7 +339,11 @@ be able to "drag"
                                  (display " , ")
                                  (display (to-display (+ (node-y (arc-p3 entity)) y-off)))
                                  (newline)
-                                 (newline)))))])
+                                 (newline))
+                               (when (path? entity)
+                                 (loop (path-entities entity))))))
+                   |#
+                   )])
 
   (new button%
        [label "get start/end nodes of entities"]

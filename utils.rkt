@@ -180,7 +180,7 @@ This module contains all helper functions that can operate on numbers, strings, 
                    (list 1st-x2 1st-y2)
                    ;(list 2nd-x2 2nd-y2)
                    ]
-          (else [error "arc-centerpoint function in utils.rkt"]))])
+                  [else (list 1st-x2 1st-y2)])])
     result))
                     
 
