@@ -71,7 +71,7 @@ dxf-canvas
     (super-new)))
 
 (define frame-width  1000)
-(define frame-height 630)
+(define frame-height 800)
 
 (define top-frame 
   (new menu-frame%

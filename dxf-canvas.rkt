@@ -18,7 +18,6 @@ limit panning and zooming with respect to a specified workspace limit
 
 (require "structs.rkt"
          "canvas-utils.rkt"
-         "lst-utils.rkt"
          "utils.rkt"
          "graph.rkt"
          racket/draw)
@@ -40,10 +39,13 @@ limit panning and zooming with respect to a specified workspace limit
      
      ;;fns
      ;coordinate scaling
-     scale-x
-     unscale-x
-     scale-y
-     unscale-y
+     upscale-x
+     downscale-x
+     upscale-y
+     downscale-y
+
+     ;;how much variation before we can consider nodes to be connected
+     tolerance
      
      update-spreadsheet)
     
@@ -76,7 +78,7 @@ limit panning and zooming with respect to a specified workspace limit
     (define no-brush (new brush% [style 'transparent]))
     (define blue-pen (new pen% [color "RoyalBlue"] [width 1]))
     (define black-pen (new pen% [color "black"] [width 1]))
-    (define big-blue-pen (new pen% [color "RoyalBlue"] [width 3]))
+    (define big-blue-pen (new pen% [color "RoyalBlue"] [width 5]))
     (define big-orange-pen (new pen% [color "Orange"] [width 5]))
     ;debugging pen
     (define orange-pen (new pen% [color "Orange"] [width 1]))
@@ -85,6 +87,29 @@ limit panning and zooming with respect to a specified workspace limit
     (define normal (make-object cursor% 'arrow))
     (define panning (make-object cursor% 'hand))
     (define selecting (make-object cursor% 'cross))
+
+    ;; MORE SCALING FUNCTIONS
+    ;; any function that uses node-equal should accept this as an argument
+    ;; (-> node node)
+    (define node-val
+      (lambda (n)
+        (node (downscale-x (node-x n))
+              (downscale-y (node-y n)))))
+
+    (define node-eq?
+      (lambda (n1 n2)
+        (let ([n1 (node-val n1)]
+              [n2 (node-val n2)])
+        (> tolerance (sqrt (+ (sqr (abs (- (node-x n1) (node-x n2))))
+                              (sqr (abs (- (node-y n1) (node-y n2))))))))))
+
+    (define entities-connected?
+      (lambda (x y)
+        (or (node-eq? (get-entity-end x) (get-entity-end y))
+            (node-eq? (get-entity-end x) (get-entity-start y))
+            (node-eq? (get-entity-start x) (get-entity-end y))
+            (node-eq? (get-entity-start x) (get-entity-start y)))))
+        
     
     ;; MOUSE SCALING
     ;scale mouse coordinates to pixel coordinates
@@ -165,7 +190,7 @@ limit panning and zooming with respect to a specified workspace limit
                       (set-entity-highlighted! j #f))
             (for/list ([i node-lst])
                       (when (point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y) 
-                        (let* ([selected-list (get-belonging-list i node-groups)]
+                        (let* ([selected-list (get-belonging-list i node-groups node-eq?)]
                                [highlighted-node-lst (get-start/end-nodes selected-list)])
                           (set! highlighted-node i)
                           (for/list ([i selected-list])
@@ -252,8 +277,8 @@ limit panning and zooming with respect to a specified workspace limit
       (define drawing-scale (get-display-scale search-list (get-width) (get-height)))
       (set! x-offset left)
       (set! y-offset bottom)
-      (set! x-scale  drawing-scale)
-      (set! y-scale  drawing-scale)
+      (set! x-scale drawing-scale)
+      (set! y-scale drawing-scale)
       (update-node-lst)
       (update-canvas))
     
@@ -280,10 +305,10 @@ limit panning and zooming with respect to a specified workspace limit
            [parent popup-error]
            [callback (lambda (b e)
                        (display "lst-length")
-                       (display (length (get-belonging-list highlighted-node node-groups)))
+                       (display (length (get-belonging-list highlighted-node node-groups node-eq?)))
                        (newline)
                        (display "reorder")
-                       (display (reorder-entities highlighted-node (get-belonging-list highlighted-node node-groups)))
+                       (display (reorder-entities highlighted-node (get-belonging-list highlighted-node node-groups node-eq?)))
                        (newline))]))
     
     (define open-nodir
@@ -291,8 +316,8 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form an open path."]
            [parent popup-opened]
            [callback (lambda (b e)
-                       (display (reorder-entities highlighted-node (get-belonging-list highlighted-node node-groups)))
-                       ;(let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
+                       (display (reorder-entities highlighted-node (get-belonging-list highlighted-node node-groups node-eq?)))
+                       ;(let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups node-eq?)]
                        ;       [base-elements (get-base-elements list-of-entities-to-reorder)]
                        ;       [new-path (make-selected (make-path (reorder-open-path highlighted-node base-elements)))])
                        ;  (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
@@ -306,26 +331,26 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form a path that moves clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
-                              [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #f)))])
-                         (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
+                       ;(let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups node-eq?)]
+                       ;       [base-elements (get-base-elements list-of-entities-to-reorder)]
+                       ;       [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #f)))])
+                       ;  (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-canvas)
-                         (update-spreadsheet search-list)))]))
+                         (update-spreadsheet search-list))]))
     
     (define closed-anticlockwise
       (new menu-item%
            [label "Form a path that moves anti-clockwise from this point."]
            [parent popup-closed]
            [callback (lambda (b e)
-                       (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
-                              [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #t)))])
-                         (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
+                       ;(let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups node-eq?)]
+                       ;       [base-elements (get-base-elements list-of-entities-to-reorder)]
+                       ;       [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #t)))])
+                       ;  (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst)
                          (update-canvas)
-                         (update-spreadsheet search-list)))]))
+                         (update-spreadsheet search-list))]))
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -415,7 +440,7 @@ limit panning and zooming with respect to a specified workspace limit
          (set! init-cursor-y cursor-y)
          (set! highlighted-node #f))
         (show-popup?
-         (let* ([selected-list (get-belonging-list highlighted-node node-groups)]
+         (let* ([selected-list (get-belonging-list highlighted-node node-groups node-eq?)]
                 [node-lst (entities->nodes selected-list)]
                 [closed-pattern? (closed-path? node-lst)]
                 [open-pattern? (open-path? node-lst)]

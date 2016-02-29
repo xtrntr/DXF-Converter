@@ -15,7 +15,6 @@ be able to "drag"
          "canvas-utils.rkt"
          "constants.rkt"
          "dxf-canvas.rkt"
-         "lst-utils.rkt"
          "utils.rkt"
          "gr-pattern-generator.rkt"
          mrlib/path-dialog
@@ -31,7 +30,7 @@ be able to "drag"
 (define spreadsheet-height 600)
 (define spreadsheet-width 300)
 (define button-height 30)
-(define tolerance 5) ;in mm
+(define tolerance 1) ;in mm
 
 (define (open-file input-port a-frame)
   
@@ -41,55 +40,43 @@ be able to "drag"
   (define-values (editor-width editor-height) (send a-frame get-size))
   
   ;;drawing scaling/unscaling
-  (define *dxf-scale (lambda (x) (* x dxf-scale)))
-  (define (scale-x coord)
+  (define (upscale-x coord)
     (* drawing-scale (- coord left)))
-  (define (scale-y coord)
+  (define (upscale-y coord)
     (* drawing-scale (- coord bottom)))
-  (define (unscale-x coord)
+  (define (downscale-x coord)
     (+ left (/ coord drawing-scale)))
-  (define (unscale-y coord)
+  (define (downscale-y coord)
     (+ bottom (/ coord drawing-scale)))
-  (define (rescale struct-lst scale)
-    (flatten (for/list ([i struct-lst])
-               (match i
-                 [(line highlighted selected visible layer p1 p2 mbr)
-                  (make-line layer (scale-x (node-x p1)) (scale-y (node-y p1)) (scale-x (node-x p2)) (scale-y (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
-                  (make-arc layer (scale-x (node-x center)) (scale-y (node-y center)) (* scale radius) start end ccw)]
-                 [(dot highlighted selected visible layer p)
-                  (make-dot layer (scale-x (node-x p)) (scale-y (node-y p)))]
-                 [(path highlighted selected visible layer path-list)
-                  (path #f #f #f layer (rescale path-list scale))]))))
-  (define (downscale struct-lst scale)
-    (flatten (for/list ([i struct-lst])
-               (match i
-                 [(line highlighted selected visible layer p1 p2 mbr)
-                  (make-line layer (unscale-x (node-x p1)) (unscale-y (node-y p1)) (unscale-x (node-x p2)) (unscale-y (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
-                  (make-arc layer (unscale-x (node-x center)) (unscale-y (node-y center)) (/ radius scale) start end ccw)]
-                 [(dot highlighted selected visible layer p)
-                  (make-dot layer (unscale-x (node-x p)) (unscale-y (node-y p)))]
-                 [(path highlighted selected visible layer path-list)
-                  (path #f #f #f layer (downscale path-list scale))]))))
-  (define (unit-scale struct-lst)
-    (flatten (for/list ([i struct-lst])
-               (match i
-                 [(line highlighted selected visible layer p1 p2 mbr)
-                  (make-line layer (*dxf-scale (node-x p1)) (*dxf-scale (node-y p1)) (*dxf-scale (node-x p2)) (*dxf-scale (node-y p2)))]
-                 [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
-                  (make-arc layer (*dxf-scale (node-x center)) (*dxf-scale (node-y center)) (*dxf-scale radius) start end ccw)]
-                 [(dot highlighted selected visible layer p)
-                  (make-dot layer (*dxf-scale (node-x p)) (*dxf-scale (node-y p)))]
-                 [(path highlighted selected visible layer path-list)
-                  (path #f #f #f layer (unit-scale path-list))]))))
+  ;; upscale really means scale for drawing.
+  (define (upscale entity scale)
+    (match entity
+      [(line highlighted selected visible layer p1 p2 mbr)
+       (make-line layer (upscale-x (node-x p1)) (upscale-y (node-y p1)) (upscale-x (node-x p2)) (upscale-y (node-y p2)))]
+      [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
+       (make-arc layer (upscale-x (node-x center)) (upscale-y (node-y center)) (* scale radius) start end ccw)]
+      [(dot highlighted selected visible layer p)
+       (make-dot layer (upscale-x (node-x p)) (upscale-y (node-y p)))]
+      [(path highlighted selected visible layer path-list)
+       (path #f #f #f layer (for/list ([entity path-list]) (upscale entity scale)))]))
+  ;; downscale 
+  (define (downscale entity scale)
+    (match entity
+      [(line highlighted selected visible layer p1 p2 mbr)
+       (make-line layer (downscale-x (node-x p1)) (downscale-y (node-y p1)) (downscale-x (node-x p2)) (downscale-y (node-y p2)))]
+      [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
+       (make-arc layer (downscale-x (node-x center)) (downscale-y (node-y center)) (/ radius scale) start end ccw)]
+      [(dot highlighted selected visible layer p)
+       (make-dot layer (downscale-x (node-x p)) (downscale-y (node-y p)))]
+      [(path highlighted selected visible layer path-list)
+       (path #f #f #f layer (for/list ([entity path-list]) (downscale entity scale)))]))
 
   ;dxf-scale is 25.4(inches) or 0.0394(mm)
-  (define-values (original-list dxf-scale) (file->struct-list input-port))
+  (define original-list (file->struct-list input-port))
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define drawing-scale (get-display-scale original-list editor-width editor-height))
-  (define search-list (rescale original-list drawing-scale))
+  (define search-list (for/list ([entity original-list]) (upscale entity drawing-scale)))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
   
@@ -124,10 +111,10 @@ be able to "drag"
         (send a-list-box set 
               ;map unscale-x/unscale-y after node-x/node-y after debugging finished to display real DXF values
               (entities-to-strings displayed-list)
-              (map (lambda (x) (to-display (unscale-x (node-x (get-entity-start x))))) displayed-list)
-              (map (lambda (x) (to-display (unscale-y (node-y (get-entity-start x))))) displayed-list)
-              (map (lambda (x) (to-display (unscale-x (node-x (get-entity-end x))))) displayed-list)
-              (map (lambda (x) (to-display (unscale-y (node-y (get-entity-end x))))) displayed-list))))
+              (map (lambda (x) (to-display (downscale-x (node-x (get-entity-start x))))) displayed-list)
+              (map (lambda (x) (to-display (downscale-y (node-y (get-entity-start x))))) displayed-list)
+              (map (lambda (x) (to-display (downscale-x (node-x (get-entity-end x))))) displayed-list)
+              (map (lambda (x) (to-display (downscale-y (node-y (get-entity-end x))))) displayed-list))))
               ;debugging mode
               ;(map number->string (range (length (filter (lambda (x) (arc? x)) displayed-list))))
               ;(map (lambda (x) (to-display (*dxf-scale (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list))
@@ -144,6 +131,7 @@ be able to "drag"
          [parent drawing-panel]
          [min-height canvas-height]
          [min-width canvas-width]
+         [tolerance tolerance]
          
          [search-list search-list]
          [original-list original-list]
@@ -152,10 +140,10 @@ be able to "drag"
          [y-offset canvas-height]
          
          ;scaling and unscaling methods. placed outside because they depend on left/bottom that are calculated when opening a struct-list for the first time.
-         [scale-x scale-x]
-         [unscale-x unscale-x]
-         [scale-y scale-y]
-         [unscale-y unscale-y]
+         [upscale-x upscale-x]
+         [upscale-y upscale-y]
+         [downscale-x downscale-x]
+         [downscale-y downscale-y]
          
          [update-spreadsheet update-spreadsheet]))
   
@@ -193,7 +181,7 @@ be able to "drag"
                      (send a-canvas on-paint)
                      (send a-canvas refresh-now)
                      (when make-visible? (send a-canvas refocus))
-                       ))))
+                     ))))
   
   (define button-panel-1
     (new horizontal-panel%
@@ -254,45 +242,6 @@ be able to "drag"
   ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
-  (define (do-optimization lst)
-    (let loop ([start (node 0 0)]
-               [entity-lst lst]
-               [acc '()]
-               [individuals '()])
-      (if (empty? entity-lst)
-          (append (reverse acc) individuals) ;cuz order of the list matters here
-          (let* ([groups (group-entities entity-lst)]
-                 [start-n (nn start (flatten (map get-start/end-nodes groups)))]
-                 [lst-to-reorder (get-belonging-list start-n groups)]
-                 [base-elements (get-base-elements lst-to-reorder)]
-                 ;we actually want to remove one instance of each element in base elements, not all instances
-                 [rest-of-lst (remove* base-elements entity-lst)]
-                 [nodes (entities->nodes base-elements)]
-                 [single-entity? (= (length lst-to-reorder) 1)]
-                 [closed-pattern? (closed-path? nodes)]
-                 [open-pattern? (open-path? nodes)]
-                 [tree-pattern? (tree-path? nodes)])
-            ;possible bug where entity start and end node are equal to each other because they are too close
-            ;need to fix node-equal?
-            (cond [single-entity? (let ([x (first lst-to-reorder)])
-                                    (loop (if (node-equal? start-n (get-entity-start x)) (get-entity-end x) (get-entity-start x))
-                                          rest-of-lst
-                                          (cons (reorder-entity start-n x) acc)
-                                          individuals))]
-                  [open-pattern? (let ([new-path (make-selected (make-path (reorder-open-path start-n base-elements)))])
-                                   (loop (get-entity-end new-path)
-                                         rest-of-lst
-                                         (cons new-path acc)
-                                         individuals))]
-                  [closed-pattern? (let ([new-path (make-selected (make-path (reorder-closed-path start-n base-elements #f)))])
-                                     (loop (get-entity-end new-path)
-                                           rest-of-lst
-                                           (cons new-path acc)
-                                           individuals))]
-                  [tree-pattern? (loop start-n
-                                       rest-of-lst
-                                       acc
-                                       (append lst-to-reorder individuals))])))))
   
   (new button%
        [label "display selected entities"]
@@ -302,10 +251,6 @@ be able to "drag"
 
                    (display "get-start/end-nodes : ")
                    (display (get-start/end-nodes stripped))
-                   (newline)
-
-                   (display "get-belonging-list : ")
-                   (display (get-belonging-list (get-field highlighted-node a-canvas) (get-field node-groups a-canvas)))
                    (newline)
                    
                    (display "stripped : ")
@@ -364,7 +309,7 @@ be able to "drag"
        [callback (lambda (b e)
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;(debug-display (length (get-field search-list a-canvas)))
-                   (set-field! search-list a-canvas (do-optimization stripped))
+                   ;(set-field! search-list a-canvas (do-optimization stripped))
                    (send a-canvas update-node-lst)
                    (send a-canvas update-canvas)
                    (send a-canvas refresh-spreadsheet))])
@@ -376,6 +321,6 @@ be able to "drag"
                    (define stripped (get-selected-entities (make-mirror (get-field search-list a-canvas))))
                    ;binary for osx, text for windows
                    (generate-gr-pattern
-                    (unit-scale (downscale stripped drawing-scale))
+                    (for/list ([entity stripped]) (downscale entity drawing-scale))
                     (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
                    )]))
