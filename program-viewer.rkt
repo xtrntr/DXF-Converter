@@ -31,6 +31,7 @@ be able to "drag"
 (define spreadsheet-height 600)
 (define spreadsheet-width 300)
 (define button-height 30)
+(define tolerance 5) ;in mm
 
 (define (open-file input-port a-frame)
   
@@ -298,17 +299,17 @@ be able to "drag"
        [parent button-panel-2]
        [callback (lambda (b e)
                    (define stripped (get-selected-entities (get-field search-list a-canvas)))
-                   
-                   (display "all entities length: ")
-                   (display (length stripped))
+
+                   (display "get-start/end-nodes : ")
+                   (display (get-start/end-nodes stripped))
+                   (newline)
+
+                   (display "get-belonging-list : ")
+                   (display (get-belonging-list (get-field highlighted-node a-canvas) (get-field node-groups a-canvas)))
                    (newline)
                    
-                   (display "no duplicates length: ")
-                   (display (length (remove-duplicates stripped)))
-                   (newline)
-                   
-                   (display "no duplicates ")
-                   (display (remove-duplicates stripped))
+                   (display "stripped : ")
+                   (display stripped)
                    (newline)
                    
                    #|
@@ -342,7 +343,7 @@ be able to "drag"
                                  (newline))
                                (when (path? entity)
                                  (loop (path-entities entity))))))
-                   |#
+|#
                    )])
 
   (new button%

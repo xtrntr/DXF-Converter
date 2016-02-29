@@ -12,14 +12,14 @@
 ;given a node, get the entities(listof entity) that the node belongs to.
 (: get-belonging-list (-> node (Listof Entities) Entities))
 (define (get-belonging-list n lst)
-  (let main : Entities
+  (let loop : Entities
     [(connection-lst : (Listof Entities) lst)]
     (unless (path? (car connection-lst))
       (if (ormap (lambda ([x : Entity])
                    (or (node-equal? (get-entity-start x) n)
                        (node-equal? (get-entity-end x) n))) (car connection-lst))
           (car connection-lst)
-          (main (cdr connection-lst))))))
+          (loop (cdr connection-lst))))))
 
 ;get all the base elements out of a path
 (: get-base-elements (-> Entities Entities))
@@ -41,7 +41,7 @@
   (cond [(node-equal? start-n (get-entity-start x))
          x]
         [(node-equal? start-n (get-entity-end x))
-         (reverse-direction x)]
+         (reverse-entity x)]
         [else (error "Expected the node to be start or end of the entity, but was given: " start-n x)]))
 
 ;;HELPER functions for finding (and reversing if needed) entity/entities in a list of entity.
@@ -68,7 +68,7 @@
   (define norm (find-entity-with-starting-node start-n entity-lst))
   (if (not norm)
       (let* ([found? : (U Entity False) (find-entity-with-ending-node start-n entity-lst)]
-             [reversed : Entity (reverse-direction (cast found? Entity))])
+             [reversed : Entity (reverse-entity (cast found? Entity))])
              (values reversed (remove found? entity-lst)))
       (values norm (remove norm entity-lst))))
 
@@ -92,7 +92,7 @@
 (define (find-entity-from-nodes start-n end-n entity-lst)
   (define norm (find-entity-with-ending-and-starting-node start-n end-n entity-lst))
   (if (not norm)
-      (let ([reversed (reverse-direction (cast (find-entity-with-ending-and-starting-node end-n start-n entity-lst) Entity))])
+      (let ([reversed (reverse-entity (cast (find-entity-with-ending-and-starting-node end-n start-n entity-lst) Entity))])
         (values (cast reversed Entity) (remove (cast (find-entity-with-ending-and-starting-node end-n start-n entity-lst) Entity) entity-lst)))
       (values norm (remove norm entity-lst))))
 
@@ -109,6 +109,7 @@
 (define (reorder-open-path start-n entity-lst)
   (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
   (define layer (entity-layer (first entity-lst)))
+  (newline)
   (cast (let main : Entities
           ([current : Entity first-entity]
            [acc : Entities (list first-entity)]
@@ -164,20 +165,3 @@
   (if (closed-path? (entities->nodes lst))
       (path #f #f #f layer (reorder-jumbled-path (get-entity-start (first lst)) lst #t))
       (path #f #f #f layer (reorder-open-path (first (get-start/end-nodes lst)) lst))))
-
-
-(: reverse-direction (-> Entity Entity))
-(define (reverse-direction a-struct)
-  (let* ([layer : String (entity-layer a-struct)]
-         [highlighted? : Boolean (entity-highlighted a-struct)]
-         [selected? : Boolean (entity-selected a-struct)]
-         [visible? : Boolean (entity-visible a-struct)]
-         [reversed-struct : Entity ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
-                                                  (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
-                                                  (arc (make-arc layer (node-x center) (node-y center) radius end start (not ccw)))
-                                                  (path (lambda (x) (make-path (reverse x)))))
-                                    a-struct)])
-    (when highlighted? (set-entity-highlighted! reversed-struct #t))
-    (when selected? (set-entity-selected! reversed-struct #t))
-    (when visible? (set-entity-visible! reversed-struct #t))
-    reversed-struct))

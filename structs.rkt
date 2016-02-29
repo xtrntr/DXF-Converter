@@ -96,6 +96,22 @@ Try to keep the more complex and specific functions in lst-utils.
   an-entity)
 
 ;; ENTITY OPERATIONS
+(: reverse-entity (-> Entity Entity))
+(define (reverse-entity a-struct)
+  (let* ([layer : String (entity-layer a-struct)]
+         [highlighted? : Boolean (entity-highlighted a-struct)]
+         [selected? : Boolean (entity-selected a-struct)]
+         [visible? : Boolean (entity-visible a-struct)]
+         [reversed-struct : Entity ((match-struct (dot (make-dot layer (node-x p) (node-y p)))
+                                                  (line (make-line layer (node-x p2) (node-y p2) (node-x p1) (node-y p1)))
+                                                  (arc (make-arc layer (node-x center) (node-y center) radius end start (not ccw)))
+                                                  (path (lambda (x) (path #f #f #f layer(reverse x)))))
+                                    a-struct)])
+    (when highlighted? (set-entity-highlighted! reversed-struct #t))
+    (when selected? (set-entity-selected! reversed-struct #t))
+    (when visible? (set-entity-visible! reversed-struct #t))
+    reversed-struct))
+
 (: are-entities-connected? (-> Entity Entity Boolean))
 (define (are-entities-connected? x y)
   (or (node-equal? (get-entity-end x) (get-entity-end y))
@@ -183,7 +199,28 @@ Try to keep the more complex and specific functions in lst-utils.
   (let* ([elements : (Listof node) (set->list (list->set lst))]
          [duplicates : (Listof node) (for/fold ([x lst]) ([y elements])
                                        ((inst remove node) y x))]
-         [uniques : (Listof node) (remove* duplicates elements)])
+         [real-dupl : (Listof node) (remove-duplicates duplicates)]
+         [uniques : (Listof node) (remove* real-dupl elements)])
+    #|
+    (display "length elements : ")
+    (display (length elements))
+    (newline)
+    (display "length real-dupl : ")
+    (display (length real-dupl))
+    (newline)
+    (display "length uniques : ")
+    (display (length uniques))
+    (newline)
+    (display "elements : ")
+    (display elements)
+    (newline)
+    (display "real-dupl : ")
+    (display real-dupl)
+    (newline)
+    (display "uniques : ")
+    (display uniques)
+    (newline)
+    |#
     uniques))
 
 (: no-of-unique-nodes (-> (Listof node) Integer))
@@ -203,7 +240,7 @@ Try to keep the more complex and specific functions in lst-utils.
 ;a list of nodes that form a tree has more than 1 unique nodes as dead ends.
 (: tree-path? (-> (Listof node) Boolean))
 (define (tree-path? node-lst)
-  (> (no-of-unique-nodes node-lst) 2))
+  (or (> (no-of-unique-nodes node-lst) 2) (= (no-of-unique-nodes node-lst) 1)))
 
 ;return all the start/end nodes given a list of entities. for an open path, this means the path ends, for a closed path, it can be any node along the path.
 (: get-start/end-nodes (-> Entities (Listof node)))
@@ -243,8 +280,8 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
-  (and (> 0.1 (cast (abs (- (node-x n1) (node-x n2))) Float))
-       (> 0.1 (cast (abs (- (node-y n1) (node-y n2))) Float))))
+  (and (> 0.5 (cast (abs (- (node-x n1) (node-x n2))) Float))
+       (> 0.5 (cast (abs (- (node-y n1) (node-y n2))) Float))))
 
 (: round-off-node (-> node node))
 (define (round-off-node p)
@@ -301,6 +338,18 @@ Try to keep the more complex and specific functions in lst-utils.
                       mbr))]
               [(path highlighted selected visible layer entities)
                (path highlighted selected visible layer (cast (make-mirror entities) Path-Entities))])))
+
+(: display-entity (-> Entity Void))
+(define (display-entity x)
+  (match x
+    [(line _ _ _ _ p1 p2 _)                                 (for ([x (list "line-> p1: " (round-off-node p1) " p2: " (round-off-node p2) "\n")])
+                                                                 (display x))]
+    [(arc _ _ _ _ center radius start end p1 p2 p3 ccw _)   (for ([x (list "arc-> p1: " (round-off-node p1) " p3: " (round-off-node p3) "\n")])
+                                                                 (display x))]
+    [(dot _ _ _ _ p)                                        (for ([x (list "dot-> p1: " (round-off-node p) "\n")])
+                                                                 (display x))]
+    [(path _ _ _ _ path-list)                               (for ([x path-list])
+                                                                 (display-entity x))]))
 
 (define-syntax match-struct
   (lambda (stx)
