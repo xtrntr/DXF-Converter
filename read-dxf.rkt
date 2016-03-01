@@ -1,16 +1,13 @@
 #lang typed/racket
 
 #|
-
 This module is where i parse the DXF file into lines and remove whitespace,
 then read the relevant ENTITIES section where supported DXF elements are ARC, LINE, DOT, CIRCLE, LWPOLYLINE.
 It will loop through the data of this section and create a list of structs that contain the DXF information
-
 |#
 
 (require "structs.rkt"
-         "utils.rkt"
-         "lst-utils.rkt")
+         "utils.rkt")
 
 (provide file->struct-list)
 
@@ -270,7 +267,20 @@ It will loop through the data of this section and create a list of structs that 
            [_ (error "This is not expected, given: " x)]))
        entity-list))
 
-(: file->struct-list (-> Path-String (Values Entities Real)))
+(: apply-unit-scale (-> Entity Real Entity))
+(define (apply-unit-scale entity dxf-scale)
+  (define *dxf-scale (lambda ([x : Real]) (* x dxf-scale)))
+  (match entity
+    [(line highlighted selected visible layer p1 p2 mbr)
+     (make-line layer (*dxf-scale (node-x p1)) (*dxf-scale (node-y p1)) (*dxf-scale (node-x p2)) (*dxf-scale (node-y p2)))]
+    [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
+     (make-arc layer (*dxf-scale (node-x center)) (*dxf-scale (node-y center)) (*dxf-scale radius) start end ccw)]
+    [(dot highlighted selected visible layer p)
+     (make-dot layer (*dxf-scale (node-x p)) (*dxf-scale (node-y p)))]
+    [(path highlighted selected visible layer path-list)
+     (path #f #f #f layer (for/list ([x path-list]) (cast (apply-unit-scale x dxf-scale) Path-Entity)))]))
+
+(: file->struct-list (-> Path-String Entities))
 (define (file->struct-list path-string)
   (let* ([file-list (reader (open-input-file path-string))]
          [entity-section (extract-section file-list "ENTITIES")]
@@ -280,4 +290,4 @@ It will loop through the data of this section and create a list of structs that 
                       (if (> scale 1) scale 1))]
          [entity-list (separate-entities entity-section)]
          [struct-lst (create-structs entity-list)])
-    (values struct-lst dxf-scale)))
+    (map (lambda ([x : Entity]) (apply-unit-scale x dxf-scale)) struct-lst)))

@@ -21,7 +21,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 (define (get-visible-entities lst)
   (filter (lambda ([i : Entity]) (entity-visible i)) lst))
 
-;;HELPER functions for destructively setting entity values for display purposes.
+;;HELPER functions for imperatively setting entity values for display purposes.
 (: select-highlighted (-> Entities Void))
 (define (select-highlighted lst)
   (: select (-> Entity Void))
@@ -36,15 +36,12 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 
 (: highlight-paths (-> Entities Void))
 (define (highlight-paths lst)
-  (: any-entity-highlighted? (-> Entities Boolean))
-  (define (any-entity-highlighted? lst)
-    (cond ((empty? lst) #f)
-          ((entity-highlighted (car lst)) #t)
-          (else (any-entity-highlighted? (cdr lst)))))
-  (for ([p : path (filter path? lst)] 
-        #:when (any-entity-highlighted? (path-entities p)))
-       (set-entity-highlighted! p #t)
-       (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #t))))
+  (for ([p : path (filter path? lst)])
+       (if (ormap entity-highlighted (path-entities p))
+           (begin (set-entity-highlighted! p #t)
+                  (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #t)))
+           (begin (set-entity-highlighted! p #f)
+                  (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #f))))))
 
 (: unselect-all (-> Entities Void))
 (define (unselect-all lst)
