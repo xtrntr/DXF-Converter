@@ -298,3 +298,21 @@ canvas-utils is meant for containing operations that affect the interactivity/di
                (line-intersect-arc? xb yb xb ys)
                (line-intersect-arc? xb ys xs ys)) #t)
           (else #f))))
+
+(: circ2dot (-> arc dot))
+(define (circ2dot a)
+  (cast (make-selected (make-dot (entity-layer a)
+                           (node-x (arc-center a))
+                           (node-y (arc-center a)))) dot))
+
+(: circ2dots (-> Entities Entities))
+(define (circ2dots entity-lst)
+  (for/list ([entity entity-lst])
+            ;circles shouldn't be inside a path. so, don't look inside path-entities
+            (if (and (arc? entity)
+                     (or (and (= 0 (arc-start entity))
+                              (= 360 (arc-end entity)))
+                         (and (= 360 (arc-start entity))
+                              (= 0 (arc-end entity)))))
+                (circ2dot entity)
+                entity)))

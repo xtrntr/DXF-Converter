@@ -198,11 +198,21 @@ be able to "drag"
          [alignment '(center top)]))
   
   (new button%
-       [label "Reorder paths"]
+       [label "Display start/end nodes"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (set-field! reorder? a-canvas #t)
+                   (set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
                    (send a-canvas update-canvas)
+                   )])
+
+  (new button%
+       [label "Change circle into dots"]
+       [parent button-panel-1]
+       [callback (lambda (b e)
+                   (set-field! search-list a-canvas (circ2dots (get-field search-list a-canvas)))
+                   (send a-canvas update-canvas)
+                   (send a-canvas refresh-spreadsheet)
+                   (send a-canvas refocus)
                    )])
   
   (new button%
@@ -239,69 +249,8 @@ be able to "drag"
                              (newline)))
                  ])
   |#
-  ;binary for osx, text for windows
   ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
   
-  
-  (new button%
-       [label "display selected entities"]
-       [parent button-panel-2]
-       [callback (lambda (b e)
-                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
-
-                   (display "get-start/end-nodes : ")
-                   (display (get-start/end-nodes stripped))
-                   (newline)
-                   
-                   (display "stripped : ")
-                   (display stripped)
-                   (newline)
-                   
-                   #|
-                   (let loop ([lst stripped])
-                     (for/list ([entity lst])
-                             (let ([x-off 0] ;1877.4885921766004]
-                                   [y-off 0]);-311.00031196211586])
-                               (when (line? entity)
-                                 (display (to-display (+ (node-x (line-p1 entity)) x-off)))
-                                 (display ", ")
-                                 (display (to-display (+ (node-y (line-p1 entity)) y-off)))
-                                 (newline)
-                                 (display (to-display (+ (node-x (line-p2 entity)) x-off)))
-                                 (display " , ")
-                                 (display (to-display (+ (node-y (line-p2 entity)) y-off)))
-                                 (newline)
-                                 (newline))
-                               (when (arc? entity)
-                                 (display (to-display (+ (node-x (arc-p1 entity)) x-off)))
-                                 (display " , ")
-                                 (display (to-display (+ (node-y (arc-p1 entity)) y-off)))
-                                 (newline)
-                                 ;(display (to-display (+ (node-x (arc-p2 entity)) x-off)))
-                                 ;(display " , ")
-                                 ;(display (to-display (+ (node-y (arc-p2 entity)) y-off)))
-                                 ;(newline)
-                                 (display (to-display (+ (node-x (arc-p3 entity)) x-off)))
-                                 (display " , ")
-                                 (display (to-display (+ (node-y (arc-p3 entity)) y-off)))
-                                 (newline)
-                                 (newline))
-                               (when (path? entity)
-                                 (loop (path-entities entity))))))
-|#
-                   )])
-
-  (new button%
-       [label "get start/end nodes of entities"]
-       [parent button-panel-2]
-       [callback (lambda (b e)
-                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
-                   (display "start/end-nodes: ")
-                   (newline)
-                   (for/list ([node (get-start/end-nodes stripped)])
-                             (display node)
-                             (newline))
-                   (newline))])
 
   (define dialog
     (new dialog% [label "Tolerance"]))
@@ -351,9 +300,10 @@ be able to "drag"
        [label "Generate for GR/ILS"]
        [parent button-panel-2]
        [callback (lambda (b e)
-                   (define stripped (get-selected-entities (make-mirror (get-field search-list a-canvas))))
+                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
                    ;binary for osx, text for windows
                    (generate-gr-pattern
                     (for/list ([entity stripped]) (downscale entity drawing-scale))
                     (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
+                   ;binary for osx, text for windows
                    )]))

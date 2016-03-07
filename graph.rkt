@@ -121,11 +121,11 @@
       (equal? (second e1) (second e2))))
 
 ;e refers to edge
-(define (e-find-edge start-e e-lst)
+(define (e-find-edges start-e e-lst)
   (filter (lambda (e) (edge-connected? start-e e)) e-lst))
 
 ;n refers to node
-(define (n-find-edge n e-lst)
+(define (n-find-edges n e-lst)
   (filter (lambda (e) (or (equal? n (first e))
                           (equal? n (second e)))) e-lst))
 
@@ -149,12 +149,17 @@
           (if (empty? curr-path)
               acc
               (cons curr-path acc))
-          (let ([edges (n-find-edge curr-n e-lst)])
+          (let ([edges (n-find-edges curr-n e-lst)])
             (cond 
               ;; backtracking
               [(and (empty? curr-path) (empty? edges)) (let ([prev-node (first (hash-ref hashy curr-n))])
                                                          (hash-set! hashy curr-n
                                                                     (remove prev-node (hash-ref hashy curr-n)))
+                                                         (display "dead end, moving from current node : ")
+                                                         (display curr-n)
+                                                         (display " to previous node : ")
+                                                         (display prev-node)
+                                                         (newline)
                                                          (loop acc
                                                                e-lst
                                                                prev-node
@@ -163,6 +168,11 @@
               [(empty? edges) (let ([prev-node (first (hash-ref hashy curr-n))])
                                 (hash-set! hashy curr-n
                                            (remove prev-node (hash-ref hashy curr-n)))
+                                (display "dead end, moving from current node : ")
+                                (display curr-n)
+                                (display " to previous node : ")
+                                (display prev-node)
+                                (newline)
                                 (loop (cons (reverse curr-path) acc)
                                       e-lst
                                       prev-node
@@ -174,6 +184,13 @@
                                                      (cons curr-n (hash-ref hashy next-n)))
                                           (hash-set! hashy next-n
                                                      (list curr-n)))
+                                      (display "moving from current node : ")
+                                      (display (let ([n curr-n])
+                                                 (cons (node-x n) (node-y n))))
+                                      (display " to next node : ")
+                                      (display (let ([n next-n])
+                                                 (cons (node-x n) (node-y n))))
+                                      (newline)
                                       (loop acc
                                             (remove (first edges) e-lst)
                                             next-n
@@ -185,6 +202,16 @@
                                        (cons curr-n (hash-ref hashy next-n)))
                             (hash-set! hashy next-n
                                        (list curr-n)))
+                      (display "possible paths : ")
+                      (for ([edge edges])
+                           (display edge)
+                           (display " , "))
+                      (newline)
+                      (display "moving from current node : ")
+                      (display curr-n)
+                      (display " to next node : ")
+                      (display next-n)
+                      (newline)
                       (loop acc
                             (remove (first edges) e-lst)
                             next-n

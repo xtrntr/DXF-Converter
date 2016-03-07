@@ -110,7 +110,7 @@ It will loop through the data of this section and create a list of structs that 
          [center-x : Real       (extract-val ht "10")]
          [center-y : Real       (extract-val ht "20")]
          [radius : Real         (extract-val ht "40")])
-    (make-arc layer center-x center-y radius 0 0 #f)))
+    (make-arc layer center-x center-y radius 0 360 #f)))
 
 (: dxf-path (-> (Listof String) path))
 (define (dxf-path lst)
