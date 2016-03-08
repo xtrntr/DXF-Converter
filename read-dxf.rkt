@@ -52,8 +52,8 @@ It will loop through the data of this section and create a list of structs that 
       '()
       (let-values ([(data tail) (break (lambda ([element : String]) (member element entity-types)) (rest lst))])
         (if (member (first lst) supported-types)
-            (begin ((inst cons (Listof String) (Listof (Listof String))) ((inst cons String (Listof String)) (first lst) data)
-                                                                         (separate-entities tail)))
+            (begin (cons (cons (first lst) data)
+                         (separate-entities tail)))
             (separate-entities tail)))))
 
 
@@ -264,7 +264,7 @@ It will loop through the data of this section and create a list of structs that 
            [(list "ARC" lst ...)        (dxf-arc lst)]
            [(list "LWPOLYLINE" lst ...) (dxf-path lst)]
            [(list "CIRCLE" lst ...)     (dxf-circle lst)]
-           [_ (error "This is not expected, given: " x)]))
+           [_ (error "This is not expected, check the list of accepted entities")]))
        entity-list))
 
 (: apply-unit-scale (-> Entity Real Entity))

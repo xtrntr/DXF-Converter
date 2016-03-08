@@ -162,10 +162,14 @@ limit panning and zooming with respect to a specified workspace limit
         (define (apply-procedure x dc-path)
           (when (entity-visible x)
             (match x
-              [(line _ _ _ _ p1 p2 _)                                 (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) dc-path)]
-              [(arc _ _ _ _ center radius start end p1 p2 p3 ccw _)   (draw-arc (node-x center) (node-y center) radius start end p1 p2 p3 ccw dc)]
-              [(dot _ _ _ _ p)                                        (draw-dot (node-x p) (node-y p))]
-              [(path _ _ _ _ path-list)                               (map (lambda (x) (apply-procedure x dc-path)) path-list)])))
+              [(line _ _ _ _ p1 p2 _)                                 ;(draw-line 0 0 (node-x p1) (node-y p1) dc-path)
+               (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) dc-path)]
+              [(arc _ _ _ _ center radius start end p1 p2 p3 ccw _)   ;(draw-line 0 0 (node-x p1) (node-y p1) dc-path)
+               (draw-arc (node-x center) (node-y center) radius start end p1 p2 p3 ccw dc)]
+              [(dot _ _ _ _ p)                                        ;(draw-line 0 0 (node-x p) (node-y p) dc-path)
+               (draw-dot (node-x p) (node-y p))]
+              [(path _ _ _ _ path-list)
+               (map (lambda (x) (apply-procedure x dc-path)) path-list)])))
         (let* ([path1 (new dc-path%)]
                [path2 (new dc-path%)]
                [path3 (new dc-path%)]
@@ -441,6 +445,8 @@ limit panning and zooming with respect to a specified workspace limit
       (define end-panning? release-left)
       (define start-selecting? (and click-left hold-ctrl))
       (define is-selecting? (and dragging hold-ctrl))
+      ;(define start-selecting? (and click-left caps-on))
+      ;(define is-selecting? (and dragging caps-on))
       ;use select-box as a flag to check whether we were selecting previously.
       (define end-selecting? (and release-left (not (empty? select-box))))
       (define show-popup? (and (node? highlighted-node) click-right))
