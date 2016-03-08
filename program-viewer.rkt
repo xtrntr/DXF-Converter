@@ -212,7 +212,7 @@ be able to "drag"
                    (set-field! search-list a-canvas (circ2dots (get-field search-list a-canvas)))
                    (send a-canvas update-canvas)
                    (send a-canvas refresh-spreadsheet)
-                   (send a-canvas refocus)
+                   (send a-canvas refresh)
                    )])
   
   (new button%
@@ -236,21 +236,6 @@ be able to "drag"
   (define create (new path-dialog%
                       [put? #t]
                       [filters (list (list "Text Files" "*.txt"))]))
-
-  #|
-  (new button%
-       [label "Generate for IDS"]
-       [parent button-panel-2]
-       [callback (lambda (b e) 
-                   (define stripped (filter (lambda (x) (tree-path? (entities->nodes x))) (group-entities (get-selected-entities (get-field search-list a-canvas)))))
-                   (for/list ([tree stripped])
-                             (display tree)
-                             (newline)
-                             (newline)))
-                 ])
-  |#
-  ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
-  
 
   (define dialog
     (new dialog% [label "Tolerance"]))
@@ -282,7 +267,7 @@ be able to "drag"
                            [too-low (error "tolerance cannot be negative, please put within 0 ~ 100")]
                            [not-num (error "tolerance should be a number value")])))])
 
-  (new button%
+  #|(new button%
        [label "do optimization"]
        [parent button-panel-2]
        [callback (lambda (b e)
@@ -295,6 +280,7 @@ be able to "drag"
                    (send a-canvas update-node-lst)
                    (send a-canvas update-canvas)
                    (send a-canvas refresh-spreadsheet))])
+|#
   
   (new button%
        [label "Generate for GR/ILS"]
@@ -307,3 +293,17 @@ be able to "drag"
                     (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
                    ;binary for osx, text for windows
                    )]))
+
+  #|
+  (new button%
+       [label "Generate for IDS"]
+       [parent button-panel-2]
+       [callback (lambda (b e) 
+                   (define stripped (filter (lambda (x) (tree-path? (entities->nodes x))) (group-entities (get-selected-entities (get-field search-list a-canvas)))))
+                   (for/list ([tree stripped])
+                             (display tree)
+                             (newline)
+                             (newline)))
+                 ])
+  |#
+  ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])

@@ -219,6 +219,13 @@ canvas-utils is meant for containing operations that affect the interactivity/di
            (region2 (compute-outcode lx2 ly2)))
       (clip-until region1 region2 4))))
 
+(: arc-is-circle? (-> arc Boolean))
+(define (arc-is-circle? an-arc)
+  (or (and (= 0 (arc-start an-arc))
+           (= 360 (arc-end an-arc)))
+      (and (= 360 (arc-start an-arc))
+           (= 0 (arc-end an-arc)))))
+
 ;; 1) check for the trivial case - the arc point is inside the select box
 ;; 2) imagine the 4 lines of the select box as an infinite line, do they intersect the circle of the arc?
 ;; 2.1) if they do, are they in the select box's actual length/width?
@@ -251,54 +258,58 @@ canvas-utils is meant for containing operations that affect the interactivity/di
              (point-yintercept          (- y (* dividing-line-slope x))) 
              (point-test                (> point-yintercept dividing-line-yintercept)))
         (eq? right-value-test point-test)))
-    (: line-intersect-arc? (-> Real Real Real Real Boolean))
-    (define (line-intersect-arc? x1 y1 x2 y2)
       ;return the point where line intersects arc. intersection of a y line with a circle, 2 possible x values
       (: yline-intersect-circle? (-> Real (U Boolean (Listof (List Real Real)))))
       (define (yline-intersect-circle? y)
-        (let ((result1 (+ circle-x (sqrt (- (sqr radius) (sqr (- y circle-y))))))
-              (result2 (- circle-x (sqrt (- (sqr radius) (sqr (- y circle-y)))))))
+        (let ([result1 (+ circle-x (sqrt (- (sqr radius) (sqr (- y circle-y)))))]
+              [result2 (- circle-x (sqrt (- (sqr radius) (sqr (- y circle-y)))))])
           (if (and (real? result1) (real? result2))
-              (cond ((and (in-between? result1 xs xb) (in-between? result2 xs xb)) 
-                     (list (list result1 y) (list result2 y)))
-                    ((in-between? result1 xs xb)
-                     (list (list result1 y)))
-                    ((in-between? result2 xs xb) 
-                     (list (list result2 y)))
-                    (else #f))
+              (cond [(and (in-between? result1 xs xb) (in-between? result2 xs xb)) 
+                     (list (list result1 y) (list result2 y))]
+                    [(in-between? result1 xs xb)
+                     (list (list result1 y))]
+                    [(in-between? result2 xs xb) 
+                     (list (list result2 y))]
+                    [else #f])
               #f)))
       ;return the point where line intersects arc. intersection of a x line with a circle, 2 possible y values
       (: xline-intersect-circle? (-> Real (U Boolean (Listof (List Real Real)))))
       (define (xline-intersect-circle? x)
-        (let ((result1 (+ circle-y (sqrt (- (sqr radius) (sqr (- x circle-x))))))
-              (result2 (- circle-y (sqrt (- (sqr radius) (sqr (- x circle-x)))))))
+        (let ([result1 (+ circle-y (sqrt (- (sqr radius) (sqr (- x circle-x)))))]
+              [result2 (- circle-y (sqrt (- (sqr radius) (sqr (- x circle-x)))))])
           (if (and (real? result1) (real? result2))
-              (cond ((and (in-between? result1 ys yb) (in-between? result2 ys yb)) 
-                     (list (list x result1) (list x result2)))
-                    ((in-between? result1 ys yb) 
-                     (list (list x result1)))
-                    ((in-between? result2 ys yb) 
-                     (list (list x result2)))
-                    (else #f))
+              (cond [(and (in-between? result1 ys yb) (in-between? result2 ys yb)) 
+                     (list (list x result1) (list x result2))]
+                    [(in-between? result1 ys yb) 
+                     (list (list x result1))]
+                    [(in-between? result2 ys yb) 
+                     (list (list x result2))]
+                    [else #f])
               #f)))
-      (if (= x1 x2)
-          ((lambda ([x : (U Boolean (Listof (List Real Real)))]) (if (not x)
-                                                                     #f
-                                                                     (ormap (lambda ([a : (List Real Real)])
-                                                                              (apply right-side-y? a)) (cast x (Listof (List Real Real))))))
-           (xline-intersect-circle? x1))    ;is a x line, find y values
-          ((lambda ([x : (U Boolean (Listof (List Real Real)))]) (if (not x)
-                                                                     #f
-                                                                     (ormap (lambda ([a : (List Real Real)])
-                                                                              (apply right-side-y? a)) (cast x (Listof (List Real Real))))))
-           (yline-intersect-circle? y1))))  ;is a y line, find x values
-    (cond ((or (point-in-rect? arc-x1 arc-y1 xs ys xb yb) (point-in-rect? arc-x3 arc-y3 xs ys xb yb)) #t)
-          ((or (line-intersect-arc? xs ys xs yb) 
-               (line-intersect-arc? xs yb xb yb)
-               (line-intersect-arc? xb yb xb ys)
-               (line-intersect-arc? xb ys xs ys)) #t)
-          (else #f))))
-
+    (: line-intersect-arc? (-> Real Real Real Real Boolean))
+    (define (line-intersect-arc? x1 y1 x2 y2)
+      (let ([result (if (= x1 x2)
+                        (xline-intersect-circle? x1) ;is a x line, find y values
+                        (yline-intersect-circle? y1))]) ;is a y line, find x values)])
+        (if (not result)
+            #f
+            (ormap (lambda (a)
+                     (apply right-side-y? (cast a (List Real Real))))
+                   (cast result (Listof (List Real Real)))))))
+    (if arc-is-circle?
+        (cond [(point-in-rect? circle-x circle-y xs ys xb yb) #t]
+              [(or (xline-intersect-circle? xs)
+                   (xline-intersect-circle? xb)
+                   (yline-intersect-circle? ys)
+                   (yline-intersect-circle? yb)) #t]
+              [else #f])
+        (cond [(or (point-in-rect? arc-x1 arc-y1 xs ys xb yb) (point-in-rect? arc-x3 arc-y3 xs ys xb yb)) #t]
+              [(or (line-intersect-arc? xs ys xs yb) 
+                   (line-intersect-arc? xs yb xb yb)
+                   (line-intersect-arc? xb yb xb ys)
+                   (line-intersect-arc? xb ys xs ys)) #t]
+              [else #f]))))
+  
 (: circ2dot (-> arc dot))
 (define (circ2dot a)
   (cast (make-selected (make-dot (entity-layer a)
@@ -309,10 +320,8 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 (define (circ2dots entity-lst)
   (for/list ([entity entity-lst])
             ;circles shouldn't be inside a path. so, don't look inside path-entities
-            (if (and (arc? entity)
-                     (or (and (= 0 (arc-start entity))
-                              (= 360 (arc-end entity)))
-                         (and (= 360 (arc-start entity))
-                              (= 0 (arc-end entity)))))
+            (if (and (entity-selected entity)
+                     (arc? entity)
+                     (arc-is-circle? entity))
                 (circ2dot entity)
                 entity)))
