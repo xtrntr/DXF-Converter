@@ -51,8 +51,6 @@ limit panning and zooming with respect to a specified workspace limit
      ;canvas display variables
      [rotation 0]
      [transformation-matrix (vector 1 0 0 1 0 0)]
-     [x-scale 1]
-     [y-scale 1]
      
      ;interaction variables
      [init-cursor-x 0]
@@ -61,6 +59,8 @@ limit panning and zooming with respect to a specified workspace limit
      [cursor-y 0]
      [scaled-cursor-x 0]
      [scaled-cursor-y 0]
+     [x-scale 1]
+     [y-scale 1]
      
      ;display selection box
      [select-box '()]
@@ -252,13 +252,13 @@ limit panning and zooming with respect to a specified workspace limit
         (for/list ([i (filter (lambda (x) (and (entity-visible x) (not (entity-selected x)))) lst)])
                   ;only calculate intersections for visible and not yet selected items
                   (cond [(line? i)
-                         (if (and (line-intersect? i small-x small-y big-x big-y)
-                                  (rect-intersect? (line-mbr i) query-mbr))
+                         (if (and (rect-intersect? (line-mbr i) query-mbr)
+                                  (line-intersect? i small-x small-y big-x big-y))
                              (set-entity-highlighted! i #t)
                              (set-entity-highlighted! i #f))]
                         [(arc? i)
-                         (if (and (arc-intersect? i small-x small-y big-x big-y)
-                                  (rect-intersect? (arc-mbr i) query-mbr))
+                         (if (and (rect-intersect? (arc-mbr i) query-mbr)
+                                  (arc-intersect? i small-x small-y big-x big-y))
                              (set-entity-highlighted! i #t)
                              (set-entity-highlighted! i #f))]
                         [(dot? i)
@@ -287,14 +287,30 @@ limit panning and zooming with respect to a specified workspace limit
       (update-spreadsheet search-list))
     
     (define/public (refocus)
-      (define left (+ 0 (smallest (get-x-vals (get-visible-entities search-list)))))
-      (define bottom (+ 0 (* -1 (smallest (get-y-vals (get-visible-entities search-list))))))
-      (define drawing-scale (get-display-scale search-list (get-width) (get-height)))
-      (set! x-offset left)
-      (set! y-offset bottom)
-      (set! x-scale drawing-scale)
-      (set! y-scale drawing-scale)
-      (update-node-lst)
+      (define-values (w h) (send this get-client-size))
+      (let* ([entity-lst (get-visible-entities search-list)]
+             [canvas-width w]
+             [canvas-height h]
+             [bottom (biggest (get-y-vals entity-lst))]
+             [top (smallest (get-y-vals entity-lst))]
+             [left (smallest (get-x-vals entity-lst))]
+             [right (biggest (get-x-vals entity-lst))]
+             [height (abs (- top bottom))]
+             [width (abs (- right left))]
+             [scale-x (/ canvas-width width)]
+             [scale-y (/ canvas-height height)]
+             ;0.864 -> 0.8, 1.113 -> 1.1
+             [floor-0.1 (lambda (x)
+                          (let* ([multiples (floor (/ x 0.1))]
+                                 [remainder (/ multiples 10)])
+                            (if (= remainder 0) 0.1 remainder)))]
+             [drawing-scale (floor-0.1 (smallest (list scale-x scale-y)))]
+             [x-off (+ left (/ (abs (- canvas-width (* drawing-scale width))) 2))]
+             [y-off (+ top (/ (abs (- canvas-height (* drawing-scale height))) 2))])
+        (set! x-offset x-off)
+        (set! y-offset y-off)
+        (set! x-scale drawing-scale)
+        (set! y-scale drawing-scale))
       (update-canvas))
     
     ;; POPUP MENU

@@ -71,20 +71,25 @@ canvas-utils is meant for containing operations that affect the interactivity/di
                   (map delete (path-entities x)))
            (delete x))))
 
-;scaling for display - only done once
+;scaling for display - done whenever the visible entities change
 (: get-display-scale (-> Entities Real Real Real))
-(define (get-display-scale struct-lst frame-width frame-height)
-  (let* ((top (biggest (get-y-vals struct-lst)))
-         (bottom (smallest (get-y-vals struct-lst)))
-         (left (smallest (get-x-vals struct-lst)))
-         (right (biggest (get-x-vals struct-lst)))
-         (height (abs (- top bottom)))
-         (width (abs (- right left)))
-         (x-scale (/ frame-width width))
-         (y-scale (/ frame-height height))
-         (drawing-scale (smallest (list x-scale y-scale))))
+(define (get-display-scale entity-lst canvas-width canvas-height)
+  (let* ([bottom (biggest (get-y-vals entity-lst))]
+         [top (smallest (get-y-vals entity-lst))]
+         [left (smallest (get-x-vals entity-lst))]
+         [right (biggest (get-x-vals entity-lst))]
+         [height (abs (- top bottom))]
+         [width (abs (- right left))]
+         [x-scale (/ canvas-width width)]
+         [y-scale (/ canvas-height height)]
+         ;0.864 -> 0.8, 1.113 -> 1.1
+         [floor-0.1 (lambda ([x : Real])
+                      (let* ([multiples (floor (/ x 0.1))]
+                             [remainder (/ multiples 10)])
+                        (if (= remainder 0) 0.1 remainder)))]
+         [drawing-scale (floor-0.1 (smallest (list x-scale y-scale)))])
     drawing-scale))
-
+  
 ;; divide the complete 2d space into 9 boxes
 ;; algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
 ;; region numbers are bit->decimal
@@ -155,13 +160,6 @@ canvas-utils is meant for containing operations that affect the interactivity/di
     (let* ((region1 (compute-outcode lx1 ly1))
            (region2 (compute-outcode lx2 ly2)))
       (clip-until region1 region2 4))))
-
-(: arc-is-circle? (-> arc Boolean))
-(define (arc-is-circle? an-arc)
-  (or (and (= 0 (arc-start an-arc))
-           (= 360 (arc-end an-arc)))
-      (and (= 360 (arc-start an-arc))
-           (= 0 (arc-end an-arc)))))
 
 ;; 1) check for the trivial case - the arc point is inside the select box
 ;; 2) imagine the 4 lines of the select box as an infinite line, do they intersect the circle of the arc?
@@ -234,7 +232,11 @@ canvas-utils is meant for containing operations that affect the interactivity/di
                      (apply right-side-y? (cast a (List Real Real))))
                    (cast result (Listof (List Real Real)))))))
     (if (arc-is-circle? an-arc)
-        (cond [(point-in-rect? circle-x circle-y xs ys xb yb) #t]
+        (cond [(and (point-in-rect? circle-x circle-y xs ys xb yb)
+                    (or (point-in-rect? (+ circle-x radius) (+ circle-y radius) xs ys xb yb)
+                        (point-in-rect? (+ circle-x radius) (- circle-y radius) xs ys xb yb)
+                        (point-in-rect? (- circle-x radius) (+ circle-y radius) xs ys xb yb)
+                        (point-in-rect? (- circle-x radius) (- circle-y radius) xs ys xb yb))) #t]
               [(or (xline-intersect-circle? xs)
                    (xline-intersect-circle? xb)
                    (yline-intersect-circle? ys)
@@ -246,7 +248,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
                    (line-intersect-arc? xb yb xb ys)
                    (line-intersect-arc? xb ys xs ys)) #t]
               [else #f]))))
-  
+
 (: circ2dot (-> arc dot))
 (define (circ2dot a)
   (cast (make-selected (make-dot (entity-layer a)

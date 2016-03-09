@@ -27,7 +27,7 @@ be able to "drag"
 (define canvas-height 600)
 (define canvas-width 700)
 (define spreadsheet-height 600)
-(define spreadsheet-width 300)
+(define spreadsheet-width 100)
 (define button-height 30)
 (define tolerance 0.001) ;in mm
 
@@ -40,13 +40,13 @@ be able to "drag"
   
   ;;drawing scaling/unscaling
   (define (upscale-x coord)
-    (* drawing-scale (- coord left)))
+    (* display-scale (- coord left)))
   (define (upscale-y coord)
-    (* drawing-scale (- coord bottom)))
+    (* display-scale (- coord bottom)))
   (define (downscale-x coord)
-    (+ left (/ coord drawing-scale)))
+    (+ left (/ coord display-scale)))
   (define (downscale-y coord)
-    (+ bottom (/ coord drawing-scale)))
+    (+ bottom (/ coord display-scale)))
   ;; upscale really means scale for drawing.
   (define (upscale entity scale)
     (match entity
@@ -77,9 +77,9 @@ be able to "drag"
   (define original-list (file->struct-list input-port))
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
-  (define drawing-scale (get-display-scale original-list editor-width editor-height))
+  (define display-scale (get-display-scale original-list editor-width editor-height))
   (define search-list (for/list ([entity original-list])
-                                (upscale entity drawing-scale)))
+                                (upscale entity display-scale)))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
   
@@ -219,11 +219,16 @@ be able to "drag"
          [alignment '(center top)]))
   
   (new button%
-       [label "Display start/end nodes"]
+       [label "DISPLAY SELECTED NODES"
+        ;"Display start/end nodes"
+              ]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
-                   (send a-canvas update-canvas)
+                   (for ([e (filter (lambda (x) (not (entity-selected x))) (get-field search-list a-canvas))])
+                        (display e)
+                        (newline))
+                   ;(set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
+                   ;(send a-canvas update-canvas)
                    )])
 
   (new button%
@@ -237,7 +242,7 @@ be able to "drag"
                    )])
   
   (new button%
-       [label "Make mirror image"]
+       [label "Mirror images"]
        [parent button-panel-1]
        [callback (lambda (b e)
                    (set-field! search-list a-canvas (make-mirror (get-field search-list a-canvas)))
@@ -293,7 +298,7 @@ be able to "drag"
        [parent button-panel-2]
        [callback (lambda (b e)
                    (define selected (for/list ([entity (get-selected-entities (get-field search-list a-canvas))])
-                                              (downscale entity drawing-scale)))
+                                              (downscale entity display-scale)))
                    ;mirroring works because the mirrored entities have negative y values
                    ;negative y values cause the furthest entities from the 0,0 point to be the nearest entities instead.
                    ;however, this may not work if all y values of the unmirrored version is negative, and mirroring makes it positive
@@ -321,4 +326,4 @@ be able to "drag"
                              (newline)))
                  ])
   |#
-  ;(generate-ids-pattern (downscale stripped drawing-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
+  ;(generate-ids-pattern (downscale stripped display-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])

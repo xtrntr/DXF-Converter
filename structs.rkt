@@ -81,10 +81,18 @@ Try to keep the more complex and specific functions in lst-utils.
 (define (make-arc layer center-x center-y radius start end ccw?)
   (match (get-arc-points center-x center-y radius start end ccw?)
     [(list x1 y1 x2 y2 x3 y3)
-     (let* ([xb (biggest (list x1 x2 x3))]
-            [yb (biggest (list y1 y2 y3))]
-            [xs (smallest (list x1 x2 x3))]
-            [ys (smallest (list y1 y2 y3))]
+     (let* ([arc-is-circle? (or (and (= 0 start) (= 360 end))
+                                (and (= 360 start) (= 0 end)))]
+            [x-points (if arc-is-circle?
+                          (list (+ center-x radius) (- center-x radius))
+                          (list x1 x2 x3))]
+            [y-points (if arc-is-circle?
+                          (list (+ center-y radius) (- center-y radius))
+                          (list y1 y2 y3))]
+            [xb (biggest x-points)]
+            [yb (biggest y-points)]
+            [xs (smallest x-points)]
+            [ys (smallest y-points)]
             [mbr (rect xs ys xb yb)])
        (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) ccw? mbr))]))
 
@@ -101,6 +109,13 @@ Try to keep the more complex and specific functions in lst-utils.
   an-entity)
 
 ;; ENTITY OPERATIONS
+(: arc-is-circle? (-> arc Boolean))
+(define (arc-is-circle? an-arc)
+  (or (and (= 0 (arc-start an-arc))
+           (= 360 (arc-end an-arc)))
+      (and (= 360 (arc-start an-arc))
+           (= 0 (arc-end an-arc)))))
+
 (: entity-to-string (-> Entity String))
 (define (entity-to-string x)
   (capitalize (symbol->string (cast (object-name x) Symbol))))
