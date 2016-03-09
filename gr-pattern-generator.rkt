@@ -70,15 +70,11 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
 (define (arc-point-spacing)
   (printf "       "))
 
-(: generate-gr-pattern (-> Entities Output-Port Void))
-(define (generate-gr-pattern struct-list port)
-  (let ([smallest-y (smallest (get-y-vals struct-list))]
-        [smallest-x (smallest (get-x-vals struct-list))])
-    (set! x-off (+ 1 (* -1 smallest-x)))
-    (set! y-off (+ 1 (* -1 smallest-y))))
+(: generate-gr-pattern (-> Entities Output-Port Real Real Void))
+(define (generate-gr-pattern struct-list port x-offset y-offset)
+  (set! x-off x-offset)
+  (set! y-off y-offset)
   (current-output-port port)
-  (printf "Without acr.")
-  (insert-newline)
   (let loop : Void
     ([lst : Entities struct-list])
     (cond ((empty? lst) (void))

@@ -5,10 +5,6 @@
 
 (provide (all-defined-out))
 
-(: entities-to-strings (-> Entities (Listof String)))
-(define (entities-to-strings struct-lst)
-  (map (lambda ([x : Entity]) (capitalize (symbol->string (cast (object-name x) Symbol)))) struct-lst))
-
 ;given a node, get the entities(listof entity) that the node belongs to.
 (: get-belonging-list (-> node (Listof Entities) Entities))
 (define (get-belonging-list n lst)

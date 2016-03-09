@@ -70,8 +70,8 @@ dxf-canvas
                          (open-file input-port-or-not this)))]))
     (super-new)))
 
-(define frame-width  1000)
-(define frame-height 630)
+(define frame-width  700)
+(define frame-height 600)
 
 (define top-frame 
   (new menu-frame%

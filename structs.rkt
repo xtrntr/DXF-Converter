@@ -88,6 +88,11 @@ Try to keep the more complex and specific functions in lst-utils.
             [mbr (rect xs ys xb yb)])
        (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) ccw? mbr))]))
 
+(: make-highlighted (-> Entity Entity))
+(define (make-highlighted an-entity)
+  (set-entity-highlighted! an-entity #t)
+  an-entity)
+
 (: make-selected (-> Entity Entity))
 (define (make-selected an-entity)
   (set-entity-selected! an-entity #t)
@@ -96,6 +101,10 @@ Try to keep the more complex and specific functions in lst-utils.
   an-entity)
 
 ;; ENTITY OPERATIONS
+(: entity-to-string (-> Entity String))
+(define (entity-to-string x)
+  (capitalize (symbol->string (cast (object-name x) Symbol))))
+
 (: reverse-entity (-> Entity Entity))
 (define (reverse-entity a-struct)
   (let* ([layer : String (entity-layer a-struct)]

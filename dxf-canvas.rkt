@@ -76,6 +76,7 @@ limit panning and zooming with respect to a specified workspace limit
     (define no-brush (new brush% [style 'transparent]))
     (define blue-pen (new pen% [color "RoyalBlue"] [width 1]))
     (define black-pen (new pen% [color "black"] [width 1]))
+    (define big-black-pen (new pen% [color "black"] [width 5]))
     (define big-blue-pen (new pen% [color "RoyalBlue"] [width 5]))
     (define big-orange-pen (new pen% [color "Orange"] [width 5]))
     ;debugging pen
@@ -126,7 +127,12 @@ limit panning and zooming with respect to a specified workspace limit
     
     ;; DRAWING FUNCTIONS
     (define (draw-dot x y)
-      (send (get-dc) draw-point x y))
+      (define original-pen (send (get-dc) get-pen))
+      (cond [(equal? original-pen blue-pen) (change-pen big-blue-pen)]
+            [(equal? original-pen black-pen) (change-pen big-black-pen)]
+            [(equal? original-pen orange-pen) (change-pen big-orange-pen)])
+      (send (get-dc) draw-point x y)
+      (send (get-dc) set-pen original-pen))
     
     (define (draw-line x1 y1 x2 y2 dc-path)
       (send dc-path move-to x1 y1)
@@ -202,7 +208,6 @@ limit panning and zooming with respect to a specified workspace limit
                           (for/list ([i highlighted-node-lst])
                                     (draw-start/end-nodes (node-x i) (node-y i)))))))
 
-
           ;; A HACK BY KR
           ;; BECAUSE ARCS CAN'T BE INCLUDED IN THE DC PATH, WE DRW THEM SEPARATELY FROM LINES/DOTS
           ;; OTHERWISE WE HAVE TO CALL CHANGE-PEN A LOT.
@@ -270,7 +275,7 @@ limit panning and zooming with respect to a specified workspace limit
             (set! node-lst '())
             (begin
               (unless (empty? to-display-for)
-                (set! node-groups (group-entities (get-selected-entities search-list) node-eq?)))
+                (set! node-groups (group-entities (get-selected-entities search-list))))
               (let ([islands-removed (filter-not (lambda (group) (= 1 (length group))) node-groups)]) ;i.e. a path, dont need to show nodes for it
                 (set! node-lst (flatten (map get-start/end-nodes islands-removed))))))))
     
@@ -315,11 +320,11 @@ limit panning and zooming with respect to a specified workspace limit
            [parent popup-error]
            [callback (lambda (b e)
                        (let* ([to-remove (get-belonging-list highlighted-node node-groups)]
-                             [base-elements (get-base-elements to-remove)]
-                             [new-paths (map (lambda (entity-lst) (if (> (length entity-lst) 1)
-                                                                      (make-selected (make-path entity-lst))
-                                                                      (make-selected (car entity-lst))))
-                                             (reorder-entities highlighted-node base-elements))])
+                              [base-elements (get-base-elements to-remove)]
+                              [new-paths (map (lambda (entity-lst) (if (> (length entity-lst) 1)
+                                                                       (make-selected (make-path entity-lst))
+                                                                       (make-selected (car entity-lst))))
+                                              (reorder-entities highlighted-node base-elements))])
                          #|
                          (for ([new-path (filter path? new-paths)]
                                [num (range (length (filter path? new-paths)))])
@@ -443,10 +448,14 @@ limit panning and zooming with respect to a specified workspace limit
       (define start-panning? click-left)
       (define is-panning? (and dragging (number? init-cursor-x) (number? init-cursor-y)))
       (define end-panning? release-left)
-      (define start-selecting? (and click-left hold-ctrl))
-      (define is-selecting? (and dragging hold-ctrl))
-      ;(define start-selecting? (and click-left caps-on))
-      ;(define is-selecting? (and dragging caps-on))
+      (define start-selecting? #f)
+      (define is-selecting? #f)
+      (cond [(equal? (system-type 'os) 'macosx)
+             (set! start-selecting? (and click-left caps-on))
+             (set! is-selecting? (and dragging caps-on))]
+             [else
+              (set! start-selecting? (and click-left hold-ctrl))
+              (set! is-selecting? (and dragging hold-ctrl))])
       ;use select-box as a flag to check whether we were selecting previously.
       (define end-selecting? (and release-left (not (empty? select-box))))
       (define show-popup? (and (node? highlighted-node) click-right))

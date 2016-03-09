@@ -2,7 +2,8 @@
 
 (require graph ;stephen chang's graph library
          "structs.rkt"
-         "utils.rkt") 
+         "utils.rkt"
+         "lst-utils.rkt") 
 
 (provide (all-defined-out))
 
@@ -49,12 +50,12 @@
         entity-lst)))
 
 ;; the for*/list could be more efficient
-(define (link lsts n-eq?)
+(define (link lsts)
   (define node-lsts (map (lambda (node-lst) (if (list? node-lst) node-lst (list node-lst))) lsts))
   (define (lst-connected? lst1 lst2)
     (not (empty? (for*/list ([n1 lst1]
                              [n2 lst2]
-                             #:when (n-eq? n1 n2))
+                             #:when (equal? n1 n2))
                             (list n1 n2)))))
   (let loop
       ([acc '()]
@@ -75,12 +76,12 @@
                         (rest unchecked)
                         current)])))
                                
-(define (group-entities entity-lst n-eq?)
+(define (group-entities entity-lst)
   (let* ([edges (entities->edges entity-lst)] ;(Listof (List node node))
          [graph (unweighted-graph/undirected edges)]
          [node-lsts (cc graph)]
          [node-hash (make-node-hs entity-lst)]
-         [node-lsts2 (link node-lsts n-eq?)]
+         [node-lsts2 (link node-lsts)]
          [entity-grps (sort-from-nodes node-lsts2 node-hash)]
          [sub-graphs (map make-graph entity-grps)])
     ;(display "before : ")
@@ -217,9 +218,8 @@
                             next-n
                             (cons (first edges) curr-path)))]))))))
 
-#|
-(define (do-optimization lst node-eq?)
-    (let loop ([start (node 0 0)]
+(define (do-optimization lst start-n)
+    (let loop ([start start-n]
                [entity-lst lst]
                [acc '()]
                [individuals '()])
@@ -239,7 +239,7 @@
             ;possible bug where entity start and end node are equal to each other because they are too close
             ;need to fix node-equal?
             (cond [single-entity? (let ([x (first lst-to-reorder)])
-                                    (loop (if (node-eq? start-n (get-entity-start x)) (get-entity-end x) (get-entity-start x))
+                                    (loop (if (equal? start-n (get-entity-start x)) (get-entity-end x) (get-entity-start x))
                                           rest-of-lst
                                           (cons (reorder-entity start-n x) acc)
                                           individuals))]
@@ -257,4 +257,3 @@
                                        rest-of-lst
                                        acc
                                        (append lst-to-reorder individuals))])))))
-|#

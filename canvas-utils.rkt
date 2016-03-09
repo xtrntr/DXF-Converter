@@ -34,14 +34,18 @@ canvas-utils is meant for containing operations that affect the interactivity/di
                   (map select (path-entities x)))
            (select x))))
 
-(: highlight-paths (-> Entities Void))
-(define (highlight-paths lst)
-  (for ([p : path (filter path? lst)])
-       (if (ormap entity-highlighted (path-entities p))
+(: highlight-path (-> path Void))
+(define (highlight-path p)
+  (if (ormap entity-highlighted (path-entities p))
            (begin (set-entity-highlighted! p #t)
                   (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #t)))
            (begin (set-entity-highlighted! p #f)
-                  (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #f))))))
+                  (for ([i : Entity (path-entities p)]) (set-entity-highlighted! i #f)))))
+
+(: highlight-paths (-> Entities Void))
+(define (highlight-paths lst)
+  (for ([p : path (filter path? lst)])
+       (highlight-path p)))
 
 (: unselect-all (-> Entities Void))
 (define (unselect-all lst)
@@ -80,73 +84,6 @@ canvas-utils is meant for containing operations that affect the interactivity/di
          (y-scale (/ frame-height height))
          (drawing-scale (smallest (list x-scale y-scale))))
     drawing-scale))
-
-#|
-(: line-intersect? (-> line Real Real Real Real Boolean))
-(define (line-intersect? line-struct xs ys xb yb)
-  (let [(lx1 (node-x (line-p1 line-struct)))
-        (ly1 (node-y (line-p1 line-struct)))
-        (lx2 (node-x (line-p2 line-struct)))
-        (ly2 (node-y( line-p2 line-struct)))]
-    (: compute-outcode (-> Real Real Integer))
-    (define (compute-outcode x y)
-      ;1st check for x
-      ;2nd check for y
-      ((lambda ([input : Integer])
-         (cond ((< y ys) 
-                (bitwise-ior input 4))
-               ((> y yb) 
-                (bitwise-ior input 8))
-               (else input)))
-       ((lambda ([input : Integer]) 
-          (cond ((< x xs) 
-                 (bitwise-ior input 1))
-                ((> x xb) 
-                 (bitwise-ior input 2))
-                (else input))) 0)))
-    ;return #t if intersect
-    (: trivial-accept? (-> Integer Integer Boolean))
-    (define (trivial-accept? region1 region2)
-      (or (not (bitwise-ior region1 region2)) 
-          (= region1 0) 
-          (= region2 0)
-          (and (= region1 1) (= region2 2))
-          (and (= region1 2) (= region2 1))
-          (and (= region1 4) (= region2 8))
-          (and (= region1 8) (= region2 4))))
-    ;return #t if does not intersect
-    (: trivial-reject? (-> Integer Integer Boolean))
-    (define (trivial-reject? region1 region2)  
-      (not (= (bitwise-and region1 region2) 0)))
-    ;clip until no more ambiguous cases
-    (: clip-until (-> Integer Integer Integer Boolean))
-    (define (clip-until region1 region2 tries)
-      (cond ((= tries 0) #f)
-            ((trivial-reject? region1 region2) #f)
-            ((trivial-accept? region1 region2) #t)
-            (else (clip-until region1 (do-clip region1 region2) (- tries 1)))))
-    (: do-clip (-> Integer Integer Integer))
-    (define (do-clip region1 region2)
-      (: not0 (-> Integer Boolean))
-      (define (not0 num)
-        (if (= num 0) #f #t))
-      (let* ([slope : Real (/ (- ly2 ly1) (- lx2 lx1))]
-             [y-intercept : Real (- ly2 (* slope lx2))])
-        ;apply the formula y = y1 + slope * (x - x1), x = x1 + (y - y1) / slope
-        (cond ((not0 (bitwise-and 8 region2))
-               (compute-outcode (/ (- yb y-intercept) slope) yb))
-              ((not0 (bitwise-and 4 region2))
-               (compute-outcode (/ (- ys y-intercept) slope) ys))
-              ((not0 (bitwise-and 2 region2))
-               (compute-outcode xb (+ (* slope xb) y-intercept)))
-              ((not0 (bitwise-and 1 region2)) 
-               (compute-outcode xs (+ (* slope xs) y-intercept)))
-              (else
-               (compute-outcode lx2 ly2)))))
-    (let* ((region1 (compute-outcode lx1 ly1))
-           (region2 (compute-outcode lx2 ly2)))
-      (clip-until region1 region2 4))))
-|#
 
 ;; divide the complete 2d space into 9 boxes
 ;; algorithm to detect line-rectangle intersection. separate 2d area into 9 rectangles where 0 represents the selected area
@@ -296,7 +233,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
             (ormap (lambda (a)
                      (apply right-side-y? (cast a (List Real Real))))
                    (cast result (Listof (List Real Real)))))))
-    (if arc-is-circle?
+    (if (arc-is-circle? an-arc)
         (cond [(point-in-rect? circle-x circle-y xs ys xb yb) #t]
               [(or (xline-intersect-circle? xs)
                    (xline-intersect-circle? xb)
@@ -321,6 +258,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
   (for/list ([entity entity-lst])
             ;circles shouldn't be inside a path. so, don't look inside path-entities
             (if (and (entity-selected entity)
+                     (entity-visible entity)
                      (arc? entity)
                      (arc-is-circle? entity))
                 (circ2dot entity)

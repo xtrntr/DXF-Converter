@@ -53,7 +53,10 @@ be able to "drag"
       [(line highlighted selected visible layer p1 p2 mbr)
        (make-line layer (upscale-x (node-x p1)) (upscale-y (node-y p1)) (upscale-x (node-x p2)) (upscale-y (node-y p2)))]
       [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
-       (make-arc layer (upscale-x (node-x center)) (upscale-y (node-y center)) (* scale radius) start end ccw)]
+       ;(if (> radius 0.5)
+           (make-arc layer (upscale-x (node-x center)) (upscale-y (node-y center)) (* scale radius) start end ccw)
+           ;(make-dot layer (upscale-x (node-x center)) (upscale-y (node-y center))))
+       ]
       [(dot highlighted selected visible layer p)
        (make-dot layer (upscale-x (node-x p)) (upscale-y (node-y p)))]
       [(path highlighted selected visible layer path-list)
@@ -75,7 +78,8 @@ be able to "drag"
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define drawing-scale (get-display-scale original-list editor-width editor-height))
-  (define search-list (for/list ([entity original-list]) (upscale entity drawing-scale)))
+  (define search-list (for/list ([entity original-list])
+                                (upscale entity drawing-scale)))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
   
@@ -92,39 +96,57 @@ be able to "drag"
     (new vertical-panel%
          [parent main-panel]
          [style '(border)]))
+
+  
+  (define (highlight-clicked index-lst entity-lst)
+    (for/list ([entity entity-lst]
+               [idx (range (length entity-lst))])
+              (if (and (entity-visible entity)
+                       (entity-selected entity)
+                       (ormap (lambda (index)
+                                (= (string->number (first index)) idx)) index-lst))
+                  (make-highlighted entity)
+                  (begin (set-entity-highlighted! entity #f)
+                         entity))))
   
   (define a-list-box
     (new list-box%
          [label #f]
          [parent spreadsheet-panel]
-         ;[min-height spreadsheet-height]
-         ;[min-width spreadsheet-width]
          [choices '()]
          [style '(extended column-headers)]
-         [columns spreadsheet-headers]))
+         [columns spreadsheet-headers]
+         [callback (lambda (c e)
+                     (define selected-on-listbox (send a-list-box get-selections))
+                     ;(regexp-match #rx".+?(?=:)" "123:2")
+                     (define indexes (for/list ([index (send a-list-box get-selections)])
+                                               (send a-list-box get-data index)))
+                     (set-field! search-list a-canvas (highlight-clicked indexes (get-field search-list a-canvas)))
+                     (send a-canvas refresh-now)
+                     )]))
   
   (define (update-spreadsheet a-lst)
-    (define displayed-list (filter entity-selected a-lst))
-    (if (empty? displayed-list)
+    (define to-show (filter entity-selected a-lst))
+    (if (empty? to-show)
         (send a-list-box clear)
-        (send a-list-box set
-              ;real values (will be modified for offset when changing to GR values)
-              (entities-to-strings displayed-list)
-              (map (lambda (x) (to-display (downscale-x (node-x (get-entity-start x))))) displayed-list)
-              (map (lambda (x) (to-display (downscale-y (node-y (get-entity-start x))))) displayed-list)
-              (map (lambda (x) (to-display (downscale-x (node-x (get-entity-end x))))) displayed-list)
-              (map (lambda (x) (to-display (downscale-y (node-y (get-entity-end x))))) displayed-list))))
-  
-              ;debugging mode
-              ;(map number->string (range (length (filter (lambda (x) (arc? x)) displayed-list))))
-              ;(map (lambda (x) (to-display (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list))
-              ;(map (lambda (x) (to-display (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list))
-              ;(map (lambda (x) (to-display (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list))
-              ;(map (lambda (x) (to-display (/ (arc-radius x) drawing-scale)))) (filter (lambda (x) (arc? x)) displayed-list)))))
-              ;(map to-display (map node-x (map get-entity-start displayed-list)))
-              ;(map to-display (map node-y (map get-entity-start displayed-list)))
-              ;(map to-display (map node-x (map get-entity-end displayed-list)))
-              ;(map to-display (map node-y (map get-entity-end displayed-list))))))
+        (let ([index-labels (remv* (list (void))
+                                (for/list ([x a-lst]
+                                           [index (range (length a-lst))])
+                                          (when (entity-selected x)
+                                            (string-append (number->string index) ": " (entity-to-string x)))))])
+          (send a-list-box set
+                index-labels
+                (for/list ([x to-show])
+                          (to-display (downscale-x (node-x (get-entity-start x)))))
+                (for/list ([x to-show])
+                          (to-display (downscale-y (node-y (get-entity-start x)))))
+                (for/list ([x to-show])
+                          (to-display (downscale-x (node-x (get-entity-end x)))))
+                (for/list ([x to-show])
+                          (to-display (downscale-y (node-y (get-entity-end x))))))
+          (for ([idx-label index-labels]
+                [list-box-idx (range (length index-labels))])
+               (send a-list-box set-data list-box-idx (regexp-match #rx".+?(?=:)" idx-label))))))
   
   (define a-canvas
     (new dxf-canvas%
@@ -152,7 +174,6 @@ be able to "drag"
          [parent drawing-panel]
          [style '(border)]	 
          [stretchable-height #f]
-         ;[min-height button-height]
          [alignment '(center top)]))
   
   (for/list ([i layer-list])
@@ -207,7 +228,7 @@ be able to "drag"
 
   (new button%
        [label "Change circle into dots"]
-       [parent button-panel-1]
+       [parent button-panel-2]
        [callback (lambda (b e)
                    (set-field! search-list a-canvas (circ2dots (get-field search-list a-canvas)))
                    (send a-canvas update-canvas)
@@ -266,31 +287,25 @@ be able to "drag"
                            [too-high (error "tolerance cannot be too high, please put within 0 ~ 100")]
                            [too-low (error "tolerance cannot be negative, please put within 0 ~ 100")]
                            [not-num (error "tolerance should be a number value")])))])
-
-  #|(new button%
-       [label "do optimization"]
-       [parent button-panel-2]
-       [callback (lambda (b e)
-                   (define stripped (get-selected-entities (get-field search-list a-canvas)))
-                   (if (empty? stripped)
-                       (error "there is no entities selected")
-                       (send dialog show #t))
-                   ;(debug-display (length (get-field search-list a-canvas)))
-                   ;(set-field! search-list a-canvas (do-optimization stripped))
-                   (send a-canvas update-node-lst)
-                   (send a-canvas update-canvas)
-                   (send a-canvas refresh-spreadsheet))])
-|#
   
   (new button%
        [label "Generate for GR/ILS"]
        [parent button-panel-2]
        [callback (lambda (b e)
-                   (define stripped (make-mirror (get-selected-entities (get-field search-list a-canvas))))
-                   ;binary for osx, text for windows
-                   (generate-gr-pattern
-                    (for/list ([entity stripped]) (downscale entity drawing-scale))
-                    (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace))
+                   (define selected (for/list ([entity (get-selected-entities (get-field search-list a-canvas))])
+                                              (downscale entity drawing-scale)))
+                   ;mirroring works because the mirrored entities have negative y values
+                   ;negative y values cause the furthest entities from the 0,0 point to be the nearest entities instead.
+                   ;however, this may not work if all y values of the unmirrored version is negative, and mirroring makes it positive
+                   (let* ([smallest-y (smallest (get-y-vals selected))]
+                          [smallest-x (smallest (get-x-vals selected))]
+                          [x-offset (+ 1 (* -1 smallest-x))]
+                          [y-offset (+ 1 (* -1 smallest-y))]
+                          [start-n (node x-offset y-offset)])
+                     (generate-gr-pattern
+                      (do-optimization selected (node smallest-x smallest-y))
+                      (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)
+                      x-offset y-offset))
                    ;binary for osx, text for windows
                    )]))
 
