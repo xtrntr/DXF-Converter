@@ -345,11 +345,10 @@ be able to "drag"
                    (let* ([smallest-y (smallest (get-y-vals selected))]
                           [smallest-x (smallest (get-x-vals selected))]
                           [x-offset (+ 1 (* -1 smallest-x))]
-                          [y-offset (+ 1 (* -1 smallest-y))]
-                          [start-n (node x-offset y-offset)])
+                          [y-offset (+ 1 (* -1 smallest-y))])
                    ;binary for osx, text for windows
                      (generate-gr-pattern
-                      (do-optimization selected start-n)
+                      selected
                       (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)
                       x-offset y-offset)))])
 
