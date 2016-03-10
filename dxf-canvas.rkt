@@ -305,8 +305,13 @@ limit panning and zooming with respect to a specified workspace limit
                                  [remainder (/ multiples 10)])
                             (if (= remainder 0) 0.1 remainder)))]
              [drawing-scale (floor-0.1 (smallest (list scale-x scale-y)))]
-             [x-off (+ left (/ (abs (- canvas-width (* drawing-scale width))) 2))]
-             [y-off (+ top (/ (abs (- canvas-height (* drawing-scale height))) 2))])
+             [mid-x (/ (+ left right) 2)]
+             [mid-y (/ (+ top bottom) 2)]
+             ;;change from canvas/pixel coordinates to real coordinates
+             [corner-x (- mid-x (/ (/ canvas-width 2) drawing-scale))]
+             [corner-y (- mid-y (/ (/ canvas-height 2) drawing-scale))]
+             [x-off (* -1 corner-x drawing-scale)]
+             [y-off (* -1 corner-y drawing-scale)])
         (set! x-offset x-off)
         (set! y-offset y-off)
         (set! x-scale drawing-scale)
@@ -341,33 +346,6 @@ limit panning and zooming with respect to a specified workspace limit
                                                                        (make-selected (make-path entity-lst))
                                                                        (make-selected (car entity-lst))))
                                               (reorder-entities highlighted-node base-elements))])
-                         #|
-                         (for ([new-path (filter path? new-paths)]
-                               [num (range (length (filter path? new-paths)))])
-                              (display (string-append "group " (number->string num) " : " ))
-                              (newline)
-                              (for ([entity (path-entities new-path)])
-                                   (when (line? entity)
-                                     (display (to-display (node-x (line-p1 entity))))
-                                     (display ", ")
-                                     (display (to-display (node-y (line-p1 entity))))
-                                     (newline)
-                                     (display (to-display (node-x (line-p2 entity))))
-                                     (display " , ")
-                                     (display (to-display (node-y (line-p2 entity))))
-                                     (newline))
-                                   (when (arc? entity)
-                                     (display (to-display (node-x (arc-p1 entity))))
-                                     (display " , ")
-                                     (display (to-display (node-y (arc-p1 entity))))
-                                     (newline)
-                                     (display (to-display (node-x (arc-p3 entity))))
-                                     (display " , ")
-                                     (display (to-display (node-y (arc-p3 entity))))
-                                     (newline)))
-                              (newline)
-                              (newline))
-|#
                          (set! search-list (append new-paths (remove* base-elements search-list)))
                          (update-node-lst)
                          (update-canvas)
@@ -531,6 +509,29 @@ limit panning and zooming with respect to a specified workspace limit
       (send this suspend-flush)
       (send drawer set-brush no-brush)
       (draw-objects search-list)
+      (define-values (w h) (send this get-client-size))
+      #|
+      (when (not (empty? (get-visible-entities search-list)))
+        (let* ([canvas-width w]
+               [canvas-height h]
+               [entity-lst (get-visible-entities search-list)]
+               [left (smallest (get-x-vals entity-lst))]
+               [right (biggest (get-x-vals entity-lst))]
+               [bottom (biggest (get-y-vals entity-lst))]
+               [top (smallest (get-y-vals entity-lst))]
+               [canvas-center-x (/ (get-width) 2)]
+               [canvas-center-y (/ (get-height) 2)]
+               [mid-x (/ (+ left right) 2)]
+               [mid-y (/ (+ top bottom) 2)]
+               [left-x (- mid-x (/ (/ canvas-width 2) x-scale))]
+               [right-x (+ mid-x (/ (/ canvas-width 2) x-scale))])
+          (send (get-dc) draw-line mid-x mid-y right-x mid-y)
+          (send (get-dc) draw-line mid-x mid-y left-x mid-y)
+          (send (get-dc) draw-line left bottom left top)
+          (send (get-dc) draw-line left top right top)
+          (send (get-dc) draw-line right top right bottom)
+          (send (get-dc) draw-line right bottom left bottom)))
+      |#
       (send this resume-flush))
     
     

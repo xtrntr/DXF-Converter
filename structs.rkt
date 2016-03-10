@@ -77,6 +77,7 @@ Try to keep the more complex and specific functions in lst-utils.
          [mbr (rect xs ys xb yb)])
     (line #f #f #f layer (node x1 y1) (node x2 y2) mbr)))
 
+;;mbr should be bigger for arcs bigger than a semicircle
 (: make-arc (-> String Real Real Real Real Real Boolean arc))
 (define (make-arc layer center-x center-y radius start end ccw?)
   (match (get-arc-points center-x center-y radius start end ccw?)
@@ -158,12 +159,10 @@ Try to keep the more complex and specific functions in lst-utils.
     (cond ((empty? lst) acc)
           (else
            (match (car lst)
-             [(struct* line  ([p1 p1]
-                              [p2 p2]))
-              (loop (cons (node-x p1) (cons (node-x p2) acc)) (cdr lst))]
-             [(struct* arc   ([center center]
-                              [radius radius]))
-              (loop (cons (+ (node-x center) radius) (cons (- (node-x center) radius) acc)) (cdr lst))]
+             [(struct* line  ([mbr mbr]))
+              (loop (cons (rect-x1 mbr) (cons (rect-x2 mbr) acc)) (cdr lst))]
+             [(struct* arc   ([mbr mbr]))
+              (loop (cons (rect-x1 mbr) (cons (rect-x2 mbr) acc)) (cdr lst))]
              [(struct* dot   ([p p]))
               (loop (cons (node-x p) acc) (cdr lst))]
              [(struct* path  ([entities entities]))
@@ -177,12 +176,10 @@ Try to keep the more complex and specific functions in lst-utils.
     (cond ((empty? lst) acc)
           (else
            (match (car lst)
-             [(struct* line  ([p1 p1]
-                              [p2 p2]))
-              (loop (cons (node-y p1) (cons (node-y p2) acc)) (cdr lst))]
-             [(struct* arc   ([center center]
-                              [radius radius]))
-              (loop (cons (+ (node-y center) radius) (cons (- (node-y center) radius) acc)) (cdr lst))]
+             [(struct* line  ([mbr mbr]))
+              (loop (cons (rect-y1 mbr) (cons (rect-y2 mbr) acc)) (cdr lst))]
+             [(struct* arc   ([mbr mbr]))
+              (loop (cons (rect-y1 mbr) (cons (rect-y2 mbr) acc)) (cdr lst))]
              [(struct* dot   ([p p]))
               (loop (cons (node-y p) acc) (cdr lst))]
              [(struct* path  ([entities entities]))

@@ -137,13 +137,25 @@ be able to "drag"
           (send a-list-box set
                 index-labels
                 (for/list ([x to-show])
-                          (to-display (downscale-x (node-x (get-entity-start x)))))
+                          (to-display
+                           (node-x (get-entity-start x))
+                           ;(downscale-x (node-x (get-entity-start x)))
+                           ))
                 (for/list ([x to-show])
-                          (to-display (downscale-y (node-y (get-entity-start x)))))
+                          (to-display
+                           (node-y (get-entity-start x))
+                           ;(downscale-y (node-y (get-entity-start x)))
+                           ))
                 (for/list ([x to-show])
-                          (to-display (downscale-x (node-x (get-entity-end x)))))
+                          (to-display
+                           (node-x (get-entity-end x))
+                           ;(downscale-x (node-x (get-entity-end x)))
+                           ))
                 (for/list ([x to-show])
-                          (to-display (downscale-y (node-y (get-entity-end x))))))
+                          (to-display
+                           (node-y (get-entity-end x))
+                           ;(downscale-y (node-y (get-entity-end x)))
+                           )))
           (for ([idx-label index-labels]
                 [list-box-idx (range (length index-labels))])
                (send a-list-box set-data list-box-idx (regexp-match #rx".+?(?=:)" idx-label))))))
@@ -201,7 +213,7 @@ be able to "drag"
                      (send a-canvas update-node-lst)
                      (send a-canvas on-paint)
                      (send a-canvas refresh-now)
-                     (when make-visible? (send a-canvas refocus))
+                     (send a-canvas refocus)
                      ))))
   
   (define button-panel-1
@@ -219,14 +231,23 @@ be able to "drag"
          [alignment '(center top)]))
   
   (new button%
-       [label "DISPLAY SELECTED NODES"
+       [label "Display scale/offset"
         ;"Display start/end nodes"
               ]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (for ([e (filter (lambda (x) (not (entity-selected x))) (get-field search-list a-canvas))])
-                        (display e)
-                        (newline))
+                   (display "xscale : ")
+                   (display (get-field x-scale a-canvas))
+                   (newline)
+                   (display "yscale : ")
+                   (display (get-field y-scale a-canvas))
+                   (newline)
+                   (display "xoff : ")
+                   (display (get-field x-offset a-canvas))
+                   (newline)
+                   (display "yoff : ")
+                   (display (get-field y-offset a-canvas))
+                   (newline)
                    ;(set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
                    ;(send a-canvas update-canvas)
                    )])
@@ -294,6 +315,25 @@ be able to "drag"
                            [not-num (error "tolerance should be a number value")])))])
   
   (new button%
+       [label "Optimize"]
+       [parent button-panel-2]
+       [callback (lambda (b e)
+                   (define selected (get-selected-entities (get-field search-list a-canvas)))
+                   (define not-selected (filter (lambda (x) (not (entity-selected x))) (get-field search-list a-canvas)))
+                   (let* ([smallest-y (smallest (get-y-vals selected))]
+                          [smallest-x (smallest (get-x-vals selected))]
+                          [x-offset (add1 (* -1 smallest-x))]
+                          [y-offset (add1 (* -1 smallest-y))]
+                          [start-n (node (add1 smallest-x) (add1 smallest-y))])
+                     (set-field! search-list a-canvas (append (do-optimization selected start-n) not-selected))
+                     (display start-n)
+                     (newline)
+                     (send a-canvas update-node-lst)
+                     (send a-canvas update-canvas)
+                     (send a-canvas refresh-spreadsheet)
+                     (send a-canvas refocus)))])
+  
+  (new button%
        [label "Generate for GR/ILS"]
        [parent button-panel-2]
        [callback (lambda (b e)
@@ -307,12 +347,13 @@ be able to "drag"
                           [x-offset (+ 1 (* -1 smallest-x))]
                           [y-offset (+ 1 (* -1 smallest-y))]
                           [start-n (node x-offset y-offset)])
-                     (generate-gr-pattern
-                      (do-optimization selected (node smallest-x smallest-y))
-                      (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)
-                      x-offset y-offset))
                    ;binary for osx, text for windows
-                   )]))
+                     (generate-gr-pattern
+                      (do-optimization selected start-n)
+                      (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)
+                      x-offset y-offset)))])
+
+  )
 
   #|
   (new button%
@@ -320,10 +361,6 @@ be able to "drag"
        [parent button-panel-2]
        [callback (lambda (b e) 
                    (define stripped (filter (lambda (x) (tree-path? (entities->nodes x))) (group-entities (get-selected-entities (get-field search-list a-canvas)))))
-                   (for/list ([tree stripped])
-                             (display tree)
-                             (newline)
-                             (newline)))
+                  ;(generate-ids-pattern (downscale stripped display-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
                  ])
   |#
-  ;(generate-ids-pattern (downscale stripped display-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
