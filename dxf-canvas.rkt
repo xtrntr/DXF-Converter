@@ -74,13 +74,12 @@ limit panning and zooming with respect to a specified workspace limit
     
     ;; DRAWING COLORS
     (define no-brush (new brush% [style 'transparent]))
-    (define blue-pen (new pen% [color "RoyalBlue"] [width 1]))
-    (define black-pen (new pen% [color "black"] [width 1]))
+    (define blue-pen (new pen% [color "RoyalBlue"] [width 2]))
+    (define black-pen (new pen% [color "black"] [width 2]))
+    (define orange-pen (new pen% [color "Orange"] [width 2]))
     (define big-black-pen (new pen% [color "black"] [width 5]))
     (define big-blue-pen (new pen% [color "RoyalBlue"] [width 5]))
     (define big-orange-pen (new pen% [color "Orange"] [width 5]))
-    ;debugging pen
-    (define orange-pen (new pen% [color "Orange"] [width 1]))
     
     ;; CURSOR TYPES
     (define normal (make-object cursor% 'arrow))
@@ -288,34 +287,35 @@ limit panning and zooming with respect to a specified workspace limit
     
     (define/public (refocus)
       (define-values (w h) (send this get-client-size))
-      (let* ([entity-lst (get-visible-entities search-list)]
-             [canvas-width w]
-             [canvas-height h]
-             [bottom (biggest (get-y-vals entity-lst))]
-             [top (smallest (get-y-vals entity-lst))]
-             [left (smallest (get-x-vals entity-lst))]
-             [right (biggest (get-x-vals entity-lst))]
-             [height (abs (- top bottom))]
-             [width (abs (- right left))]
-             [scale-x (/ canvas-width width)]
-             [scale-y (/ canvas-height height)]
-             ;0.864 -> 0.8, 1.113 -> 1.1
-             [floor-0.1 (lambda (x)
-                          (let* ([multiples (floor (/ x 0.1))]
-                                 [remainder (/ multiples 10)])
-                            (if (= remainder 0) 0.1 remainder)))]
-             [drawing-scale (floor-0.1 (smallest (list scale-x scale-y)))]
-             [mid-x (/ (+ left right) 2)]
-             [mid-y (/ (+ top bottom) 2)]
-             ;;change from canvas/pixel coordinates to real coordinates
-             [corner-x (- mid-x (/ (/ canvas-width 2) drawing-scale))]
-             [corner-y (- mid-y (/ (/ canvas-height 2) drawing-scale))]
-             [x-off (* -1 corner-x drawing-scale)]
-             [y-off (* -1 corner-y drawing-scale)])
-        (set! x-offset x-off)
-        (set! y-offset y-off)
-        (set! x-scale drawing-scale)
-        (set! y-scale drawing-scale))
+      (when (get-visible-entities search-list)
+        (let* ([entity-lst (get-visible-entities search-list)]
+               [canvas-width w]
+               [canvas-height h]
+               [bottom (biggest (get-y-vals entity-lst))]
+               [top (smallest (get-y-vals entity-lst))]
+               [left (smallest (get-x-vals entity-lst))]
+               [right (biggest (get-x-vals entity-lst))]
+               [height (abs (- top bottom))]
+               [width (abs (- right left))]
+               [scale-x (/ canvas-width width)]
+               [scale-y (/ canvas-height height)]
+               ;0.864 -> 0.8, 1.113 -> 1.1
+               [floor-0.1 (lambda (x)
+                            (let* ([multiples (floor (/ x 0.1))]
+                                   [remainder (/ multiples 10)])
+                              (if (= remainder 0) 0.1 remainder)))]
+               [drawing-scale (floor-0.1 (smallest (list scale-x scale-y)))]
+               [mid-x (/ (+ left right) 2)]
+               [mid-y (/ (+ top bottom) 2)]
+               ;;change from canvas/pixel coordinates to real coordinates
+               [corner-x (- mid-x (/ (/ canvas-width 2) drawing-scale))]
+               [corner-y (- mid-y (/ (/ canvas-height 2) drawing-scale))]
+               [x-off (* -1 corner-x drawing-scale)]
+               [y-off (* -1 corner-y drawing-scale)])
+          (set! x-offset x-off)
+          (set! y-offset y-off)
+          (set! x-scale drawing-scale)
+          (set! y-scale drawing-scale)))
       (update-canvas))
     
     ;; POPUP MENU

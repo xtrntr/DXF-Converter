@@ -342,16 +342,18 @@ be able to "drag"
                    ;mirroring works because the mirrored entities have negative y values
                    ;negative y values cause the furthest entities from the 0,0 point to be the nearest entities instead.
                    ;however, this may not work if all y values of the unmirrored version is negative, and mirroring makes it positive
-                   (let* ([smallest-y (smallest (get-y-vals selected))]
-                          [smallest-x (smallest (get-x-vals selected))]
-                          [x-offset (+ 1 (* -1 smallest-x))]
-                          [y-offset (+ 1 (* -1 smallest-y))])
-                   ;binary for osx, text for windows
-                     (generate-gr-pattern
-                      selected
-                      (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)
-                      x-offset y-offset)))])
-
+                   (define path-string (send create run))
+                   (when path-string
+                     (let* ([smallest-y (smallest (get-y-vals selected))]
+                            [smallest-x (smallest (get-x-vals selected))]
+                            [x-offset (+ 1 (* -1 smallest-x))]
+                            [y-offset (+ 1 (* -1 smallest-y))])
+                       ;binary for osx, text for windows
+                       (generate-gr-pattern
+                        selected
+                        (open-output-file path-string #:mode 'text #:exists 'truncate/replace)
+                        x-offset y-offset))))])
+  
   )
 
   #|
