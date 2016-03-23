@@ -75,6 +75,7 @@ be able to "drag"
 
   ;dxf-scale is 25.4(inches) or 0.0394(mm)
   (define original-list (file->struct-list input-port))
+  (displayln input-port)
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define display-scale (get-display-scale original-list editor-width editor-height))
@@ -231,25 +232,14 @@ be able to "drag"
          [alignment '(center top)]))
   
   (new button%
-       [label "Display scale/offset"
-        ;"Display start/end nodes"
+       [label
+        ;"Display scale/offset"
+        "Display start/end nodes"
               ]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (display "xscale : ")
-                   (display (get-field x-scale a-canvas))
-                   (newline)
-                   (display "yscale : ")
-                   (display (get-field y-scale a-canvas))
-                   (newline)
-                   (display "xoff : ")
-                   (display (get-field x-offset a-canvas))
-                   (newline)
-                   (display "yoff : ")
-                   (display (get-field y-offset a-canvas))
-                   (newline)
-                   ;(set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
-                   ;(send a-canvas update-canvas)
+                   (set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
+                   (send a-canvas update-canvas)
                    )])
 
   (new button%
@@ -271,6 +261,17 @@ be able to "drag"
                    (send a-canvas update-canvas)
                    (send a-canvas refresh-spreadsheet)
                    (send a-canvas refocus)
+                   )])
+
+  (new button%
+       [label "Select all visible"]
+       [parent button-panel-1]
+       [callback (lambda (b e)
+                   (for ([entity (filter entity-visible (get-field search-list a-canvas))])
+                        (set-entity-selected! entity #t))
+                   (send a-canvas update-node-lst)
+                   (send a-canvas update-canvas)
+                   (send a-canvas refresh-spreadsheet)
                    )])
   
   (new button%
@@ -332,6 +333,54 @@ be able to "drag"
                      (send a-canvas update-canvas)
                      (send a-canvas refresh-spreadsheet)
                      (send a-canvas refocus)))])
+
+  ;;for debugging. formatted for human reading, remove whitespaces and dots when parsing
+  (new button%
+     [label "Generate entities to edges file"]
+       [parent button-panel-2]
+       [callback (lambda (b e)
+                   (define selected (for/list ([entity (get-selected-entities (get-field search-list a-canvas))])
+                                              (downscale entity display-scale)))
+                   (define path-string (send create run))
+                   
+                   (when path-string
+                     (let* ([smallest-y (smallest (get-y-vals selected))]
+                            [smallest-x (smallest (get-x-vals selected))]
+                            [x-off (+ 1 (* -1 smallest-x))]
+                            [y-off (+ 1 (* -1 smallest-y))]
+                            [port (open-output-file path-string #:mode 'text #:exists 'truncate/replace)])
+                       (define (pad str)
+                         (string-append str (make-string (- 7 (string-length str)) (integer->char 32))))
+                       (define (edge x1 y1 x2 y2)
+                         (let* ([str1 (~a (round-3 (+ x-off x1)))]
+                                [str2 (~a (round-3 (+ y-off y1)))]
+                                [str3 (~a (round-3 (+ x-off x2)))]
+                                [str4 (~a (round-3 (+ y-off y2)))]
+                                [res (string-append (pad str1) ", " (pad str2) " - " (pad str3) ", " (pad str4) ";\n")])
+                           (printf res)))
+                       (define (vertice x y)
+                         (printf (string-append (pad (round-3 (+ x-off x))) "," (pad (round-3 (+ y-off y))) ";\n")))
+                       (define (entity2format entity)
+                         (match entity
+                           [(dot highlighted selected visible layer p)
+                            (vertice (node-x p) (node-y p))]
+                           [(line highlighted selected visible layer p1 p2 mbr)
+                            (edge (node-x p1) (node-y p1) (node-x p2) (node-y p2))]
+                           [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
+                            (edge (node-x p1) (node-y p1) (node-x p3) (node-y p3))]
+                           [(path highlighted selected visible layer entities)
+                            (edge (node-x (get-entity-start (first entities)))
+                                  (node-y (get-entity-start (first entities)))
+                                  (node-x (get-entity-end (last entities)))
+                                  (node-y (get-entity-end (last entities))))]))
+                       
+                       (current-output-port port)
+                       (let loop
+                         ([lst selected])
+                         (cond ((empty? lst) (void))
+                               (else (entity2format (first lst))
+                                     (loop (rest lst)))))
+                       (close-output-port port))))])
   
   (new button%
        [label "Generate for GR/ILS"]

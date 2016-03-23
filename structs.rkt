@@ -14,7 +14,6 @@ Try to keep the more complex and specific functions in lst-utils.
 (define-type Entities (Listof Entity))
 (define-type Path-Entity (U line arc))
 (define-type Path-Entities (Listof Path-Entity))
-
 (define-type Edge (List node node))
 
 (struct node 
@@ -185,23 +184,6 @@ Try to keep the more complex and specific functions in lst-utils.
              [(struct* path  ([entities entities]))
               (loop acc (append entities (cdr lst)))])))))
 
-;'((1 2) (3 4) (1 2)) -> '((1 2))
-;self explanatory
-#|
-(define (get-duplicate-nodes n-lst)
-  (let loop : (Listof node)
-    ([uniq-acc : (Listof node) '()]
-     [dupl-acc : (Listof node) '()]
-     [lst : (Listof node) n-lst])
-    (if (empty? lst)
-        dupl-acc
-        (let ([current-n (first lst)])
-          ;; should we use node-equal here? when we group entities, we don't have any equality checks.
-        (if (ormap (lambda ([n : node]) (node-equal? n current-n)) uniq-acc)
-            (loop uniq-acc (cons current-n dupl-acc) (rest lst))
-            (loop (cons current-n uniq-acc) dupl-acc (rest lst)))))))
-|#
-
 (: get-element-nodes (-> (Listof node) (Listof node)))
 (define (get-element-nodes lst)
   (set->list (list->set lst)))
@@ -222,26 +204,6 @@ Try to keep the more complex and specific functions in lst-utils.
                                        ((inst remove node) y x))]
          [real-dupl : (Listof node) (remove-duplicates duplicates)]
          [uniques : (Listof node) (remove* real-dupl elements)])
-    #|
-    (display "length elements : ")
-    (display (length elements))
-    (newline)
-    (display "length real-dupl : ")
-    (display (length real-dupl))
-    (newline)
-    (display "length uniques : ")
-    (display (length uniques))
-    (newline)
-    (display "elements : ")
-    (display elements)
-    (newline)
-    (display "real-dupl : ")
-    (display real-dupl)
-    (newline)
-    (display "uniques : ")
-    (display uniques)
-    (newline)
-    |#
     uniques))
 
 (: no-of-unique-nodes (-> (Listof node) Integer))
@@ -281,8 +243,9 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: entities->edges (-> Entities (Listof Edge)))
 (define (entities->edges entity-lst)
-  (map (lambda ([x : Entity]) (list (get-entity-start x)
-                                    (get-entity-end x))) entity-lst))
+  (for/list ([x entity-lst])
+            (list (get-entity-start x)
+                  (get-entity-end x))))
 
 ;; NODE OPERATIONS
 (: node-distance (-> node node Real))

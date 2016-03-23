@@ -74,9 +74,9 @@ limit panning and zooming with respect to a specified workspace limit
     
     ;; DRAWING COLORS
     (define no-brush (new brush% [style 'transparent]))
-    (define blue-pen (new pen% [color "RoyalBlue"] [width 2]))
-    (define black-pen (new pen% [color "black"] [width 2]))
-    (define orange-pen (new pen% [color "Orange"] [width 2]))
+    (define blue-pen (new pen% [color "RoyalBlue"] [width 1]))
+    (define black-pen (new pen% [color "black"] [width 1]))
+    (define orange-pen (new pen% [color "Orange"] [width 1]))
     (define big-black-pen (new pen% [color "black"] [width 5]))
     (define big-blue-pen (new pen% [color "RoyalBlue"] [width 5]))
     (define big-orange-pen (new pen% [color "Orange"] [width 5]))
@@ -340,6 +340,8 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form paths from a tree pattern."]
            [parent popup-error]
            [callback (lambda (b e)
+                       (display (reorder! highlighted-node (get-base-elements (get-belonging-list highlighted-node node-groups))))
+                       #|
                        (let* ([to-remove (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements to-remove)]
                               [new-paths (map (lambda (entity-lst) (if (> (length entity-lst) 1)
@@ -350,14 +352,17 @@ limit panning and zooming with respect to a specified workspace limit
                          (update-node-lst)
                          (update-canvas)
                          (update-spreadsheet search-list)
-                         ))]))
+                         )
+                       |#
+                       )]))
     
     (define open-nodir
       (new menu-item%
            [label "Form an open path."]
            [parent popup-opened]
            [callback (lambda (b e)
-                       ;(display (reorder-entities highlighted-node (get-belonging-list highlighted-node node-groups)))
+                       (display (reorder! highlighted-node (get-base-elements (get-belonging-list highlighted-node node-groups))))
+                       #|
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
                               [new-path (make-selected (make-path (reorder-open-path highlighted-node base-elements)))])
@@ -365,6 +370,7 @@ limit panning and zooming with respect to a specified workspace limit
                          (update-node-lst)
                          (update-canvas)
                          (update-spreadsheet search-list))
+                       |#
                        )]))
     
     (define closed-clockwise

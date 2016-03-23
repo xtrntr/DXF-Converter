@@ -7,32 +7,6 @@
 
 (provide (all-defined-out))
 
-;; creates a hash map of
-;;key -> node
-;;value -> entities connected to that node
-(define (make-node-hs entity-lst)
-  (let ([hashy (hash)]
-        [add-key-pair
-         (lambda (entity hashy)
-           (let ([ns (list (get-entity-start entity) (get-entity-end entity))]
-                 [val (list entity)])
-             (let loop
-               ([keys ns]
-                [ht hashy])
-               (cond ([empty? keys] ht)
-                     (else
-                      (loop (rest keys)
-                            (if (hash-has-key? ht (first keys))
-                                (hash-set ht (first keys) (append (hash-ref ht (first keys)) val)) 
-                                (hash-set ht (first keys) val))))))))])
-    (let loop
-      ([lst entity-lst]
-       [ht hashy])
-      (cond ([empty? lst] ht)
-            (else
-             (loop (rest lst)
-                   (add-key-pair (first lst) ht)))))))
-
 ;; we can use node-equal here to check for similar keys
 ;; (get-duplicate-nodes (hash-keys node-ht)) then link the 2 groups together.
 (define (sort-from-nodes node-lsts node-ht)
@@ -49,47 +23,27 @@
    (map (lambda (entity) (list (get-entity-start entity) (get-entity-end entity)))
         entity-lst)))
 
-;; the for*/list could be more efficient
-(define (link lsts)
-  (define node-lsts (map (lambda (node-lst) (if (list? node-lst) node-lst (list node-lst))) lsts))
-  (define (lst-connected? lst1 lst2)
-    (not (empty? (for*/list ([n1 lst1]
-                             [n2 lst2]
-                             #:when (equal? n1 n2))
-                            (list n1 n2)))))
-  (let loop
-      ([acc '()]
-       [checked '()] ; put into checked when you reach the end of unchecked from current
-       [unchecked (rest node-lsts)] ; 
-       [current (first node-lsts)])
-      (cond [(and (empty? unchecked) (empty? checked)) (cons current acc)]
-            [(empty? unchecked) (loop (cons current acc)
-                                      '()
-                                      (rest checked)
-                                      (first checked))]
-            [(lst-connected? current (first unchecked)) (loop acc
-                                                              '()
-                                                              (append checked (rest unchecked))
-                                                              (append current (first unchecked)))]
-            [else (loop acc
-                        (cons (first unchecked) checked)
-                        (rest unchecked)
-                        current)])))
+(define (add-entity entity ht)
+  (let ([start-n (get-entity-start entity)]
+        [end-n  (get-entity-end entity)])
+  (hash-update (hash-update ht
+                            start-n
+                            (lambda (linked-entities) (cons entity linked-entities))
+                            '())
+               end-n
+               (lambda (linked-entities) (cons entity linked-entities))
+               '())))
+
+(define (make-node-hs entity-lst)
+  (foldl add-entity (hash) entity-lst))
                                
 (define (group-entities entity-lst)
-  (let* ([edges (entities->edges entity-lst)] ;(Listof (List node node))
+  (let* ([edges (entities->edges entity-lst)]
          [graph (unweighted-graph/undirected edges)]
          [node-lsts (cc graph)]
          [node-hash (make-node-hs entity-lst)]
-         [node-lsts2 (link node-lsts)]
-         [entity-grps (sort-from-nodes node-lsts2 node-hash)]
+         [entity-grps (sort-from-nodes node-lsts node-hash)]
          [sub-graphs (map make-graph entity-grps)])
-    ;(display "before : ")
-    ;(display (length node-lsts))
-    ;(newline)
-    ;(display "after : ")
-    ;(display (length node-lsts2))
-    ;(newline)
     entity-grps))
 
 (define (edges->entities edge-lst entity-lst)
@@ -115,24 +69,35 @@
                                  (edges->entities e-lst entity-lst))])
     new-entities))
 
-(define (edge-connected? e1 e2)
-  (or (equal? (first e1) (first e2))
-      (equal? (first e1) (second e2))
-      (equal? (second e1) (first e2))
-      (equal? (second e1) (second e2))))
+(define (reorder! start-n entity-lst)
+  (let* ([edges (entities->edges entity-lst)]
+         [graph (unweighted-graph/undirected edges)]
+         [groups (cc graph)])
+    (reorder-edges start-n edges)))
 
-;e refers to edge
-(define (e-find-edges start-e e-lst)
-  (filter (lambda (e) (edge-connected? start-e e)) e-lst))
+(define (get-edges lst)
+  (map (lambda (e) (list (first e) (second e))) lst))
 
-;n refers to node
-(define (n-find-edges n e-lst)
-  (filter (lambda (e) (or (equal? n (first e))
-                          (equal? n (second e)))) e-lst))
+;e edge, ht hashtable
+(define (add-edge e ht)
+  (let ([start-n (first e)]
+        [end-n  (second e)])
+  (hash-update ht
+               start-n
+               (lambda (linked-ns) (cons end-n linked-ns))
+               '())))
 
 (define (n-in-edge? edge n)
-  (or (= (first edge) n)
-      (= (second edge) n)))
+  (or (equal? (first edge) n)
+      (equal? (second edge) n)))
+
+(define (n-find-edges n original-n e-lst visited-ns)
+  (let* ([edges (filter (lambda (e) (n-in-edge? e n)) e-lst)]
+         ;return edges that don't have both nodes in visited lst
+         [can-visit (filter (lambda (e) (if (= 1 (length visited-ns))
+                                            (not (n-in-edge? e original-n))
+                                            (not (and (member (first e) visited-ns) (member (second e) visited-ns))))) edges)])
+    can-visit))
 
 (define (get-other-n edge n)
   (cond [(equal? (first edge) n) (second edge)]
@@ -140,83 +105,66 @@
         [else (error "node not found in edge" n edge)]))
 
 (define (reorder-edges start-n edge-lst)
-  (let ([hashy (make-hash)])
+  (let ([ht (make-hash)]) ;;hash will be original-n (key) previous-original-n (value)
     (let loop
         ([acc '()]
          [e-lst edge-lst]
          [curr-n start-n]
-         [curr-path '()])
+         [curr-path '()]
+         [visited-ns '()] ;if a current path encounters a visited node, choose another node if one is available
+         [original-n start-n]
+         )
       (if (empty? e-lst) 
           (if (empty? curr-path)
-              acc
-              (cons curr-path acc))
-          (let ([edges (n-find-edges curr-n e-lst)])
+              (reverse acc)
+              (cons (reverse curr-path) acc))
+          (let ([edges (n-find-edges curr-n original-n e-lst visited-ns)])
             (cond 
-              ;; backtracking
-              [(and (empty? curr-path) (empty? edges)) (let ([prev-node (first (hash-ref hashy curr-n))])
-                                                         (hash-set! hashy curr-n
-                                                                    (remove prev-node (hash-ref hashy curr-n)))
-                                                         (display "dead end, moving from current node : ")
-                                                         (display curr-n)
-                                                         (display " to previous node : ")
-                                                         (display prev-node)
-                                                         (newline)
-                                                         (loop acc
-                                                               e-lst
-                                                               prev-node
-                                                               curr-path))]
               ;; dead end
-              [(empty? edges) (let ([prev-node (first (hash-ref hashy curr-n))])
-                                (hash-set! hashy curr-n
-                                           (remove prev-node (hash-ref hashy curr-n)))
-                                (display "dead end, moving from current node : ")
-                                (display curr-n)
-                                (display " to previous node : ")
-                                (display prev-node)
-                                (newline)
+              [(empty? edges) (let ([prev-original-n (hash-ref ht original-n '())]) ;if no prev original then put '()
+                                (display "current path : ") (writeln (length curr-path))
+                                (writeln (set-intersect (list->set curr-path) (list->set e-lst)))
+                                (display "dead end, starting from original node : ")
+                                (writeln original-n)
+                                (hash-remove! ht original-n)
                                 (loop (cons (reverse curr-path) acc)
                                       e-lst
-                                      prev-node
-                                      '()))]
+                                      original-n
+                                      '()
+                                      visited-ns
+                                      prev-original-n))]
               ;; traversing one way
               [(= 1 (length edges)) (let ([next-n (get-other-n (first edges) curr-n)])
-                                      (if (hash-has-key? hashy next-n)
-                                          (hash-set! hashy next-n
-                                                     (cons curr-n (hash-ref hashy next-n)))
-                                          (hash-set! hashy next-n
-                                                     (list curr-n)))
                                       (display "moving from current node : ")
-                                      (display (let ([n curr-n])
-                                                 (cons (node-x n) (node-y n))))
+                                      (display curr-n)
                                       (display " to next node : ")
-                                      (display (let ([n next-n])
-                                                 (cons (node-x n) (node-y n))))
-                                      (newline)
+                                      (writeln next-n)
                                       (loop acc
                                             (remove (first edges) e-lst)
                                             next-n
-                                            (cons (first edges) curr-path)))]
+                                            (cons (first edges) curr-path)
+                                            (cons next-n visited-ns)
+                                            original-n))]
               ;; at a junction/fork
               [else (let ([next-n (get-other-n (first edges) curr-n)])
-                        (if (hash-has-key? hashy next-n)
-                            (hash-set! hashy next-n
-                                       (cons curr-n (hash-ref hashy next-n)))
-                            (hash-set! hashy next-n
-                                       (list curr-n)))
+                      (hash-set! ht curr-n original-n)
+                      #|
                       (display "possible paths : ")
                       (for ([edge edges])
                            (display edge)
                            (display " , "))
                       (newline)
+                      |#
                       (display "moving from current node : ")
                       (display curr-n)
                       (display " to next node : ")
-                      (display next-n)
-                      (newline)
+                      (writeln next-n)
                       (loop acc
                             (remove (first edges) e-lst)
                             next-n
-                            (cons (first edges) curr-path)))]))))))
+                            (cons (first edges) curr-path)
+                            (cons next-n visited-ns)
+                            curr-n))]))))))
 
 (define (do-optimization lst start-n)
     (let loop ([start start-n]

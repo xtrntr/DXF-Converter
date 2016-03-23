@@ -159,6 +159,3 @@
 (define (make-path lst)
   (define layer (entity-layer (first lst)))
   (path #f #f #f layer lst))
-  ;(if (closed-path? (entities->nodes lst))
-  ;    (path #f #f #f layer (reorder-jumbled-path (get-entity-start (first lst)) lst #t))
-  ;    (path #f #f #f layer (reorder-open-path (first (get-start/end-nodes lst)) lst))))
