@@ -136,12 +136,20 @@ Try to keep the more complex and specific functions in lst-utils.
     (when visible? (set-entity-visible! reversed-struct #t))
     reversed-struct))
 
-(: are-entities-connected? (-> Entity Entity Boolean))
-(define (are-entities-connected? x y)
+(: entities-connected? (-> Entity Entity Boolean))
+(define (entities-connected? x y)
   (or (node-equal? (get-entity-end x) (get-entity-end y))
       (node-equal? (get-entity-end x) (get-entity-start y))
       (node-equal? (get-entity-start x) (get-entity-end y))
       (node-equal? (get-entity-start x) (get-entity-start y))))
+
+(: entities-identical? (-> Entity Entity Boolean))
+(define (entities-identical? x y)
+  (and (equal? (object-name x) y)
+       (or (and (node-equal? (get-entity-end x) (get-entity-end y))
+                (node-equal? (get-entity-start x) (get-entity-start y)))
+           (and (node-equal? (get-entity-end x) (get-entity-start y))
+                (node-equal? (get-entity-start x) (get-entity-end y))))))
 
 (: rect-intersect? (-> rect rect Boolean))
 (define (rect-intersect? r1 r2)
@@ -264,8 +272,8 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: node-equal? (-> node node Boolean))
 (define (node-equal? n1 n2)
-  (and (> 0.5 (cast (abs (- (node-x n1) (node-x n2))) Float))
-       (> 0.5 (cast (abs (- (node-y n1) (node-y n2))) Float))))
+  (and (= 0 (round-3 (abs (- (node-x n1) (node-x n2)))))
+       (= 0 (round-3 (abs (- (node-y n1) (node-y n2)))))))
 
 (: round-off-node (-> node node))
 (define (round-off-node p)

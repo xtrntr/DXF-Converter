@@ -10,13 +10,8 @@
 ;; we can use node-equal here to check for similar keys
 ;; (get-duplicate-nodes (hash-keys node-ht)) then link the 2 groups together.
 (define (sort-from-nodes node-lsts node-ht)
-  (map
-   (lambda (node-lst)
-     (remove-duplicates (flatten
-                         (map
-                          (lambda (node) (hash-ref node-ht node))
-                          node-lst))))
-   node-lsts))
+  (for/list ([node-lst node-lsts])
+     (remove-duplicates (foldl append '() (map (lambda (node) (hash-ref node-ht node)) node-lst)) entities-identical?)))
 
 (define (make-graph entity-lst)
   (unweighted-graph/undirected
@@ -44,6 +39,8 @@
          [node-hash (make-node-hs entity-lst)]
          [entity-grps (sort-from-nodes node-lsts node-hash)]
          [sub-graphs (map make-graph entity-grps)])
+    (println (format "entity grps: ~a" (for/sum ([i (map length entity-grps)]) i)))
+    (println (length entity-lst))
     entity-grps))
 
 (define (edges->entities edge-lst entity-lst)

@@ -284,36 +284,6 @@ be able to "drag"
   (define create (new path-dialog%
                       [put? #t]
                       [filters (list (list "Text Files" "*.txt"))]))
-
-  (define dialog
-    (new dialog% [label "Tolerance"]))
-  
-  (define tolerance-input
-    (new text-field% [parent dialog] [label "Tolerance :"]))
-  
-  ; Add a horizontal panel to the dialog, with centering for buttons
-  (define dialog-panel (new horizontal-panel%
-                            [parent dialog]
-                            [alignment '(center center)]))
-  
-  ; Add Cancel and Ok buttons to the horizontal panel
-  (new button%
-       [parent dialog-panel]
-       [label "Cancel"]
-       [callback (lambda (b e) (send dialog show #f))])
-  (new button%
-       [parent dialog-panel]
-       [label "Ok"]
-       [callback (lambda (b e)
-                   (let* ([input-value (string->number (send tolerance-input get-value))]
-                          [too-high (and input-value (> input-value 100))]
-                          [too-low (and input-value (negative? input-value))]
-                          [not-num (not input-value)]
-                          [valid (and input-value (not too-high) (not too-low))])
-                     (cond [valid (set! tolerance input-value) (send dialog show #f)]
-                           [too-high (error "tolerance cannot be too high, please put within 0 ~ 100")]
-                           [too-low (error "tolerance cannot be negative, please put within 0 ~ 100")]
-                           [not-num (error "tolerance should be a number value")])))])
   
   (new button%
        [label "Optimize"]
@@ -327,14 +297,13 @@ be able to "drag"
                           [y-offset (add1 (* -1 smallest-y))]
                           [start-n (node (add1 smallest-x) (add1 smallest-y))])
                      (set-field! search-list a-canvas (append (do-optimization selected start-n) not-selected))
-                     (display start-n)
-                     (newline)
                      (send a-canvas update-node-lst)
                      (send a-canvas update-canvas)
                      (send a-canvas refresh-spreadsheet)
                      (send a-canvas refocus)))])
 
   ;;for debugging. formatted for human reading, remove whitespaces and dots when parsing
+  #|
   (new button%
      [label "Generate entities to edges file"]
        [parent button-panel-2]
@@ -381,6 +350,7 @@ be able to "drag"
                                (else (entity2format (first lst))
                                      (loop (rest lst)))))
                        (close-output-port port))))])
+  |#
   
   (new button%
        [label "Generate for GR/ILS"]
