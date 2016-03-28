@@ -2,7 +2,8 @@
 
 #|
 
-This is where initialization and everything comes together. This is mainly for holding custom one-time GUI elements, such as the buttons that are initialized in a DXF frame.
+This is where initialization and everything comes together. This is mainly for holding custom one-time
+GUI elements, such as the buttons that are initialized in a frame.
 
 TODO:
 make spreadsheet display look nice. space out the coordinates

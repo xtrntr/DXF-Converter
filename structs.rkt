@@ -145,7 +145,7 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: entities-identical? (-> Entity Entity Boolean))
 (define (entities-identical? x y)
-  (and (equal? (object-name x) y)
+  (and (equal? (object-name x) (object-name y))
        (or (and (node-equal? (get-entity-end x) (get-entity-end y))
                 (node-equal? (get-entity-start x) (get-entity-start y)))
            (and (node-equal? (get-entity-end x) (get-entity-start y))
@@ -262,6 +262,7 @@ Try to keep the more complex and specific functions in lst-utils.
            (sqr (- (node-y n2) (node-y n1))))))
 
 ;given a start-n and a list of nodes, find a node in the list nearest to the given start-n
+;nn -> nearest node
 (: nn (-> node (Listof node) node))
 (define (nn start-n node-lst)
   (let ([hs : (HashTable Real node) (make-hash)])

@@ -1,7 +1,7 @@
 #lang typed/racket
 
 #|
-
+ t
 This module must be stand alone i.e. purely numerical functions
 This module contains all helper functions that can operate on numbers, strings, Booleans
 

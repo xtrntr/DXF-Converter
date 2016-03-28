@@ -105,7 +105,6 @@
 (define (reorder-open-path start-n entity-lst)
   (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
   (define layer (entity-layer (first entity-lst)))
-  (newline)
   (cast (let main : Entities
           ([current : Entity first-entity]
            [acc : Entities (list first-entity)]
@@ -138,7 +137,7 @@
                [unchecked : Entities new-lst])
               (cond ((empty? unchecked) acc)
                     (else
-                     (let-values ([(next-entity new-lst) 
+                     (let-values ([(next-entity new-lst)
                                    (find-entity-from-node (get-entity-end current) unchecked)])
                        (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))))
 

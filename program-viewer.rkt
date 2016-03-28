@@ -48,7 +48,7 @@ be able to "drag"
   (define (downscale-y coord)
     (+ bottom (/ coord display-scale)))
   ;; upscale really means scale for drawing.
-  (define (upscale entity scale)
+  (define (upscale! entity scale)
     (match entity
       [(line highlighted selected visible layer p1 p2 mbr)
        (make-line layer (upscale-x (node-x p1)) (upscale-y (node-y p1)) (upscale-x (node-x p2)) (upscale-y (node-y p2)))]
@@ -60,7 +60,7 @@ be able to "drag"
       [(dot highlighted selected visible layer p)
        (make-dot layer (upscale-x (node-x p)) (upscale-y (node-y p)))]
       [(path highlighted selected visible layer path-list)
-       (path #f #f #f layer (for/list ([entity path-list]) (upscale entity scale)))]))
+       (path #f #f #f layer (for/list ([entity path-list]) (upscale! entity scale)))]))
   ;; downscale 
   (define (downscale entity scale)
     (match entity
@@ -75,12 +75,11 @@ be able to "drag"
 
   ;dxf-scale is 25.4(inches) or 0.0394(mm)
   (define original-list (file->struct-list input-port))
-  (displayln input-port)
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define display-scale (get-display-scale original-list editor-width editor-height))
   (define search-list (for/list ([entity original-list])
-                                (upscale entity display-scale)))
+                                (upscale! entity display-scale)))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
   
@@ -118,7 +117,6 @@ be able to "drag"
          [style '(extended column-headers)]
          [columns spreadsheet-headers]
          [callback (lambda (c e)
-                     (define selected-on-listbox (send a-list-box get-selections))
                      ;(regexp-match #rx".+?(?=:)" "123:2")
                      (define indexes (for/list ([index (send a-list-box get-selections)])
                                                (send a-list-box get-data index)))
@@ -126,7 +124,7 @@ be able to "drag"
                      (send a-canvas refresh-now)
                      )]))
   
-  (define (update-spreadsheet a-lst)
+  (define (update-spreadsheet! a-lst)
     (define to-show (filter entity-selected a-lst))
     (if (empty? to-show)
         (send a-list-box clear)
@@ -180,7 +178,7 @@ be able to "drag"
          [downscale-x downscale-x]
          [downscale-y downscale-y]
          
-         [update-spreadsheet update-spreadsheet]))
+         [update-spreadsheet! update-spreadsheet!]))
   
   (define layer-panel
     (new horizontal-panel%
@@ -208,13 +206,11 @@ be able to "drag"
                                                   (map-toggle-visibility (cdr lst)))]
                              [else (begin (toggle-visibility (car lst))
                                           (map-toggle-visibility (cdr lst)))]))
-                     (send a-canvas update-canvas)
+                     (send a-canvas update-canvas!)
                      (map-toggle-visibility (filter entity-same-layer? (get-field search-list a-canvas)))
-                     (send a-canvas draw-objects search-list)
-                     (send a-canvas update-node-lst)
-                     (send a-canvas on-paint)
-                     (send a-canvas refresh-now)
-                     (send a-canvas refocus)
+                     (send a-canvas update-node-lst!)
+                     (send a-canvas refresh)
+                     (send a-canvas refocus!)
                      ))))
   
   (define button-panel-1
@@ -239,7 +235,7 @@ be able to "drag"
        [parent button-panel-1]
        [callback (lambda (b e)
                    (set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
-                   (send a-canvas update-canvas)
+                   (send a-canvas update-canvas!)
                    )])
 
   (new button%
@@ -247,8 +243,8 @@ be able to "drag"
        [parent button-panel-2]
        [callback (lambda (b e)
                    (set-field! search-list a-canvas (circ2dots (get-field search-list a-canvas)))
-                   (send a-canvas update-canvas)
-                   (send a-canvas refresh-spreadsheet)
+                   (send a-canvas update-canvas!)
+                   (update-spreadsheet! (get-field search-list a-canvas))
                    (send a-canvas refresh)
                    )])
   
@@ -257,10 +253,10 @@ be able to "drag"
        [parent button-panel-1]
        [callback (lambda (b e)
                    (set-field! search-list a-canvas (make-mirror (get-field search-list a-canvas)))
-                   (send a-canvas update-node-lst)
-                   (send a-canvas update-canvas)
-                   (send a-canvas refresh-spreadsheet)
-                   (send a-canvas refocus)
+                   (send a-canvas update-node-lst!)
+                   (send a-canvas update-canvas!)
+                   (update-spreadsheet! (get-field search-list a-canvas))
+                   (send a-canvas refocus!)
                    )])
 
   (new button%
@@ -269,16 +265,17 @@ be able to "drag"
        [callback (lambda (b e)
                    (for ([entity (filter entity-visible (get-field search-list a-canvas))])
                         (set-entity-selected! entity #t))
-                   (send a-canvas update-node-lst)
-                   (send a-canvas update-canvas)
-                   (send a-canvas refresh-spreadsheet)
+                   (send a-canvas update-node-lst!)
+                   (send a-canvas update-canvas!)
+                   (send a-canvas update-canvas!)
+                   (update-spreadsheet! (get-field search-list a-canvas))
                    )])
   
   (new button%
        [label "Refocus"]
        [parent button-panel-1]
        [callback (lambda (b e)
-                   (send a-canvas refocus)
+                   (send a-canvas refocus!)
                    )])
   
   (define create (new path-dialog%
@@ -297,10 +294,10 @@ be able to "drag"
                           [y-offset (add1 (* -1 smallest-y))]
                           [start-n (node (add1 smallest-x) (add1 smallest-y))])
                      (set-field! search-list a-canvas (append (do-optimization selected start-n) not-selected))
-                     (send a-canvas update-node-lst)
-                     (send a-canvas update-canvas)
-                     (send a-canvas refresh-spreadsheet)
-                     (send a-canvas refocus)))])
+                     (send a-canvas update-node-lst!)
+                     (send a-canvas update-canvas!)
+                     (send a-canvas refresh-spreadsheet!)
+                     (send a-canvas refocus!)))])
 
   ;;for debugging. formatted for human reading, remove whitespaces and dots when parsing
   #|
