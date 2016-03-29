@@ -3,9 +3,9 @@
 ## Background
 DXF files represent computer aided data (CAD) in an easy to parse format, and this program generates 2D motion paths (in a proprietary format for industrial robots) from DXF files. 
 
-You might be interested in it as a code example on how to structure GUI classes in Racket (badly) or how to implement some simple computer graphic routines like intersection queries (inefficiently). I know these code examples, no matter how unidiomatic they may be, would have been a gold mine for me when i was starting out.
+You might be interested in it as a code example on how to structure GUI classes in Racket (badly) or how to implement some simple computer graphics routines like intersection queries (inefficiently). I know these code examples, no matter how unidiomatic they may be, would have been a gold mine for me when i was starting out.
 
-My rationale for using Racket is it's cross-platform GUI in the standard library, and Racket was extremely easy to start using. Lisps also makes it very easy to manipulate data (and they lend that rarefied hipster aura to anyone who can knowledgeably talk about it)
+My rationale for using Racket is it's cross-platform GUI in the standard library, and Racket was extremely easy to start using. Lisps also makes it very easy to manipulate data.
 
 ## Dependencies
 
