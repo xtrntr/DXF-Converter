@@ -38,7 +38,13 @@
          x]
         [(node-equal? start-n (get-entity-end x))
          (reverse-entity x)]
-        [else (error "Expected the node to be start or end of the entity, but was given: " start-n x)]))
+        [else (error (format "Expected node ~a to be start node ~a or end node ~a of the entity, but
+matching node-start gives ~a and node-end gives ~a"
+                             start-n
+                             (get-entity-start x)
+                             (get-entity-end x)
+                             (node-equal? start-n (get-entity-start x))
+                             (node-equal? start-n (get-entity-end x))))]))
 
 ;;HELPER functions for finding (and reversing if needed) entity/entities in a list of entity.
 ;;they are a little dense, so feel free to remove the (cast .. ..) for readability. they were put in there for optimization.

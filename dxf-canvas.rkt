@@ -67,7 +67,6 @@ limit panning and zooming with respect to a specified workspace limit
      [select-box '()]
      
      [node-groups '()] ;contains list of list of nodes. see group-entities to understand
-     [reorder? #f] ;display clickpoints of selected entities
      [highlighted-node #f] ;clickpoint near cursor
      [path-lst '()]  ;list of connections
      [node-lst '()] ;list of clickable nodes
@@ -488,10 +487,9 @@ limit panning and zooming with respect to a specified workspace limit
         (show-popup?
          (let* ([selected-list (get-belonging-list highlighted-node node-groups)]
                 [node-lst (entities->nodes selected-list)]
-                [closed-pattern? (closed-path? node-lst)]
-                [open-pattern? (open-path? node-lst)]
+                [closed-pattern? (and (not (more-than-2? node-lst)) (closed-path? node-lst))]
+                [open-pattern? (and (not (more-than-2? node-lst)) (open-path? node-lst))]
                 [tree-pattern? (more-than-2? node-lst)])
-           (println (format "more-than-2? ~a , node-lst ~a " (more-than-2? node-lst) node-lst))
            (cond [tree-pattern? (send this popup-menu popup-error cursor-x cursor-y)]
                  [open-pattern? (send this popup-menu popup-opened cursor-x cursor-y)]
                  [closed-pattern? (send this popup-menu popup-closed cursor-x cursor-y)])))

@@ -226,17 +226,19 @@ be able to "drag"
          [style '(border)]	 	 
          [stretchable-height #f]
          [alignment '(center top)]))
-  
+
+  ;;use for debugging
+  #|
   (new button%
        [label
-        ;"Display scale/offset"
-        "Display start/end nodes"
+        "Display scale/offset"
               ]
        [parent button-panel-1]
        [callback (lambda (b e)
                    (set-field! reorder? a-canvas (not (get-field reorder? a-canvas)))
                    (send a-canvas update-canvas!)
                    )])
+  |#
 
   (new button%
        [label "Change circle into dots"]

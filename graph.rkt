@@ -13,7 +13,7 @@
   (remove-duplicates (foldl append '() (map (lambda (node) (hash-ref node-ht node)) node-lst))))
 
 (define (sort-from-edges edge-lst node-ht)
-  (remove-duplicates (foldl append '() (map (lambda (edge) (hash-ref node-ht edge)) edge-lst))))
+  (remove-duplicates (foldl append '() (map (lambda (edge) (hash-ref node-ht edge)) edge-lst)) entities-identical?))
 
 (define (make-graph entity-lst)
   (unweighted-graph/undirected
@@ -98,6 +98,10 @@
     can-visit))
 
 (define (reorder-entities start-n entity-lst)
+  (println (format "start-n: ~a for lst length of ~a" start-n (length entity-lst)))
+  ;(for ([i entity-lst])
+  ;     (println (format "~a, ~a" (get-entity-start i) (get-entity-end i))))
+  (newline)
   (let* ([1st (list (reorder-entity start-n (first entity-lst)))]
          [res (foldl (lambda (next prev)
                        (cons (reorder-entity (get-entity-end (first prev)) next) prev)) 1st (rest entity-lst))])
@@ -108,7 +112,7 @@
         [(equal? (second edge) n) (first edge)]
         [else (error "node not found in edge" n edge)]))
 
-;; returns a lst of paths
+;; returns a lst of lst of entities
 (define (reorder-tree-path start-n entity-lst)
   (let* ([edge-lst (entities->edges (remove-duplicates entity-lst entities-identical?))]
          [edge-hash (make-edge-hs entity-lst)]
@@ -120,33 +124,36 @@
                   [uniques (get-unique-nodes (entities->nodes entity-lst))]
                   [open? (open-path? (entities->nodes entity-lst))]
                   [start-n (first e-lst)])
-             (reorder-entities start-n entity-lst)))
-           ;(reorder-open-path (first (first e-lst)) (reverse (sort-from-edges e-lst edge-hash))))
+             (if (= (length entity-lst) 1)
+                 entity-lst
+                 (reorder-entities start-n entity-lst))))
          (let loop
            ([acc '()]
             [e-lst edge-lst]
             [curr-n start-n]
-            [curr-path '()]
+            [curr-path (list start-n)] ;put the start-n as the first element of the curr-path 
             [visited-ns '()] ;if a current path encounters a visited node, choose another node if one is available
             [original-n start-n])
            (if (empty? e-lst) 
                (if (empty? curr-path)
                    (begin (reverse acc))
-                   (begin (reverse (cons (cons original-n (reverse curr-path)) acc))))
+                   (begin (reverse (cons (reverse curr-path) acc))))
                (let ([edges (n-find-edges curr-n original-n e-lst visited-ns)])
                  (cond
                    ;; dead end
                    [(empty? edges) (let ([prev-original-n (hash-ref ht original-n #f)])
                                      (if prev-original-n
-                                         (begin (writeln (format "dead, moving from original node : ~a " original-n))
+                                         (begin (writeln (format "dead, restarting from original node : ~a " original-n))
+                                                (unless (node? (first curr-path))
+                                                          (writeln (format "addding lst of length : ~a " (length (reverse curr-path)))))
                                                 (hash-remove! ht original-n)
-                                                      ;; only cons curr-path into acc if it's not empty
-                                                (loop (if (empty? curr-path)
+                                                ;only cons curr path if it contains more than just the original node.
+                                                (loop (if (node? (first curr-path))
                                                           acc
-                                                          (cons (cons original-n (reverse curr-path)) acc))
+                                                          (cons (reverse curr-path) acc))
                                                       e-lst
                                                       original-n
-                                                      '()
+                                                      (list original-n)
                                                       ;try removing visited-ns immediately on a dead end,
                                                       ;not sure what implications this may have
                                                       '()
@@ -159,7 +166,7 @@
                                                      (writeln (cons key val))))))]
                    ;; traversing one way
                    [(= 1 (length edges)) (let ([next-n (get-other-n (first edges) curr-n)])
-                                           (println (format "1way, moving from current node : ~a to next node : ~a" curr-n next-n))
+                                           ;(println (format "1way, adding edge: ~a" (first edges)))
                                            (loop acc
                                                  (remove (first edges) e-lst)
                                                  next-n
@@ -169,7 +176,7 @@
                    ;; at a junction/fork
                    [else (let ([next-n (get-other-n (first edges) curr-n)])
                            (hash-set! ht curr-n original-n)
-                           (println (format "fork, moving from current node : ~a to next node : ~a" curr-n next-n))
+                           ;(println (format "fork, adding edge: ~A" (first edges)))
                            (loop acc
                                  (remove (first edges) e-lst)
                                  next-n
