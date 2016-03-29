@@ -13,7 +13,7 @@
   (remove-duplicates (foldl append '() (map (lambda (node) (hash-ref node-ht node)) node-lst))))
 
 (define (sort-from-edges edge-lst node-ht)
-  (remove-duplicates (foldl append '() (map (lambda (edge) (hash-ref node-ht edge)) edge-lst)) entities-identical?))
+  (reverse (foldl append '() (map (lambda (edge) (hash-ref node-ht edge)) edge-lst))))
 
 (define (make-graph entity-lst)
   (unweighted-graph/undirected
@@ -96,15 +96,18 @@
                                             (not (n-in-edge? e original-n))
                                             (not (and (member (first e) visited-ns) (member (second e) visited-ns))))) edges)])
     can-visit))
-
+  
 (define (reorder-entities start-n entity-lst)
-  (println (format "start-n: ~a for lst length of ~a" start-n (length entity-lst)))
-  ;(for ([i entity-lst])
-  ;     (println (format "~a, ~a" (get-entity-start i) (get-entity-end i))))
+  (for ([i entity-lst])
+       (println (format "~a ~a" (get-entity-start i) (get-entity-end i))))
   (newline)
   (let* ([1st (list (reorder-entity start-n (first entity-lst)))]
-         [res (foldl (lambda (next prev)
-                       (cons (reorder-entity (get-entity-end (first prev)) next) prev)) 1st (rest entity-lst))])
+         [res (foldl (lambda (next acc)
+                       (println (format "~a to ~a"
+                                        (cons (get-entity-start (first acc)) (get-entity-end (first acc)))
+                                        (cons (get-entity-start next) (get-entity-end next))))
+                       (cons (reorder-entity (get-entity-end (first acc)) next) acc)) 1st (rest entity-lst))])
+    (newline)
     (reverse res)))
 
 (define (get-other-n edge n)
@@ -114,15 +117,14 @@
 
 ;; returns a lst of lst of entities
 (define (reorder-tree-path start-n entity-lst)
-  (let* ([edge-lst (entities->edges (remove-duplicates entity-lst entities-identical?))]
+  (let* ([entity-lst entity-lst]
+         [edge-lst (entities->edges entity-lst)]
          [edge-hash (make-edge-hs entity-lst)]
          [node-lst (entities->nodes entity-lst)]
          [ht (make-hash)]) ;;hash will be original-n (key) previous-original-n (value)
     (map (lambda (e-lst)
            ;;assumes in every e-lst the first entity is ordered correctly.
-           (let* ([entity-lst (reverse (sort-from-edges (rest e-lst) edge-hash))]
-                  [uniques (get-unique-nodes (entities->nodes entity-lst))]
-                  [open? (open-path? (entities->nodes entity-lst))]
+           (let* ([entity-lst (sort-from-edges (rest e-lst) edge-hash)]
                   [start-n (first e-lst)])
              (if (= (length entity-lst) 1)
                  entity-lst
@@ -141,12 +143,9 @@
                (let ([edges (n-find-edges curr-n original-n e-lst visited-ns)])
                  (cond
                    ;; dead end
-                   [(empty? edges) (let ([prev-original-n (hash-ref ht original-n #f)])
+                   [(empty? edges) (let ([prev-original-n (first (hash-ref ht original-n #f))])
                                      (if prev-original-n
-                                         (begin (writeln (format "dead, restarting from original node : ~a " original-n))
-                                                (unless (node? (first curr-path))
-                                                          (writeln (format "addding lst of length : ~a " (length (reverse curr-path)))))
-                                                (hash-remove! ht original-n)
+                                         (begin (hash-update! ht original-n (lambda (other-ns) (remove prev-original-n other-ns)) '())
                                                 ;only cons curr path if it contains more than just the original node.
                                                 (loop (if (node? (first curr-path))
                                                           acc
@@ -154,19 +153,13 @@
                                                       e-lst
                                                       original-n
                                                       (list original-n)
-                                                      ;try removing visited-ns immediately on a dead end,
-                                                      ;not sure what implications this may have
                                                       '()
-                                                      ;if no more prev original than start from original-n
-                                                      ;but it means curr-n and original-n are the same. see what implications this has later.
                                                       (if prev-original-n prev-original-n original-n)))
                                          (begin (writeln (format "original-n: ~a" original-n))
-                                                (for ([key (hash-keys ht)]
-                                                      [val (hash-values ht)])
-                                                     (writeln (cons key val))))))]
+                                                (for ([key (hash-keys ht)])
+                                                     (writeln key)))))]
                    ;; traversing one way
                    [(= 1 (length edges)) (let ([next-n (get-other-n (first edges) curr-n)])
-                                           ;(println (format "1way, adding edge: ~a" (first edges)))
                                            (loop acc
                                                  (remove (first edges) e-lst)
                                                  next-n
@@ -175,8 +168,7 @@
                                                  original-n))]
                    ;; at a junction/fork
                    [else (let ([next-n (get-other-n (first edges) curr-n)])
-                           (hash-set! ht curr-n original-n)
-                           ;(println (format "fork, adding edge: ~A" (first edges)))
+                           (hash-update! ht curr-n (lambda (other-ns) (cons original-n other-ns)) '())
                            (loop acc
                                  (remove (first edges) e-lst)
                                  next-n
@@ -194,7 +186,7 @@
           (let* ([groups (group-entities entity-lst)]
                  [start-n (nn start (flatten (map get-start/end-nodes groups)))]
                  [lst-to-reorder (get-belonging-list start-n groups)]
-                 [base-elements (remove-duplicates (get-base-elements lst-to-reorder) entities-identical?)]
+                 [base-elements (get-base-elements lst-to-reorder)]
                  ;we actually want to remove one instance of each element in base elements, not all instances
                  [rest-of-lst (remove* base-elements entity-lst)]
                  [nodes (entities->nodes base-elements)]

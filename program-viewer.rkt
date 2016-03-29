@@ -78,8 +78,8 @@ be able to "drag"
   (define left (smallest (get-x-vals original-list)))
   (define bottom (smallest (get-y-vals original-list)))
   (define display-scale (get-display-scale original-list editor-width editor-height))
-  (define search-list (for/list ([entity original-list])
-                                (upscale! entity display-scale)))
+  (define search-list (remove-duplicates (for/list ([entity original-list])
+                                                   (upscale! entity display-scale)) entities-identical?))
   (define layer-list (map (lambda (x) (if (string? x) x (number->string x)))
                           (remove-duplicates (map entity-layer original-list))))
   

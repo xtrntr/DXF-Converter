@@ -265,7 +265,7 @@ limit panning and zooming with respect to a specified workspace limit
               (unless (empty? to-display-for)
                 (set! node-groups (group-entities (get-selected-entities search-list))))
               (let ([islands-removed (filter-not (lambda (group) (= 1 (length group))) node-groups)]) ;i.e. a path, dont need to show nodes for it
-                (set! node-lst (flatten (map get-start/end-nodes islands-removed))))))))
+                (set! node-lst (remove-duplicates (flatten (map get-start/end-nodes islands-removed)))))))))
     
     (define/public (update-canvas!)
       (send (get-dc) set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
@@ -341,11 +341,6 @@ limit panning and zooming with respect to a specified workspace limit
                                                        (make-selected (car next)))
                                                    acc))
                                                 '() (reorder-tree-path highlighted-node base-elements))])
-                         (for ([item to-add])
-                              (if (path? item)
-                                  (for ([e (path-entities item)])
-                                   (println (format "~a , ~a" (get-entity-start e) (get-entity-end e))))
-                                  (println (format "~a , ~a" (get-entity-start item) (get-entity-end item)))))
                          (set! search-list (append to-add (remove* base-elements search-list)))
                          (update-node-lst!)
                          (update-canvas!)
@@ -359,6 +354,7 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
+                              [disp (println (bagify (entities->nodes base-elements)))]
                               [new-path (make-selected (make-path (reorder-open-path highlighted-node base-elements)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst!)
@@ -485,7 +481,7 @@ limit panning and zooming with respect to a specified workspace limit
          (unhighlight-entities! prev-highlight)
          (set! highlighted-node #f))
         (show-popup?
-         (let* ([selected-list (get-belonging-list highlighted-node node-groups)]
+         (let* ([selected-list (get-base-elements (get-belonging-list highlighted-node node-groups))]
                 [node-lst (entities->nodes selected-list)]
                 [closed-pattern? (and (not (more-than-2? node-lst)) (closed-path? node-lst))]
                 [open-pattern? (and (not (more-than-2? node-lst)) (open-path? node-lst))]
