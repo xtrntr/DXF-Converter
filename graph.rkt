@@ -189,7 +189,6 @@
                  [closed-pattern? (and (not (more-than-2? node-lst)) (closed-path? node-lst))]
                  [open-pattern? (and (not (more-than-2? node-lst)) (open-path? node-lst))]
                  [tree-pattern? (more-than-2? node-lst)])
-            (println (format "groups? ~a" (map length groups)))
             (cond [single-entity? (let ([x (first lst-to-reorder)])
                                     (loop (if (equal? start-n (get-entity-start x)) (get-entity-end x) (get-entity-start x))
                                           rest-of-lst

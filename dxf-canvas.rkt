@@ -354,7 +354,6 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [disp (println (bagify (entities->nodes base-elements)))]
                               [new-path (make-selected (make-path (reorder-open-path highlighted-node base-elements)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst!)

@@ -287,20 +287,18 @@ be able to "drag"
        [label "Optimize"]
        [parent button-panel-2]
        [callback (lambda (b e)
-                   (define selected (get-selected-entities (get-field search-list a-canvas)))
+                   (define selected (get-selected-entities (get-field search-list a-canvas))) 
                    (define not-selected (filter (lambda (x) (not (entity-selected x))) (get-field search-list a-canvas)))
                    (let* ([smallest-y (smallest (get-y-vals selected))]
                           [smallest-x (smallest (get-x-vals selected))]
                           [x-offset (add1 (* -1 smallest-x))]
                           [y-offset (add1 (* -1 smallest-y))]
                           [start-n (node (add1 smallest-x) (add1 smallest-y))])
-                     (println (format "before length : ~a" (length (get-base-elements (get-field search-list a-canvas)))))
                      (set-field! search-list a-canvas (append (do-optimization selected start-n) not-selected))
                      (send a-canvas update-node-lst!)
                      (send a-canvas update-canvas!)
                      (update-spreadsheet! (get-field search-list a-canvas))
-                     (send a-canvas refocus!)
-                     (println (format "after length : ~a" (length (get-base-elements (get-field search-list a-canvas)))))))])
+                     (send a-canvas refocus!)))])
 
   ;;for debugging. formatted for human reading, remove whitespaces and dots when parsing
   #|
