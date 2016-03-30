@@ -104,13 +104,7 @@ matching node-start gives ~a and node-end gives ~a"
 ;given the starting node and the list of entities to build the path
 (: reorder-open-path (-> node Path-Entities Path-Entities))
 (define (reorder-open-path start-n entity-lst)
-  (newline)
-  (newline)
   (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
-  (println (format "unique nodes ~a , start-n ~a" (get-unique-nodes (entities->nodes entity-lst)) start-n))
-  (for ([i entity-lst])
-       (println (format "~a ~a" (get-entity-start i) (get-entity-end i))))
-  (newline)
   (define layer (entity-layer (first entity-lst)))
   (cast (let main : Entities
           ([current : Entity first-entity]
@@ -120,11 +114,6 @@ matching node-start gives ~a and node-end gives ~a"
                 (else
                  (let-values ([(next-entity new-lst)
                                (find-entity-from-node (get-entity-end current) unchecked)])
-                   (println (format "~a,~a to ~a,~a"
-                                    (get-entity-start current)
-                                    (get-entity-end current)
-                                    (get-entity-start next-entity)
-                                    (get-entity-end next-entity)))
                    (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))
 
 ;build a path,

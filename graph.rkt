@@ -2,6 +2,7 @@
 
 (require graph ;stephen chang's graph library
          "structs.rkt"
+         "untyped-utils.rkt"
          "utils.rkt"
          "lst-utils.rkt") 
 
@@ -98,16 +99,9 @@
     can-visit))
   
 (define (reorder-entities start-n entity-lst)
-  (for ([i entity-lst])
-       (println (format "~a ~a" (get-entity-start i) (get-entity-end i))))
-  (newline)
   (let* ([1st (list (reorder-entity start-n (first entity-lst)))]
          [res (foldl (lambda (next acc)
-                       (println (format "~a to ~a"
-                                        (cons (get-entity-start (first acc)) (get-entity-end (first acc)))
-                                        (cons (get-entity-start next) (get-entity-end next))))
                        (cons (reorder-entity (get-entity-end (first acc)) next) acc)) 1st (rest entity-lst))])
-    (newline)
     (reverse res)))
 
 (define (get-other-n edge n)
@@ -121,9 +115,9 @@
          [edge-lst (entities->edges entity-lst)]
          [edge-hash (make-edge-hs entity-lst)]
          [node-lst (entities->nodes entity-lst)]
-         [ht (make-hash)]) ;;hash will be original-n (key) previous-original-n (value)
+         [ht (make-hash)]) ;hash will be original-n (key) previous-original-n (value)
     (map (lambda (e-lst)
-           ;;assumes in every e-lst the first entity is ordered correctly.
+           ;assumes in every e-lst the first entity is ordered correctly.
            (let* ([entity-lst (sort-from-edges (rest e-lst) edge-hash)]
                   [start-n (first e-lst)])
              (if (= (length entity-lst) 1)
@@ -179,39 +173,41 @@
 (define (do-optimization lst start-n)
     (let loop ([start start-n]
                [entity-lst lst]
-               [acc '()]
-               [individuals '()])
+               [acc '()])
       (if (empty? entity-lst)
-          (append (reverse acc) individuals) ;cuz order of the list matters here
+          (reverse acc) ;cuz order of the list matters here
           (let* ([groups (group-entities entity-lst)]
                  [start-n (nn start (flatten (map get-start/end-nodes groups)))]
                  [lst-to-reorder (get-belonging-list start-n groups)]
-                 [base-elements (get-base-elements lst-to-reorder)]
+                 [base-elements (if (and (= (length lst-to-reorder) 1) (path? (first lst-to-reorder)))
+                                    lst-to-reorder
+                                    (get-base-elements lst-to-reorder))]
                  ;we actually want to remove one instance of each element in base elements, not all instances
                  [rest-of-lst (remove* base-elements entity-lst)]
-                 [nodes (entities->nodes base-elements)]
+                 [node-lst (entities->nodes base-elements)]
                  [single-entity? (= (length lst-to-reorder) 1)]
-                 [closed-pattern? (closed-path? nodes)]
-                 [open-pattern? (open-path? nodes)]
-                 [tree-pattern? (tree-path? nodes)])
-            ;possible bug where entity start and end node are equal to each other because they are too close
-            ;need to fix node-equal?
+                 [closed-pattern? (and (not (more-than-2? node-lst)) (closed-path? node-lst))]
+                 [open-pattern? (and (not (more-than-2? node-lst)) (open-path? node-lst))]
+                 [tree-pattern? (more-than-2? node-lst)])
+            (println (format "groups? ~a" (map length groups)))
             (cond [single-entity? (let ([x (first lst-to-reorder)])
                                     (loop (if (equal? start-n (get-entity-start x)) (get-entity-end x) (get-entity-start x))
                                           rest-of-lst
-                                          (cons (reorder-entity start-n x) acc)
-                                          individuals))]
+                                          (cons (reorder-entity start-n x) acc)))]
                   [open-pattern? (let ([new-path (make-selected (make-path (reorder-open-path start-n base-elements)))])
                                    (loop (get-entity-end new-path)
                                          rest-of-lst
-                                         (cons new-path acc)
-                                         individuals))]
+                                         (cons new-path acc)))]
                   [closed-pattern? (let ([new-path (make-selected (make-path (reorder-closed-path start-n base-elements #f)))])
                                      (loop (get-entity-end new-path)
                                            rest-of-lst
-                                           (cons new-path acc)
-                                           individuals))]
-                  [tree-pattern? (loop start-n
-                                       rest-of-lst
-                                       acc
-                                       (append lst-to-reorder individuals))])))))
+                                           (cons new-path acc)))]
+                  [tree-pattern? (let ([new-paths (foldl (lambda (next acc)
+                                                          (cons (if (> (length next) 1)
+                                                                    (make-selected (make-path next))
+                                                                    (make-selected (car next)))
+                                                                acc))
+                                                        '() (reorder-tree-path start-n base-elements))])
+                                   (loop start-n
+                                         rest-of-lst
+                                         (append new-paths acc)))])))))

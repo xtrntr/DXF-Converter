@@ -269,7 +269,6 @@ be able to "drag"
                         (set-entity-selected! entity #t))
                    (send a-canvas update-node-lst!)
                    (send a-canvas update-canvas!)
-                   (send a-canvas update-canvas!)
                    (update-spreadsheet! (get-field search-list a-canvas))
                    )])
   
@@ -295,11 +294,13 @@ be able to "drag"
                           [x-offset (add1 (* -1 smallest-x))]
                           [y-offset (add1 (* -1 smallest-y))]
                           [start-n (node (add1 smallest-x) (add1 smallest-y))])
+                     (println (format "before length : ~a" (length (get-base-elements (get-field search-list a-canvas)))))
                      (set-field! search-list a-canvas (append (do-optimization selected start-n) not-selected))
                      (send a-canvas update-node-lst!)
                      (send a-canvas update-canvas!)
-                     (send a-canvas refresh-spreadsheet!)
-                     (send a-canvas refocus!)))])
+                     (update-spreadsheet! (get-field search-list a-canvas))
+                     (send a-canvas refocus!)
+                     (println (format "after length : ~a" (length (get-base-elements (get-field search-list a-canvas)))))))])
 
   ;;for debugging. formatted for human reading, remove whitespaces and dots when parsing
   #|
