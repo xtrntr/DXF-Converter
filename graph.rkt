@@ -8,18 +8,23 @@
 
 (provide (all-defined-out))
 
-;; we can use node-equal here to check for similar keys
-;; (get-duplicate-nodes (hash-keys node-ht)) then link the 2 groups together.
+;from a list of nodes, return the entities that are connected to all nodes
 (define (sort-from-nodes node-lst node-ht)
   (remove-duplicates (foldl append '() (map (lambda (node) (hash-ref node-ht node)) node-lst))))
 
+;from a list of edges, return the entities that represent the edges
 (define (sort-from-edges edge-lst node-ht)
   (reverse (foldl append '() (map (lambda (edge) (hash-ref node-ht edge)) edge-lst))))
 
+;initialize the graph with a list of edges '(start-n end-n) from list of entities
 (define (make-graph entity-lst)
   (unweighted-graph/undirected
-   (map (lambda (entity) (list (get-entity-start entity) (get-entity-end entity)))
-        entity-lst)))
+   (for/list ([e entity-lst])
+        (list (get-entity-start entity) (get-entity-end entity)))))
+
+;build the hashtable with key node - value entity for sort-from-nodes
+(define (make-node-hs entity-lst)
+  (foldl add-node-entity (hash) entity-lst))
 
 (define (add-node-entity entity ht)
   (let ([start-n (get-entity-start entity)]
@@ -32,6 +37,10 @@
                (lambda (linked-entities) (cons entity linked-entities))
                '())))
 
+;build the hashtable with key edge - value entity for sort-from-edges
+(define (make-edge-hs entity-lst)
+  (foldl add-edge-entity (hash) entity-lst))
+
 (define (add-edge-entity entity ht)
   (let ([start-n (get-entity-start entity)]
         [end-n  (get-entity-end entity)])
@@ -40,12 +49,7 @@
                (lambda (linked-entities) (cons entity linked-entities))
                '())))
 
-(define (make-node-hs entity-lst)
-  (foldl add-node-entity (hash) entity-lst))
-
-(define (make-edge-hs entity-lst)
-  (foldl add-edge-entity (hash) entity-lst))
-                               
+;return the a list of list of entities, where each list of entities in the main list are connected
 (define (group-entities entity-lst)
   (let* ([edges (entities->edges entity-lst)]
          [graph (unweighted-graph/undirected edges)]
@@ -53,24 +57,8 @@
          [node-hash (make-node-hs entity-lst)]
          [entity-grps (for/list ([node-lst node-lsts])
                                 (sort-from-nodes node-lst node-hash))]
-         ;[sub-graphs (map make-graph entity-grps)]
          )
     entity-grps))
-
-(define (edges->entities edge-lst entity-lst)
-  (for/list ([edge edge-lst])
-    ((lambda (entity) 
-       (if (and (equal? (first edge) (get-entity-start entity))
-                (equal? (second edge) (get-entity-end entity)))
-           entity
-           (reverse-entity entity)))
-     (findf 
-      (lambda (entity)
-        (or (and (equal? (first edge) (get-entity-start entity))
-                 (equal? (second edge) (get-entity-end entity)))
-            (and (equal? (second edge) (get-entity-start entity))
-                 (equal? (first edge) (get-entity-end entity)))))
-      entity-lst))))
 
 (define (get-edges lst)
   (map (lambda (e) (list (first e) (second e))) lst))
@@ -138,8 +126,7 @@
                  (cond
                    ;; dead end
                    [(empty? edges) (let ([prev-original-n (first (hash-ref ht original-n #f))])
-                                     (if prev-original-n
-                                         (begin (hash-update! ht original-n (lambda (other-ns) (remove prev-original-n other-ns)) '())
+                                     (hash-update! ht original-n (lambda (other-ns) (remove prev-original-n other-ns)) '())
                                                 ;only cons curr path if it contains more than just the original node.
                                                 (loop (if (node? (first curr-path))
                                                           acc
@@ -149,9 +136,13 @@
                                                       (list original-n)
                                                       '()
                                                       (if prev-original-n prev-original-n original-n)))
+                                     #|
+                                     ;should never happen. for debugging purposes
+                                     (unless prev-original-n
                                          (begin (writeln (format "original-n: ~a" original-n))
                                                 (for ([key (hash-keys ht)])
-                                                     (writeln key)))))]
+                                                     (writeln key))))
+                                     |#]
                    ;; traversing one way
                    [(= 1 (length edges)) (let ([next-n (get-other-n (first edges) curr-n)])
                                            (loop acc

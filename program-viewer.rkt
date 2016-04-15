@@ -370,15 +370,23 @@ be able to "drag"
                         selected
                         (open-output-file path-string #:mode 'text #:exists 'truncate/replace)
                         x-offset y-offset))))])
-  
-  )
 
-  #|
   (new button%
        [label "Generate for IDS"]
        [parent button-panel-2]
        [callback (lambda (b e) 
-                   (define stripped (filter (lambda (x) (tree-path? (entities->nodes x))) (group-entities (get-selected-entities (get-field search-list a-canvas)))))
-                  ;(generate-ids-pattern (downscale stripped display-scale) (open-output-file (send create run) #:mode 'text #:exists 'truncate/replace)))])
-                 ])
-  |#
+                   (define selected (for/list ([entity (get-selected-entities (get-field search-list a-canvas))])
+                                              (downscale entity display-scale)))
+                   (define path-string (send create run))
+                   (when path-string
+                     (let* ([smallest-y (smallest (get-y-vals selected))]
+                            [smallest-x (smallest (get-x-vals selected))]
+                            [x-offset (+ 1 (* -1 smallest-x))]
+                            [y-offset (+ 1 (* -1 smallest-y))])
+                       ;binary for osx, text for windows
+                       (generate-ids-pattern
+                        selected
+                        (open-output-file path-string #:mode 'text #:exists 'truncate/replace)
+                        x-offset y-offset))))])
+
+  )

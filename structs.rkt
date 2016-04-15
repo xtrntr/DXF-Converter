@@ -118,7 +118,11 @@ Try to keep the more complex and specific functions in lst-utils.
 
 (: entity-to-string (-> Entity String))
 (define (entity-to-string x)
-  (capitalize (symbol->string (cast (object-name x) Symbol))))
+  (if (arc? x)
+      (if (arc-is-circle? x)
+          "Circle"
+          (capitalize (symbol->string (cast (object-name x) Symbol))))
+      (capitalize (symbol->string (cast (object-name x) Symbol)))))
 
 (: reverse-entity (-> Entity Entity))
 (define (reverse-entity a-struct)
