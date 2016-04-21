@@ -6,9 +6,7 @@ This is where initialization and everything comes together. This is mainly for h
 GUI elements, such as the buttons that are initialized in a frame.
 
 TODO:
-make spreadsheet display look nice. space out the coordinates
-refocus button should work better
-resizing panels when resizing the window
+support for spline elements - add POLYLINE to list of supported DXF entities
 
 TYPED MODULES:
 structs

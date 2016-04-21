@@ -300,8 +300,8 @@ Try to keep the more complex and specific functions in lst-utils.
                                  (path (lambda (x) (get-entity-end (last x)))))
                    a-struct)))
 
-(: make-mirror (-> Entities Entities))
-(define (make-mirror entity-lst)
+(: make-y-mirror (-> Entities Entities))
+(define (make-y-mirror entity-lst)
   (for/list ([x : Entity entity-lst])
             (match x
               [(dot highlighted selected visible layer p)
@@ -326,15 +326,89 @@ Try to keep the more complex and specific functions in lst-utils.
                  (arc highlighted selected visible layer
                       (node (node-x center) (* -1 (node-y center)))
                       radius
-                      (get-mirror-angle start)
-                      (get-mirror-angle end)
+                      (get-y-mirror-angle start)
+                      (get-y-mirror-angle end)
                       (node (node-x p1) (* -1 (node-y p1)))
                       (node (node-x p2) (* -1 (node-y p2)))
                       (node (node-x p3) (* -1 (node-y p3)))
                       (not ccw)
                       mbr))]
               [(path highlighted selected visible layer entities)
-               (path highlighted selected visible layer (cast (make-mirror entities) Path-Entities))])))
+               (path highlighted selected visible layer (cast (make-y-mirror entities) Path-Entities))])))
+
+(: make-x-mirror (-> Entities Entities))
+(define (make-x-mirror entity-lst)
+  (for/list ([x : Entity entity-lst])
+            (match x
+              [(dot highlighted selected visible layer p)
+               (dot highlighted selected visible layer
+                    (node (* -1 (node-x p)) (node-y p)))]
+              [(line highlighted selected visible layer p1 p2 mbr)
+               (let* ([xb (biggest (list (* -1 (node-x p1)) (* -1 (node-x p2))))]
+                      [yb (biggest (list (node-y p1) (node-y p2)))]
+                      [xs (smallest (list (* -1 (node-x p1)) (* -1 (node-x p2))))]
+                      [ys (smallest (list (node-y p1) (node-y p2)))]
+                      [mbr (rect xs ys xb yb)])
+                 (line highlighted selected visible layer
+                       (node (* -1 (node-x p1)) (node-y p1))
+                       (node (* -1 (node-x p2)) (node-y p2))
+                       mbr))]
+              [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
+               (let* ([xb (biggest (list (* -1 (node-x p1)) (* -1 (node-x p2)) (* -1 (node-x p3))))]
+                      [yb (biggest (list (node-y p1) (node-y p2) (node-y p3)))]
+                      [xs (smallest (list (* -1 (node-x p1)) (* -1 (node-x p2)) (* -1 (node-x p3))))]
+                      [ys (smallest (list (node-y p1) (node-y p2) (node-y p3)))]
+                      [mbr (rect xs ys xb yb)])
+                 (arc highlighted selected visible layer
+                      (node (* -1 (node-x center)) (node-y center))
+                      radius
+                      (get-x-mirror-angle start)
+                      (get-x-mirror-angle end)
+                      (node (* -1 (node-x p1)) (node-y p1))
+                      (node (* -1 (node-x p2)) (node-y p2))
+                      (node (* -1 (node-x p3)) (node-y p3))
+                      (not ccw)
+                      mbr))]
+              [(path highlighted selected visible layer entities)
+               (path highlighted selected visible layer (cast (make-x-mirror entities) Path-Entities))])))
+
+(: rotate-90 (-> Entities Entities))
+(define (rotate-90 entity-lst)
+  (for/list ([x : Entity entity-lst])
+            (match x
+              [(dot highlighted selected visible layer p)
+               (dot highlighted selected visible layer
+                    (node (* -1 (node-y p)) (node-x p)))]
+              [(line highlighted selected visible layer p1 p2 mbr)
+               (let* ([xb (biggest (list (* -1 (node-y p1)) (* -1 (node-y p2))))]
+                      [yb (biggest (list (node-x p1) (node-x p2)))]
+                      [xs (smallest (list (* -1 (node-y p1)) (* -1 (node-y p2))))]
+                      [ys (smallest (list (node-x p1) (node-x p2)))]
+                      [mbr (rect xs ys xb yb)])
+                 (line highlighted selected visible layer
+                       (node (* -1 (node-y p1)) (node-x p1))
+                       (node (* -1 (node-y p2)) (node-x p2))
+                       mbr))]
+              [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr)
+               (let* ([xb (biggest (list (* -1 (node-y p1)) (* -1 (node-y p2)) (* -1 (node-y p3))))]
+                      [yb (biggest (list (node-x p1) (node-x p2) (node-x p3)))]
+                      [xs (smallest (list (* -1 (node-y p1)) (* -1 (node-y p2)) (* -1 (node-y p3))))]
+                      [ys (smallest (list (node-x p1) (node-x p2) (node-x p3)))]
+                      [mbr (rect xs ys xb yb)]
+                      [rotated-start (get-rotated-angle start)]
+                      [rotated-end (get-rotated-angle end)])
+                 (arc highlighted selected visible layer
+                      (node (* -1 (node-y center)) (node-x center))
+                      radius
+                      (if (arc-is-circle? x) start (get-rotated-angle start))
+                      (if (arc-is-circle? x) end (get-rotated-angle end))
+                      (node (* -1 (node-y p1)) (node-x p1))
+                      (node (* -1 (node-y p2)) (node-x p2))
+                      (node (* -1 (node-y p3)) (node-x p3))
+                      ccw
+                      mbr))]
+              [(path highlighted selected visible layer entities)
+               (path highlighted selected visible layer (cast (rotate-90 entities) Path-Entities))])))
 
 (: display-entity (-> Entity Void))
 (define (display-entity x)

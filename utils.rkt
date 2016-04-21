@@ -91,6 +91,12 @@ This module contains all helper functions that can operate on numbers, strings, 
   (or (and (> num-1 test-num) (< num-2 test-num))
       (and (> num-2 test-num) (< num-1 test-num))))
 
+(: difference (-> Real Real Real))
+(define (difference x y)
+  (if (and (> 0 x) (> 0 y))
+      (abs (- (- x) (- y)))
+      (abs (- x y))))
+
 (: break (All [T] (-> (T -> Any) (Listof T) (Values (Listof T) (Listof T)))))
 (define (break pred lst)
   (splitf-at lst (negate pred)))
@@ -108,9 +114,21 @@ This module contains all helper functions that can operate on numbers, strings, 
         ((in-between? x 270 360) (- x 180))
         (error "Expected a number, given " x)))
 
-(: get-mirror-angle (-> Real Real))
-(define (get-mirror-angle x)
+(: get-y-mirror-angle (-> Real Real))
+(define (get-y-mirror-angle x)
   (- 360 x))
+
+(: get-x-mirror-angle (-> Real Real))
+(define (get-x-mirror-angle x)
+  (if (<= 180 x)
+      (- 540 x)
+      (- 180 x)))
+
+(: get-rotated-angle (-> Real Real))
+(define (get-rotated-angle x)
+  (if (> (+ x 90) 360)
+      (- (+ x 90) 360)
+      (+ x 90)))
 
 (: localize-degree (-> Real Real))
 (define (localize-degree degree)

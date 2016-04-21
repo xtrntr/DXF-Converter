@@ -75,7 +75,7 @@ ArcEnd: x, y, z, travel speed, dispense on/off, retract delay, retract height, r
   (set! x-off x-offset)
   (set! y-off y-offset)
   (current-output-port port)
-  (for ([x : Entities struct-list])
+  (for ([x : Entity struct-list])
        (struct-to-format x))
   (close-output-port port))
 

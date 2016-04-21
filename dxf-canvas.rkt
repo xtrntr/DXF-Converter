@@ -223,8 +223,8 @@ limit panning and zooming with respect to a specified workspace limit
                [big-y (biggest (drop lst 2))]
                [small-x (smallest (take lst 2))]
                [small-y (smallest (drop lst 2))]
-               [width (abs (- big-x small-x))]
-               [height (abs (- big-y small-y))])
+               [width (difference big-x small-x)]
+               [height (difference big-y small-y)])
           (begin (send dc-path rectangle small-x small-y width height)
                  (send (get-dc) draw-path dc-path)))))
     
@@ -245,8 +245,9 @@ limit panning and zooming with respect to a specified workspace limit
                              (set-entity-highlighted! i #t)
                              (set-entity-highlighted! i #f))]
                         [(arc? i)
-                         (if (and (rect-intersect? (arc-mbr i) query-mbr)
-                                  (arc-intersect? i small-x small-y big-x big-y))
+                         (if ;(and (rect-intersect? (arc-mbr i) query-mbr)
+                                  (arc-intersect? i small-x small-y big-x big-y)
+                                  ;)
                              (set-entity-highlighted! i #t)
                              (set-entity-highlighted! i #f))]
                         [(dot? i)
@@ -281,8 +282,8 @@ limit panning and zooming with respect to a specified workspace limit
                [top (smallest (get-y-vals entity-lst))]
                [left (smallest (get-x-vals entity-lst))]
                [right (biggest (get-x-vals entity-lst))]
-               [height (abs (- top bottom))]
-               [width (abs (- right left))]
+               [height (difference top bottom)]
+               [width (difference right left)]
                [scale-x (/ canvas-width width)]
                [scale-y (/ canvas-height height)]
                ;0.864 -> 0.8, 1.113 -> 1.1
@@ -301,7 +302,8 @@ limit panning and zooming with respect to a specified workspace limit
           (set! x-offset x-off)
           (set! y-offset y-off)
           (set! x-scale drawing-scale)
-          (set! y-scale drawing-scale)))
+          (set! y-scale drawing-scale)
+          ))
       (update-canvas!))
     
     ;; POPUP MENU
@@ -448,8 +450,8 @@ limit panning and zooming with respect to a specified workspace limit
       (define end-selecting? (and release-left (not (empty? select-box))))
       (define show-popup? (and (node? highlighted-node) click-right))
       (define click-detected? (and release-left
-                                   (> 0.5 (abs (- scaled-cursor-x init-cursor-x)))
-                                   (> 0.5 (abs (- scaled-cursor-y init-cursor-y)))))
+                                   (> 0.5 (difference scaled-cursor-x init-cursor-x))
+                                   (> 0.5 (difference scaled-cursor-y init-cursor-y))))
       
       (refresh)
       
