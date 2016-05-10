@@ -61,13 +61,14 @@ dxf-canvas
     
     (define/override (file-menu:between-save-as-and-print file-menu)
       (new menu-item%
-           [label "&Open DXF File "]
+           [label "&Open DXF File"]
            [parent file-menu]
            [callback (lambda (b e)
                        (define input-port-or-not (send open run))
                        (when input-port-or-not
                          (open-file input-port-or-not this)))]))
     (super-new)))
+
 
 (define frame-width  800)
 (define frame-height 600)

@@ -184,18 +184,18 @@
                                     (loop (if (equal? start-n (get-entity-start x)) (get-entity-end x) (get-entity-start x))
                                           rest-of-lst
                                           (cons (reorder-entity start-n x) acc)))]
-                  [open-pattern? (let ([new-path (make-selected (make-path (reorder-open-path start-n base-elements)))])
+                  [open-pattern? (let ([new-path (make-selected! (make-path (reorder-open-path start-n base-elements)))])
                                    (loop (get-entity-end new-path)
                                          rest-of-lst
                                          (cons new-path acc)))]
-                  [closed-pattern? (let ([new-path (make-selected (make-path (reorder-closed-path start-n base-elements #f)))])
+                  [closed-pattern? (let ([new-path (make-selected! (make-path (reorder-closed-path start-n base-elements #f)))])
                                      (loop (get-entity-end new-path)
                                            rest-of-lst
                                            (cons new-path acc)))]
                   [tree-pattern? (let ([new-paths (foldl (lambda (next acc)
                                                           (cons (if (> (length next) 1)
-                                                                    (make-selected (make-path next))
-                                                                    (make-selected (car next)))
+                                                                    (make-selected! (make-path next))
+                                                                    (make-selected! (car next)))
                                                                 acc))
                                                         '() (reorder-tree-path start-n base-elements))])
                                    (loop start-n

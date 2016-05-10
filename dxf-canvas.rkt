@@ -238,24 +238,24 @@ limit panning and zooming with respect to a specified workspace limit
              [query-mbr (rect small-x small-y big-x big-y)]
              )
         (for/list ([i (filter (lambda (x) (and (entity-visible x) (not (entity-selected x)))) lst)])
-                  ;only calculate intersections for visible and not yet selected items
-                  (cond [(line? i)
-                         (if (and (rect-intersect? (line-mbr i) query-mbr)
-                                  (line-intersect? i small-x small-y big-x big-y))
-                             (set-entity-highlighted! i #t)
-                             (set-entity-highlighted! i #f))]
-                        [(arc? i)
-                         (if ;(and (rect-intersect? (arc-mbr i) query-mbr)
-                                  (arc-intersect? i small-x small-y big-x big-y)
-                                  ;)
-                             (set-entity-highlighted! i #t)
-                             (set-entity-highlighted! i #f))]
-                        [(dot? i)
-                         (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y)
-                             (set-entity-highlighted! i #t)
-                             (set-entity-highlighted! i #f))]
-                        [(path? i)
-                         (intersect? x1 y1 x2 y2 (path-entities i))]))))
+          ;only calculate intersections for visible and not yet selected items
+          (cond [(line? i)
+                 (if (and (rect-intersect? (line-mbr i) query-mbr)
+                          (line-intersect? i small-x small-y big-x big-y))
+                     (set-entity-highlighted! i #t)
+                     (set-entity-highlighted! i #f))]
+                [(arc? i)
+                 (if ;(and (rect-intersect? (arc-mbr i) query-mbr)
+                  (arc-intersect? i small-x small-y big-x big-y)
+                  ;)
+                  (set-entity-highlighted! i #t)
+                  (set-entity-highlighted! i #f))]
+                [(dot? i)
+                 (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y)
+                     (set-entity-highlighted! i #t)
+                     (set-entity-highlighted! i #f))]
+                [(path? i)
+                 (intersect? x1 y1 x2 y2 (path-entities i))]))))
     
     ;don't include paths
     (define/public (update-node-lst!)
@@ -282,8 +282,12 @@ limit panning and zooming with respect to a specified workspace limit
                [top (smallest (get-y-vals entity-lst))]
                [left (smallest (get-x-vals entity-lst))]
                [right (biggest (get-x-vals entity-lst))]
-               [height (difference top bottom)]
-               [width (difference right left)]
+               [height (if (zero? (difference top bottom))
+                           100
+                           (difference top bottom))]
+               [width (if (zero? (difference right left))
+                           100
+                           (difference right left))]
                [scale-x (/ canvas-width width)]
                [scale-y (/ canvas-height height)]
                ;0.864 -> 0.8, 1.113 -> 1.1
@@ -299,6 +303,8 @@ limit panning and zooming with respect to a specified workspace limit
                [corner-y (- mid-y (/ (/ canvas-height 2) drawing-scale))]
                [x-off (* -1 corner-x drawing-scale)]
                [y-off (* -1 corner-y drawing-scale)])
+          (for ([i (list right left (get-x-vals entity-lst) entity-lst)])
+            (println i))
           (set! x-offset x-off)
           (set! y-offset y-off)
           (set! x-scale drawing-scale)
@@ -339,8 +345,8 @@ limit panning and zooming with respect to a specified workspace limit
                               [to-add (foldl (lambda (next acc)
                                                   (cons 
                                                    (if (> (length next) 1)
-                                                       (make-selected (make-path next))
-                                                       (make-selected (car next)))
+                                                       (make-selected! (make-path next))
+                                                       (make-selected! (car next)))
                                                    acc))
                                                 '() (reorder-tree-path highlighted-node base-elements))])
                          (set! search-list (append to-add (remove* base-elements search-list)))
@@ -356,7 +362,7 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-open-path highlighted-node base-elements)))])
+                              [new-path (make-selected! (make-path (reorder-open-path highlighted-node base-elements)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst!)
                          (update-canvas!)
@@ -370,7 +376,7 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #f)))])
+                              [new-path (make-selected! (make-path (reorder-closed-path highlighted-node base-elements #f)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst!)
                          (update-canvas!)
@@ -383,7 +389,7 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #t)))])
+                              [new-path (make-selected! (make-path (reorder-closed-path highlighted-node base-elements #t)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
                          (update-node-lst!)
                          (update-canvas!)

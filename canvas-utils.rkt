@@ -251,7 +251,7 @@ canvas-utils is meant for containing operations that affect the interactivity/di
 
 (: circ2dot (-> arc dot))
 (define (circ2dot a)
-  (cast (make-selected (make-dot (entity-layer a)
+  (cast (make-selected! (make-dot (entity-layer a)
                            (node-x (arc-center a))
                            (node-y (arc-center a)))) dot))
 

@@ -33,7 +33,7 @@ be able to "drag"
 (define tolerance 0.001) ;in mm
 
 (define (open-file input-port a-frame)
-  
+
   (define original-list (file->struct-list input-port))
   (unless (empty? original-list)
     (define area-container (send a-frame get-area-container))
@@ -106,7 +106,7 @@ be able to "drag"
                          (entity-selected entity)
                          (ormap (lambda (index)
                                   (= (string->number (first index)) idx)) index-lst))
-                    (make-highlighted entity)
+                    (make-highlighted! entity)
                     (begin (set-entity-highlighted! entity #f)
                            entity))))
     

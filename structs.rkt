@@ -96,19 +96,19 @@ Try to keep the more complex and specific functions in lst-utils.
             [mbr (rect xs ys xb yb)])
        (arc #f #f #f layer (node center-x center-y) radius start end (node x1 y1) (node x2 y2) (node x3 y3) ccw? mbr))]))
 
-(: make-highlighted (-> Entity Entity))
-(define (make-highlighted an-entity)
+;; ENTITY OPERATIONS
+(: make-highlighted! (-> Entity Entity))
+(define (make-highlighted! an-entity)
   (set-entity-highlighted! an-entity #t)
   an-entity)
 
-(: make-selected (-> Entity Entity))
-(define (make-selected an-entity)
+(: make-selected! (-> Entity Entity))
+(define (make-selected! an-entity)
   (set-entity-selected! an-entity #t)
   (set-entity-highlighted! an-entity #f)
   (set-entity-visible! an-entity #t)
   an-entity)
 
-;; ENTITY OPERATIONS
 (: arc-is-circle? (-> arc Boolean))
 (define (arc-is-circle? an-arc)
   (or (and (= 0 (arc-start an-arc))
