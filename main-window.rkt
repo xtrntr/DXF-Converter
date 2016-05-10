@@ -2,12 +2,11 @@
 
 #|
 
-This is where initialization and everything comes together. This is mainly for holding custom one-time GUI elements, such as the buttons that are initialized in a DXF frame.
+This is where initialization and everything comes together. This is mainly for holding custom one-time
+GUI elements, such as the buttons that are initialized in a frame.
 
 TODO:
-make spreadsheet display look nice. space out the coordinates
-refocus button should work better
-resizing panels when resizing the window
+support for spline elements - add POLYLINE to list of supported DXF entities
 
 TYPED MODULES:
 structs
@@ -62,13 +61,14 @@ dxf-canvas
     
     (define/override (file-menu:between-save-as-and-print file-menu)
       (new menu-item%
-           [label "&Open DXF File "]
+           [label "&Open DXF File"]
            [parent file-menu]
            [callback (lambda (b e)
                        (define input-port-or-not (send open run))
                        (when input-port-or-not
                          (open-file input-port-or-not this)))]))
     (super-new)))
+
 
 (define frame-width  800)
 (define frame-height 600)

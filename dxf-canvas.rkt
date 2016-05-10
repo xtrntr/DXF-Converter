@@ -16,6 +16,7 @@ limit panning and zooming with respect to a specified workspace limit
 (require "structs.rkt"
          "canvas-utils.rkt"
          "lst-utils.rkt"
+         "untyped-utils.rkt"
          "utils.rkt"
          "graph.rkt"
          racket/draw)
@@ -41,11 +42,11 @@ limit panning and zooming with respect to a specified workspace limit
      downscale-x
      upscale-y
      downscale-y
-
+     
      ;;how much variation before we can consider nodes to be connected
      tolerance
      
-     update-spreadsheet)
+     update-spreadsheet!)
     
     (field 
      ;canvas display variables
@@ -64,13 +65,12 @@ limit panning and zooming with respect to a specified workspace limit
      
      ;display selection box
      [select-box '()]
-
+     
      [node-groups '()] ;contains list of list of nodes. see group-entities to understand
-     [reorder? #f] ;display clickpoints of selected entities
      [highlighted-node #f] ;clickpoint near cursor
      [path-lst '()]  ;list of connections
-     [node-lst '()]) ;list of clickable nodes
-    
+     [node-lst '()] ;list of clickable nodes
+     [prev-highlight '()])
     
     ;; DRAWING COLORS
     (define no-brush (new brush% [style 'transparent]))
@@ -85,7 +85,7 @@ limit panning and zooming with respect to a specified workspace limit
     (define normal (make-object cursor% 'arrow))
     (define panning (make-object cursor% 'hand))
     (define selecting (make-object cursor% 'cross))
-
+    
     ;; MORE SCALING FUNCTIONS
     ;; any function that uses node-equal should accept this as an argument
     ;; (-> node node)
@@ -93,23 +93,12 @@ limit panning and zooming with respect to a specified workspace limit
       (lambda (n)
         (node (downscale-x (node-x n))
               (downscale-y (node-y n)))))
-
-    (define node-eq?
-      (lambda (n1 n2)
-        (equal? n1 n2)))
-      ;(lambda (n1 n2)
-      ;  (let ([n1 (node-val n1)]
-      ;        [n2 (node-val n2)])
-      ;  (> tolerance (sqrt (+ (sqr (abs (- (node-x n1) (node-x n2))))
-      ;                        (sqr (abs (- (node-y n1) (node-y n2))))))))))
-
-    (define entities-connected?
-      (lambda (x y)
-        (or (node-eq? (get-entity-end x) (get-entity-end y))
-            (node-eq? (get-entity-end x) (get-entity-start y))
-            (node-eq? (get-entity-start x) (get-entity-end y))
-            (node-eq? (get-entity-start x) (get-entity-start y)))))
-        
+    
+    (define (unhighlight-entities! lst)
+      (unless (empty? lst)
+        (for/list ([j lst])
+                  (when (path? j) (map (lambda (x) (set-entity-highlighted! x #f)) (path-entities j)))
+                  (set-entity-highlighted! j #f))))
     
     ;; MOUSE SCALING
     ;scale mouse coordinates to pixel coordinates
@@ -118,22 +107,22 @@ limit panning and zooming with respect to a specified workspace limit
     (define (mouse2display-y y)
       (/ (- y y-offset) y-scale))
     
-    (define (change-pen pen-type)
+    (define (change-pen! pen-type)
       (send (get-dc) set-pen pen-type))
     
-    (define (change-cursor cursor-type)
+    (define (change-cursor! cursor-type)
       (send this set-cursor cursor-type))
     
     ;; DRAWING FUNCTIONS
-    (define (draw-dot x y)
+    (define (draw-dot! x y)
       (define original-pen (send (get-dc) get-pen))
-      (cond [(equal? original-pen blue-pen) (change-pen big-blue-pen)]
-            [(equal? original-pen black-pen) (change-pen big-black-pen)]
-            [(equal? original-pen orange-pen) (change-pen big-orange-pen)])
+      (cond [(equal? original-pen blue-pen) (change-pen! big-blue-pen)]
+            [(equal? original-pen black-pen) (change-pen! big-black-pen)]
+            [(equal? original-pen orange-pen) (change-pen! big-orange-pen)])
       (send (get-dc) draw-point x y)
       (send (get-dc) set-pen original-pen))
     
-    (define (draw-line x1 y1 x2 y2 dc-path)
+    (define (draw-line! x1 y1 x2 y2 dc-path)
       (send dc-path move-to x1 y1)
       (send dc-path line-to x2 y2)
       (send dc-path close))
@@ -142,8 +131,8 @@ limit panning and zooming with respect to a specified workspace limit
       (send (get-dc) draw-point x y))
     
     ;p1 p2 p3 and ccw are for debugging. they're so useful so leave them in for now.
-    (define (draw-arc x y radius start end p1 p2 p3 ccw dc)
-      ;racket's draw-arc function's x,y starts at bottom left corner (docs say top left but inverted because of -ve y-scale)
+    (define (draw-arc! x y radius start end p1 p2 p3 ccw dc)
+      ;racket's draw-arc! function's x,y starts at bottom left corner (docs say top left but inverted because of -ve y-scale)
       ;DXF provided arc x,y coordinates are at the center of the arc/circle
       (let ((start (degrees->radians (- 360 start))) ;; DXF angles are CW, Racket angles are CCW (because of inverting y scale)
             (end (degrees->radians (- 360 end)))
@@ -155,24 +144,24 @@ limit panning and zooming with respect to a specified workspace limit
             [y2 (node-y p2)]
             [x3 (node-x p3)]
             [y3 (node-y p3)])
-        ;(draw-line x1 y1 x2 y2 highlight?)
-        ;(draw-line x2 y2 x3 y3 highlight?)
+        ;(draw-line! x1 y1 x2 y2 highlight?)
+        ;(draw-line! x2 y2 x3 y3 highlight?)
         (if ccw
             (send (get-dc) draw-arc center-x center-y (* 2 radius) (* 2 radius) start end)
             (send (get-dc) draw-arc center-x center-y (* 2 radius) (* 2 radius) end start))))
     
     ;make public to allow checking/unchecking of layers outside of the canvas
-    (define/public (draw-objects lst)
+    (define/public (draw-objects! lst)
       (let ([dc (get-dc)])
         (define (apply-procedure x dc-path)
           (when (entity-visible x)
             (match x
-              [(line _ _ _ _ p1 p2 _)                                 ;(draw-line 0 0 (node-x p1) (node-y p1) dc-path)
-               (draw-line (node-x p1) (node-y p1) (node-x p2) (node-y p2) dc-path)]
-              [(arc _ _ _ _ center radius start end p1 p2 p3 ccw _)   ;(draw-line 0 0 (node-x p1) (node-y p1) dc-path)
-               (draw-arc (node-x center) (node-y center) radius start end p1 p2 p3 ccw dc)]
-              [(dot _ _ _ _ p)                                        ;(draw-line 0 0 (node-x p) (node-y p) dc-path)
-               (draw-dot (node-x p) (node-y p))]
+              [(line _ _ _ _ p1 p2 _)                                 ;(draw-line! 0 0 (node-x p1) (node-y p1) dc-path)
+               (draw-line! (node-x p1) (node-y p1) (node-x p2) (node-y p2) dc-path)]
+              [(arc _ _ _ _ center radius start end p1 p2 p3 ccw _)   ;(draw-line! 0 0 (node-x p1) (node-y p1) dc-path)
+               (draw-arc! (node-x center) (node-y center) radius start end p1 p2 p3 ccw dc)]
+              [(dot _ _ _ _ p)                                        ;(draw-line! 0 0 (node-x p) (node-y p) dc-path)
+               (draw-dot! (node-x p) (node-y p))]
               [(path _ _ _ _ path-list)
                (map (lambda (x) (apply-procedure x dc-path)) path-list)])))
         (let* ([path1 (new dc-path%)]
@@ -187,55 +176,55 @@ limit panning and zooming with respect to a specified workspace limit
                [small-x (smallest (list x1 x2))]
                [small-y (smallest (list y1 y2))]
                [selected-entities (get-selected-entities search-list)])
-
-          (when reorder? 
-            (change-pen big-blue-pen)
-            (for/list ([i node-lst])
-                      (draw-start/end-nodes (node-x i) (node-y i)))
-            (for/list ([j selected-entities])
-                      (when (path? j) (map (lambda (x) (set-entity-highlighted! x #f)) (path-entities j)))
-                      (set-entity-highlighted! j #f))
-            (change-pen big-orange-pen)
-            (for/list ([i node-lst])
-                      (when (point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y)
-                        (let* ([selected-list (get-belonging-list i node-groups)]
-                               [highlighted-node-lst (get-start/end-nodes selected-list)])
-                          (set! highlighted-node i)
-                          (for/list ([i selected-list])
-                                    (when (path? i) (map (lambda (x) (set-entity-highlighted! x #t)) (path-entities i)))
-                                    (set-entity-highlighted! i #t))
-                          (for/list ([i highlighted-node-lst])
-                                    (draw-start/end-nodes (node-x i) (node-y i)))))))
-
-          ;; A HACK BY KR
+          
+          (change-pen! big-blue-pen)
+          (for/list ([i node-lst])
+                    (draw-start/end-nodes (node-x i) (node-y i)))
+          (unless (empty? prev-highlight)
+            (unhighlight-entities! prev-highlight)
+            (set! prev-highlight '()))
+          (change-pen! big-orange-pen)
+          (for/list ([i node-lst])
+                    (when (point-in-rect? (node-x i) (node-y i) small-x small-y big-x big-y)
+                      (let* ([selected-list (get-belonging-list i node-groups)]
+                             [highlighted-node-lst (get-start/end-nodes selected-list)])
+                        (set! highlighted-node i)
+                        (set! prev-highlight selected-list)
+                        (for/list ([i selected-list])
+                                  (when (path? i) (map (lambda (x) (set-entity-highlighted! x #t)) (path-entities i)))
+                                  (set-entity-highlighted! i #t))
+                        (for/list ([i highlighted-node-lst])
+                                  (draw-start/end-nodes (node-x i) (node-y i))))))
+          
+          ;; 
           ;; BECAUSE ARCS CAN'T BE INCLUDED IN THE DC PATH, WE DRW THEM SEPARATELY FROM LINES/DOTS
-          ;; OTHERWISE WE HAVE TO CALL CHANGE-PEN A LOT.
-          (change-pen black-pen)
+          ;; OTHERWISE WE HAVE TO CALL change-pen! A LOT.
+          (change-pen! black-pen)
           (for/list ([x (filter (lambda (x) (and (not (entity-highlighted x)) (not (entity-selected x)))) lst)])
                     (apply-procedure x path1))
           (send (get-dc) draw-path path1)
           
-          (change-pen blue-pen)
+          (change-pen! blue-pen)
           (for/list ([x (filter (lambda (x) (or (entity-highlighted x) (entity-selected x))) lst)])
                     (apply-procedure x path2))
           (send (get-dc) draw-path path2)
-          (draw-select-box select-box path2)
+          (draw-select-box! select-box path2)
           
-          (change-pen orange-pen)
+          (change-pen! orange-pen)
           (for/list ([x (filter (lambda (x) (and (entity-highlighted x) (entity-selected x))) lst)])
                     (apply-procedure x path3))
           (send (get-dc) draw-path path3)
           
           )))
     
-    (define (draw-select-box lst dc-path)
+    (define (draw-select-box! lst dc-path)
       (unless (empty? select-box)
         (let* ([big-x (biggest (take lst 2))]
                [big-y (biggest (drop lst 2))]
                [small-x (smallest (take lst 2))]
                [small-y (smallest (drop lst 2))]
-               [width (abs (- big-x small-x))]
-               [height (abs (- big-y small-y))])
+               [width (difference big-x small-x)]
+               [height (difference big-y small-y)])
           (begin (send dc-path rectangle small-x small-y width height)
                  (send (get-dc) draw-path dc-path)))))
     
@@ -249,26 +238,27 @@ limit panning and zooming with respect to a specified workspace limit
              [query-mbr (rect small-x small-y big-x big-y)]
              )
         (for/list ([i (filter (lambda (x) (and (entity-visible x) (not (entity-selected x)))) lst)])
-                  ;only calculate intersections for visible and not yet selected items
-                  (cond [(line? i)
-                         (if (and (rect-intersect? (line-mbr i) query-mbr)
-                                  (line-intersect? i small-x small-y big-x big-y))
-                             (set-entity-highlighted! i #t)
-                             (set-entity-highlighted! i #f))]
-                        [(arc? i)
-                         (if (and (rect-intersect? (arc-mbr i) query-mbr)
-                                  (arc-intersect? i small-x small-y big-x big-y))
-                             (set-entity-highlighted! i #t)
-                             (set-entity-highlighted! i #f))]
-                        [(dot? i)
-                         (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y)
-                             (set-entity-highlighted! i #t)
-                             (set-entity-highlighted! i #f))]
-                        [(path? i)
-                         (intersect? x1 y1 x2 y2 (path-entities i))]))))
+          ;only calculate intersections for visible and not yet selected items
+          (cond [(line? i)
+                 (if (and (rect-intersect? (line-mbr i) query-mbr)
+                          (line-intersect? i small-x small-y big-x big-y))
+                     (set-entity-highlighted! i #t)
+                     (set-entity-highlighted! i #f))]
+                [(arc? i)
+                 (if ;(and (rect-intersect? (arc-mbr i) query-mbr)
+                  (arc-intersect? i small-x small-y big-x big-y)
+                  ;)
+                  (set-entity-highlighted! i #t)
+                  (set-entity-highlighted! i #f))]
+                [(dot? i)
+                 (if (point-in-rect? (node-x (dot-p i)) (node-y (dot-p i)) small-x small-y big-x big-y)
+                     (set-entity-highlighted! i #t)
+                     (set-entity-highlighted! i #f))]
+                [(path? i)
+                 (intersect? x1 y1 x2 y2 (path-entities i))]))))
     
     ;don't include paths
-    (define/public (update-node-lst)
+    (define/public (update-node-lst!)
       (let ([to-display-for (get-selected-entities (filter-not dot? search-list))])
         (if (empty? to-display-for)
             (set! node-lst '())
@@ -276,16 +266,13 @@ limit panning and zooming with respect to a specified workspace limit
               (unless (empty? to-display-for)
                 (set! node-groups (group-entities (get-selected-entities search-list))))
               (let ([islands-removed (filter-not (lambda (group) (= 1 (length group))) node-groups)]) ;i.e. a path, dont need to show nodes for it
-                (set! node-lst (flatten (map get-start/end-nodes islands-removed))))))))
+                (set! node-lst (remove-duplicates (flatten (map get-start/end-nodes islands-removed)))))))))
     
-    (define/public (update-canvas)
+    (define/public (update-canvas!)
       (send (get-dc) set-transformation (vector transformation-matrix x-offset y-offset x-scale y-scale rotation))
       (refresh))
     
-    (define/public (refresh-spreadsheet)
-      (update-spreadsheet search-list))
-    
-    (define/public (refocus)
+    (define/public (refocus!)
       (define-values (w h) (send this get-client-size))
       (when (get-visible-entities search-list)
         (let* ([entity-lst (get-visible-entities search-list)]
@@ -295,8 +282,12 @@ limit panning and zooming with respect to a specified workspace limit
                [top (smallest (get-y-vals entity-lst))]
                [left (smallest (get-x-vals entity-lst))]
                [right (biggest (get-x-vals entity-lst))]
-               [height (abs (- top bottom))]
-               [width (abs (- right left))]
+               [height (if (zero? (difference top bottom))
+                           100
+                           (difference top bottom))]
+               [width (if (zero? (difference right left))
+                           100
+                           (difference right left))]
                [scale-x (/ canvas-width width)]
                [scale-y (/ canvas-height height)]
                ;0.864 -> 0.8, 1.113 -> 1.1
@@ -312,27 +303,36 @@ limit panning and zooming with respect to a specified workspace limit
                [corner-y (- mid-y (/ (/ canvas-height 2) drawing-scale))]
                [x-off (* -1 corner-x drawing-scale)]
                [y-off (* -1 corner-y drawing-scale)])
+          (for ([i (list right left (get-x-vals entity-lst) entity-lst)])
+            (println i))
           (set! x-offset x-off)
           (set! y-offset y-off)
           (set! x-scale drawing-scale)
-          (set! y-scale drawing-scale)))
-      (update-canvas))
+          (set! y-scale drawing-scale)
+          ))
+      (update-canvas!))
     
     ;; POPUP MENU
     (define popup-opened
       (new popup-menu%
            [popdown-callback (lambda (p e)
-                               (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
+                               (when (equal? (send e get-event-type) 'menu-popdown-none) 
+                                 (unhighlight-entities! prev-highlight)
+                                 (set! highlighted-node #f)))]))
     
     (define popup-error
       (new popup-menu%
            [popdown-callback (lambda (p e)
-                               (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
+                               (when (equal? (send e get-event-type) 'menu-popdown-none) 
+                                 (unhighlight-entities! prev-highlight)
+                                 (set! highlighted-node #f)))]))
     
     (define popup-closed
       (new popup-menu%
            [popdown-callback (lambda (p e)
-                               (when (equal? (send e get-event-type) 'menu-popdown-none) (set! highlighted-node #f)))]))
+                               (when (equal? (send e get-event-type) 'menu-popdown-none) 
+                                 (unhighlight-entities! prev-highlight)
+                                 (set! highlighted-node #f)))]))
     
     ;; POPUP MENU items
     (define display-err
@@ -340,20 +340,19 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form paths from a tree pattern."]
            [parent popup-error]
            [callback (lambda (b e)
-                       (display (reorder! highlighted-node (get-base-elements (get-belonging-list highlighted-node node-groups))))
-                       #|
                        (let* ([to-remove (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements to-remove)]
-                              [new-paths (map (lambda (entity-lst) (if (> (length entity-lst) 1)
-                                                                       (make-selected (make-path entity-lst))
-                                                                       (make-selected (car entity-lst))))
-                                              (reorder-entities highlighted-node base-elements))])
-                         (set! search-list (append new-paths (remove* base-elements search-list)))
-                         (update-node-lst)
-                         (update-canvas)
-                         (update-spreadsheet search-list)
-                         )
-                       |#
+                              [to-add (foldl (lambda (next acc)
+                                                  (cons 
+                                                   (if (> (length next) 1)
+                                                       (make-selected! (make-path next))
+                                                       (make-selected! (car next)))
+                                                   acc))
+                                                '() (reorder-tree-path highlighted-node base-elements))])
+                         (set! search-list (append to-add (remove* base-elements search-list)))
+                         (update-node-lst!)
+                         (update-canvas!)
+                         (update-spreadsheet! search-list))
                        )]))
     
     (define open-nodir
@@ -361,16 +360,13 @@ limit panning and zooming with respect to a specified workspace limit
            [label "Form an open path."]
            [parent popup-opened]
            [callback (lambda (b e)
-                       (display (reorder! highlighted-node (get-base-elements (get-belonging-list highlighted-node node-groups))))
-                       #|
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-open-path highlighted-node base-elements)))])
+                              [new-path (make-selected! (make-path (reorder-open-path highlighted-node base-elements)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
-                         (update-node-lst)
-                         (update-canvas)
-                         (update-spreadsheet search-list))
-                       |#
+                         (update-node-lst!)
+                         (update-canvas!)
+                         (update-spreadsheet! search-list))
                        )]))
     
     (define closed-clockwise
@@ -380,11 +376,11 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #f)))])
+                              [new-path (make-selected! (make-path (reorder-closed-path highlighted-node base-elements #f)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
-                         (update-node-lst)
-                         (update-canvas)
-                         (update-spreadsheet search-list)))]))
+                         (update-node-lst!)
+                         (update-canvas!)
+                         (update-spreadsheet! search-list)))]))
     
     (define closed-anticlockwise
       (new menu-item%
@@ -393,11 +389,11 @@ limit panning and zooming with respect to a specified workspace limit
            [callback (lambda (b e)
                        (let* ([list-of-entities-to-reorder (get-belonging-list highlighted-node node-groups)]
                               [base-elements (get-base-elements list-of-entities-to-reorder)]
-                              [new-path (make-selected (make-path (reorder-closed-path highlighted-node base-elements #t)))])
+                              [new-path (make-selected! (make-path (reorder-closed-path highlighted-node base-elements #t)))])
                          (set! search-list (append (list new-path) (remove* list-of-entities-to-reorder search-list)))
-                         (update-node-lst)
-                         (update-canvas)
-                         (update-spreadsheet search-list)))]))
+                         (update-node-lst!)
+                         (update-canvas!)
+                         (update-spreadsheet! search-list)))]))
     
     ;; KEYBOARD events
     (define/override (on-char event)
@@ -408,19 +404,19 @@ limit panning and zooming with respect to a specified workspace limit
                (set! y-scale (+ y-scale 0.1))]
               [(equal? key 'escape) 
                (set! node-groups '()) 
-               (unselect-all search-list)
-               (update-node-lst)
-               (update-spreadsheet search-list)]
+               (unselect-all! search-list)
+               (update-node-lst!)
+               (update-spreadsheet! search-list)]
               [(equal? key 'wheel-down) 
                (when (> (- x-scale 0.1) 0) 
                  (set! x-scale (- x-scale 0.1))
                  (set! y-scale (- y-scale 0.1)))]
               [(equal? key '#\backspace)
                (set! node-groups '()) 
-               (delete-selected search-list)
-               (update-node-lst)
-               (update-spreadsheet search-list)])
-        (update-canvas)))
+               (delete-selected! search-list)
+               (update-node-lst!)
+               (update-spreadsheet! search-list)])
+        (update-canvas!)))
     
     ;; MOUSE events
     (define/override (on-event event)
@@ -453,26 +449,26 @@ limit panning and zooming with respect to a specified workspace limit
       (cond [(equal? (system-type 'os) 'macosx)
              (set! start-selecting? (and click-left caps-on))
              (set! is-selecting? (and dragging caps-on))]
-             [else
-              (set! start-selecting? (and click-left hold-ctrl))
-              (set! is-selecting? (and dragging hold-ctrl))])
+            [else
+             (set! start-selecting? (and click-left hold-ctrl))
+             (set! is-selecting? (and dragging hold-ctrl))])
       ;use select-box as a flag to check whether we were selecting previously.
       (define end-selecting? (and release-left (not (empty? select-box))))
       (define show-popup? (and (node? highlighted-node) click-right))
       (define click-detected? (and release-left
-                                   (> 0.5 (abs (- scaled-cursor-x init-cursor-x)))
-                                   (> 0.5 (abs (- scaled-cursor-y init-cursor-y)))))
+                                   (> 0.5 (difference scaled-cursor-x init-cursor-x))
+                                   (> 0.5 (difference scaled-cursor-y init-cursor-y))))
       
       (refresh)
       
       (cond
         (end-selecting?
-         (change-cursor normal)
-         (select-highlighted search-list)
-         (update-spreadsheet search-list)
+         (change-cursor! normal)
+         (select-highlighted! search-list)
+         (update-spreadsheet! search-list)
          (set! select-box '())
-         (update-node-lst)
-         (update-canvas))
+         (update-node-lst!)
+         (update-canvas!))
         (end-panning?
          ;see conditions for is-panning? to understand setting init-cursor-x and init-cursor-y values
          (set! init-cursor-x #f)
@@ -480,33 +476,34 @@ limit panning and zooming with respect to a specified workspace limit
          ;fix the offset so that the screen stays where it is after panning is finished
          (set! x-offset (vector-ref (send drawer get-transformation) 1)) 
          (set! y-offset (vector-ref (send drawer get-transformation) 2))
-         (change-cursor normal))
+         (change-cursor! normal))
         (start-selecting?
-         (change-cursor selecting)
+         (change-cursor! selecting)
          (set! init-cursor-x scaled-cursor-x)
          (set! init-cursor-y scaled-cursor-y)
          (set! select-box (list init-cursor-x scaled-cursor-x init-cursor-y scaled-cursor-y)))
         (start-panning?
          (set! init-cursor-x cursor-x)
          (set! init-cursor-y cursor-y)
+         (unhighlight-entities! prev-highlight)
          (set! highlighted-node #f))
         (show-popup?
-         (let* ([selected-list (get-belonging-list highlighted-node node-groups)]
+         (let* ([selected-list (get-base-elements (get-belonging-list highlighted-node node-groups))]
                 [node-lst (entities->nodes selected-list)]
-                [closed-pattern? (closed-path? node-lst)]
-                [open-pattern? (open-path? node-lst)]
-                [tree-pattern? (tree-path? node-lst)])
-           (cond [open-pattern? (send this popup-menu popup-opened cursor-x cursor-y)]
-                 [closed-pattern? (send this popup-menu popup-closed cursor-x cursor-y)]
-                 [tree-pattern? (send this popup-menu popup-error cursor-x cursor-y)])))
+                [closed-pattern? (and (not (more-than-2? node-lst)) (closed-path? node-lst))]
+                [open-pattern? (and (not (more-than-2? node-lst)) (open-path? node-lst))]
+                [tree-pattern? (more-than-2? node-lst)])
+           (cond [tree-pattern? (send this popup-menu popup-error cursor-x cursor-y)]
+                 [open-pattern? (send this popup-menu popup-opened cursor-x cursor-y)]
+                 [closed-pattern? (send this popup-menu popup-closed cursor-x cursor-y)])))
         (is-selecting?
          (intersect? init-cursor-x init-cursor-y scaled-cursor-x scaled-cursor-y search-list)
-         (highlight-paths search-list)
+         (highlight-paths! search-list)
          (set! select-box (list init-cursor-x scaled-cursor-x init-cursor-y scaled-cursor-y)))
         (is-panning?
          (let* ((current-x (- cursor-x init-cursor-x))
                 (current-y (- cursor-y init-cursor-y)))
-           (change-cursor panning)
+           (change-cursor! panning)
            (send drawer set-transformation (vector transformation-matrix (+ current-x x-offset) (+ current-y y-offset) x-scale y-scale rotation))
            (refresh)))))
     
@@ -514,7 +511,7 @@ limit panning and zooming with respect to a specified workspace limit
       (define drawer (get-dc))
       (send this suspend-flush)
       (send drawer set-brush no-brush)
-      (draw-objects search-list)
+      (draw-objects! search-list)
       (define-values (w h) (send this get-client-size))
       #|
       (when (not (empty? (get-visible-entities search-list)))
@@ -531,14 +528,13 @@ limit panning and zooming with respect to a specified workspace limit
                [mid-y (/ (+ top bottom) 2)]
                [left-x (- mid-x (/ (/ canvas-width 2) x-scale))]
                [right-x (+ mid-x (/ (/ canvas-width 2) x-scale))])
-          (send (get-dc) draw-line mid-x mid-y right-x mid-y)
-          (send (get-dc) draw-line mid-x mid-y left-x mid-y)
-          (send (get-dc) draw-line left bottom left top)
-          (send (get-dc) draw-line left top right top)
-          (send (get-dc) draw-line right top right bottom)
-          (send (get-dc) draw-line right bottom left bottom)))
+          (send (get-dc) draw-line! mid-x mid-y right-x mid-y)
+          (send (get-dc) draw-line! mid-x mid-y left-x mid-y)
+          (send (get-dc) draw-line! left bottom left top)
+          (send (get-dc) draw-line! left top right top)
+          (send (get-dc) draw-line! right top right bottom)
+          (send (get-dc) draw-line! right bottom left bottom)))
       |#
       (send this resume-flush))
-    
     
     (super-instantiate ())))

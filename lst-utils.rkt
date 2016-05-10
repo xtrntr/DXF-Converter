@@ -20,16 +20,11 @@
 ;get all the base elements out of a path
 (: get-base-elements (-> Entities Entities))
 (define (get-base-elements lst)
-  (let loop : Entities
-    ([acc : Entities '()]
-     [remaining : Entities lst])
-    (if (empty? remaining)
-        acc
-        (if (path? (first remaining))
-            (loop (loop acc (path-entities (first remaining)))
-                  (rest remaining))
-            (loop (cons (first remaining) acc)
-                  (rest remaining))))))
+  (foldl (lambda ([next : Entity]
+                  [acc : Entities])
+           (if (path? next)
+               (append (path-entities next) acc)
+               (cons next acc))) '() lst))
 
 ;given a start node and an entity, reorder the entity if necessary
 (: reorder-entity (-> node Entity Entity))
@@ -38,7 +33,13 @@
          x]
         [(node-equal? start-n (get-entity-end x))
          (reverse-entity x)]
-        [else (error "Expected the node to be start or end of the entity, but was given: " start-n x)]))
+        [else (error (format "Expected node ~a to be start node ~a or end node ~a of the entity, but
+matching node-start gives ~a and node-end gives ~a"
+                             start-n
+                             (get-entity-start x)
+                             (get-entity-end x)
+                             (node-equal? start-n (get-entity-start x))
+                             (node-equal? start-n (get-entity-end x))))]))
 
 ;;HELPER functions for finding (and reversing if needed) entity/entities in a list of entity.
 ;;they are a little dense, so feel free to remove the (cast .. ..) for readability. they were put in there for optimization.
@@ -105,7 +106,6 @@
 (define (reorder-open-path start-n entity-lst)
   (define-values (first-entity new-lst) (find-entity-from-node start-n entity-lst))
   (define layer (entity-layer (first entity-lst)))
-  (newline)
   (cast (let main : Entities
           ([current : Entity first-entity]
            [acc : Entities (list first-entity)]
@@ -138,7 +138,7 @@
                [unchecked : Entities new-lst])
               (cond ((empty? unchecked) acc)
                     (else
-                     (let-values ([(next-entity new-lst) 
+                     (let-values ([(next-entity new-lst)
                                    (find-entity-from-node (get-entity-end current) unchecked)])
                        (main next-entity (append acc (list next-entity)) new-lst))))) Path-Entities))))
 

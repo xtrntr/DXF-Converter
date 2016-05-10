@@ -1,39 +1,70 @@
 #lang racket
 
-(define filename "gooby.txt")
+(require "structs.rkt"
+         "utils.rkt")
 
 ;; every line has 66 commas after z3.
-(define after-trail ",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,")
-
-
-(require "structs.rkt"
-         "geometric-functions.rkt")
+(define after-trail (make-string 66 #\,))
 
 (provide generate-ids-pattern)
 
-(define (generate-ids-pattern struct-list port)
+(define x-off 0)
+(define y-off 0)
+
+(define (ids-x x)
+  ;25.4 inches debug
+  (round-3 (+ x-off x)))
+
+(define (ids-y y)
+  ;25.4 inches debug
+  (round-3 (+ y-off y)))
+
+(define (insert-newline)
+  ;CR LF for windows
+  ; ~n or \n for windows
+  (printf "\r\n"))
+
+(define (generate-ids-pattern struct-list port x-offset y-offset)
+  (set! x-off x-offset)
+  (set! y-off y-offset)
   (current-output-port port)
   (printf "[Page=Main]")
-  (printf "~n")
-  (for/list ([i struct-list])
-    (printf (struct-to-format i))
-    (printf "~n"))
+  (insert-newline)
+  (for ([i struct-list])
+       (struct-to-format i))
   (close-output-port port))
-         
+
 ;; list -> string
 (define (struct-to-format a-struct)
   (match a-struct
-    [(line layer highlighted selected visible x1 y1 x2 y2)                            (ids-line-format x1 y1 x2 y2)]
-    [(arc layer highlighted selected visible x y radius start end x1 y1 x2 y2 x3 y3)  (ids-arc-format x1 y1 x2 y2 x3 y3)]
-    [(point layer highlighted selected visible x y)                                   (ids-dot-format x y)]))
+    [(dot highlighted selected visible layer p)                                        (ids-dot-format (node-x p) (node-y p))]
+    [(line highlighted selected visible layer p1 p2 mbr)                               (ids-line-format (node-x p1) (node-y p1) (node-x p2) (node-y p2))]
+    [(arc highlighted selected visible layer center radius start end p1 p2 p3 ccw mbr) (ids-arc-format (node-x p1) (node-y p1) (node-x p2) (node-y p2) (node-x p3) (node-y p3) (arc-is-circle? a-struct))]
+    [(path highlighted selected visible layer entities)                                (ids-link entities)]))
 
-(define (ids-arc-format x1 y1 x2 y2 x3 y3)
-  (string-append "Arc,Left,On," (real->decimal-string x1 3) "," (real->decimal-string y1 3) "," "0" "," (real->decimal-string x2 3) "," (real->decimal-string y2 3) "," "0" "," (real->decimal-string x3 3) "," (real->decimal-string y3 3) "," "0" "," after-trail))
+(define (ids-arc-format x1 y1 x2 y2 x3 y3 circle?)
+  (if circle?
+      (printf (format "Circle,Left,On,~a,~a,0,~a,~a,0,~a,~a,0,~a"
+          (ids-x x1) (ids-y y1) (ids-x x2) (ids-y y2) (ids-x x3) (ids-y y3) after-trail))
+      (printf (format "Arc,Left,On,~a,~a,0,~a,~a,0,~a,~a,0,~a"
+          (ids-x x1) (ids-y y1) (ids-x x2) (ids-y y2) (ids-x x3) (ids-y y3) after-trail)))
+  (insert-newline))
 
 (define (ids-dot-format x y)
-  (string-append "Dot,Left,On," (real->decimal-string x 3) "," (real->decimal-string y 3) "," "0" "," "," "," "," "," "," "," after-trail))
+  (printf (format "Dot,Left,On,~a,~a,0,,,,,,,~a"
+          (ids-x x) (ids-y y) after-trail))
+  (insert-newline))
 
 (define (ids-line-format x1 y1 x2 y2)
-  (string-append "Line,Left,On," (real->decimal-string x1 3) "," (real->decimal-string y1 3) "," "0" "," (real->decimal-string x2 3) "," (real->decimal-string y2 3) "," "0" "," "," "," "," after-trail))
+  (printf (format "Line,Left,On,~a,~a,0,~a,~a,0,,,,~a"
+          (ids-x x1) (ids-y y1) (ids-x x2) (ids-y y2) after-trail))
+  (insert-newline))
 
-(define newline (string #\newline))
+(define (ids-link entity-lst)
+  (printf (format "LinkStart,,,,,,,,,,,,~a" after-trail))
+  (insert-newline)
+  (for ([i entity-lst])
+       (struct-to-format i))
+  (printf (format "LinkEnd,,,~a,~a,,,,,,,,~a"
+          (ids-x (node-x (get-entity-end (last entity-lst)))) (ids-y (node-y (get-entity-end (last entity-lst)))) after-trail))
+  (insert-newline))
